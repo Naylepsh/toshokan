@@ -42,7 +42,7 @@ object AssetRepository:
     def add(asset: NewAsset)
         : F[Either[AddAssetError, ExistingAsset[AssetId]]] =
       val spec = Spec[Asset[AssetId]]
-        .where(sql"title = ${asset.title.toString}")
+        .where(sql"title = ${asset.title}")
         .limit(1)
 
       Applicative[F].pure:
