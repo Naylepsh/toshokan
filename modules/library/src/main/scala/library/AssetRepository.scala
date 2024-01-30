@@ -19,14 +19,8 @@ trait AssetRepository[F[_], AssetId, AssetEntryId]:
   ): F[Either[AddEntryError, ExistingAssetEntry[AssetEntryId]]]
 
 object AssetRepository:
-  case class AssetCreator(
-      title: AssetTitle
-  )
-  object AssetCreator:
-    def of(asset: NewAsset): AssetCreator = AssetCreator(asset.title)
-
   @Table(SqliteDbType)
-  case class Asset[AssetId](
+  private case class Asset[AssetId](
       @Id id: AssetId,
       title: AssetTitle
   ) derives DbCodec:
@@ -37,7 +31,7 @@ object AssetRepository:
       AssetId: ClassTag: DbCodec,
       AssetEntryId: ClassTag: DbCodec
   ](ds: DataSource): AssetRepository[F, AssetId, AssetEntryId] = new:
-    val repo = Repo[AssetCreator, Asset[AssetId], AssetId]
+    val repo = Repo[NewAsset, Asset[AssetId], AssetId]
 
     def add(asset: NewAsset)
         : F[Either[AddAssetError, ExistingAsset[AssetId]]] =
@@ -51,7 +45,9 @@ object AssetRepository:
           if assetAlreadyExists
           then AddAssetError.AssetAlreadyExists.asLeft
           else
-            repo.insert(AssetCreator.of(asset))
+            // Magnum complains about SQLite not implementing RETURNING * 
+            // yet a raw sql"INSERT ... RETURNING *".query.run() works fine
+            repo.insert(asset)
             repo.findAll(spec).head.toDomain.asRight
 
     override def addEntries(

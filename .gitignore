@@ -36,4 +36,4 @@ metals.sbt
 .env
 
 # Db
-*.sql
+*.sqlite

@@ -15,6 +15,6 @@ def run: Unit =
   config.setPassword("")
   val ds    = HikariDataSource(config)
   val repo  = AssetRepository.make[Id, Int, Int](ds)
-  val asset = NewAsset(AssetTitle("foo"))
+  val asset = NewAsset(AssetTitle("bar"))
   val result = repo.add(asset)
   println(result)
