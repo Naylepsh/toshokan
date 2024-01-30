@@ -5,6 +5,9 @@ val commonSettings = List(
     Dependencies.catsCore,
     Dependencies.circeCore,
     Dependencies.monocle,
+    Dependencies.magnum,
+    Dependencies.hikariCp,
+    Dependencies.sqliteJDBC,
     Dependencies.munit % Test
   )
 )

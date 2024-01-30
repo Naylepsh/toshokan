@@ -30,3 +30,10 @@ metals.sbt
 .idea
 .idea_modules
 /.worksheet/
+
+# Env
+.envrc
+.env
+
+# Db
+*.sql

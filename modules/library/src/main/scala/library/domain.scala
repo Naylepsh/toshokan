@@ -14,7 +14,8 @@ object domain:
   type AssetTitle = AssetTitle.Type
   object AssetTitle extends Newtype[String]
 
-  case class Asset[Id](id: Id, title: AssetTitle)
+  case class NewAsset(title: AssetTitle)
+  case class ExistingAsset[Id](id: Id, title: AssetTitle)
 
   /**
    * Asset Entry
@@ -26,4 +27,15 @@ object domain:
   type EntryUri = EntryUri.Type
   object EntryUri extends Newtype[URI]
 
-  case class AssetEntry[Id](id: Id, no: EntryNo, uri: EntryUri)
+  case class NewAssetEntry(no: EntryNo, uri: EntryUri)
+  case class ExistingAssetEntry[Id](id: Id, no: EntryNo, uri: EntryUri)
+
+  /**
+   * Errors
+   */
+
+  enum AddAssetError:
+    case AssetAlreadyExists
+
+  enum AddEntryError:
+    case EntryAlreadyExists
