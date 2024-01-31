@@ -1,7 +1,7 @@
 -- migrate:up
-CREATE TABLE asset (
+CREATE TABLE assets (
     id INTEGER PRIMARY KEY,
-    Title TEXT
+    title TEXT
 );
 
 -- migrate:down

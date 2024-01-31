@@ -1,34 +1,38 @@
 ThisBuild / scalaVersion := "3.3.1"
 
-val commonSettings = List(
-  libraryDependencies ++= Seq(
-    Dependencies.catsCore,
-    Dependencies.circeCore,
-    Dependencies.monocle,
-    Dependencies.magnum,
-    Dependencies.hikariCp,
-    Dependencies.sqliteJDBC,
-    Dependencies.munit % Test
-  )
+val commonDependencies = Seq(
+  Dependencies.catsCore,
+  Dependencies.catsEffect,
+  Dependencies.circeCore,
+  Dependencies.monocle,
+  Dependencies.ducktape,
+  Dependencies.doobieCore,
+  Dependencies.munit % Test
 )
 
 lazy val core = project
   .in(file("modules/core"))
-  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= commonDependencies)
 
 lazy val library = project
   .in(file("modules/library"))
-  .settings(commonSettings: _*)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.doobieHikari,
+      Dependencies.hikariCp,
+      Dependencies.sqliteJDBC
+    )
+  )
   .dependsOn(core)
 
 lazy val scraper = project
   .in(file("modules/scaper"))
-  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core)
 
 lazy val scrapeConfigs = project
   .in(file("modules/scrapeConfigs"))
-  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core)
 
 lazy val root = project
@@ -37,7 +41,7 @@ lazy val root = project
     name    := "toshokan",
     version := "0.1.0",
     fork    := true,
-    commonSettings
+    libraryDependencies ++= commonDependencies
   )
   .aggregate(core, library, scraper, scrapeConfigs)
   .dependsOn(core, library, scraper, scrapeConfigs)

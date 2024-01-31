@@ -3,13 +3,14 @@ package core
 import cats.kernel.Order
 import io.circe.{ Decoder, Encoder }
 import monocle.Iso
-import com.augustnagro.magnum.DbCodec
+import doobie.{ Put, Read }
 
 abstract class Newtype[A](
     using ord: Order[A],
     enc: Encoder[A],
     dec: Decoder[A],
-    dbCodec: DbCodec[A]
+    read: Read[A],
+    put: Put[A]
 ):
   /**
    * Shamelessly copy-pasted from:
@@ -30,4 +31,5 @@ abstract class Newtype[A](
   given Order[Type]   = ord
   given Encoder[Type] = enc
   given Decoder[Type] = dec
-  given DbCodec[Type] = dbCodec
+  given Read[Type]    = read
+  given Put[Type]     = put

@@ -1,20 +1,21 @@
 package library
 
-import cats.Id
-import library.domain.NewAsset
-import library.domain.AssetTitle
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
+import cats.effect.IOApp
+import cats.effect.IO
+import cats.syntax.all.*
+import cats.effect.syntax.all.*
 
-@main
-def run: Unit =
-  val config = HikariConfig()
-  config.setDriverClassName("org.sqlite.JDBC")
-  config.setJdbcUrl("jdbc:sqlite:///home/naylepsh/dev/toshokan/db.sqlite")
-  config.setUsername("")
-  config.setPassword("")
-  val ds    = HikariDataSource(config)
-  val repo  = AssetRepository.make[Id, Int, Int](ds)
-  val asset = NewAsset(AssetTitle("bar"))
-  val result = repo.add(asset)
-  println(result)
+object Main extends IOApp.Simple:
+  def run: IO[Unit] =
+    val config = database.Config(
+      "sqlite:///home/naylepsh/dev/toshokan/db.sqlite",
+      "",
+      ""
+    )
+    database.makeSqliteTransactorResource[IO](config).use: xa =>
+      for
+        column  <- AssetRepository.testSelectColumn(xa)
+        columns <- AssetRepository.testSelectAllColumns(xa)
+        _ = println(column)
+        _ = println(columns)
+      yield ()

@@ -39,3 +39,4 @@ object domain:
 
   enum AddEntryError:
     case EntryAlreadyExists
+    case AssetDoesNotExists

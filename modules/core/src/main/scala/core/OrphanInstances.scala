@@ -4,7 +4,9 @@ import java.net.URI
 
 import cats.kernel.Order
 import cats.syntax.all.*
-import com.augustnagro.magnum.DbCodec
+import doobie.util.{ Get, Put }
+import doobie.implicits.*
 
-given Order[URI]   = Order[String].contramap(_.toString)
-given DbCodec[URI] = DbCodec[String].biMap(URI(_), _.toString)
+given Order[URI] = Order[String].contramap(_.toString)
+given Get[URI]   = Get[String].map(URI(_))
+given Put[URI]   = Put[String].contramap(_.toString)
