@@ -30,9 +30,9 @@ abstract class Newtype[A](
     def iso: Iso[A, Type] =
       Iso[A, Type](apply(_))(_.value)
 
-  given Order[Type]   = ord
-  given Encoder[Type] = enc
-  given Decoder[Type] = dec
-  given Read[Type]    = read
+  given Order[Type]        = ord
+  given Encoder[Type]      = enc
+  given Decoder[Type]      = dec
+  given Read[Type]         = read
   given Read[Option[Type]] = readOpt
-  given Put[Type]     = put
+  given Put[Type]          = put
