@@ -1,9 +1,5 @@
 package library
 
-import java.util.UUID
-
-import scala.reflect.ClassTag
-
 import cats.syntax.all.*
 import cats.effect.MonadCancelThrow
 import library.domain.*
