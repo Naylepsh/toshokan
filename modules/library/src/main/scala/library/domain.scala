@@ -15,7 +15,7 @@ object domain:
   object AssetTitle extends Newtype[String]
 
   case class NewAsset(title: AssetTitle)
-  case class ExistingAsset[Id](id: Id, title: AssetTitle)
+  case class ExistingAsset(id: Long, title: AssetTitle)
 
   /**
    * Asset Entry
@@ -28,7 +28,7 @@ object domain:
   object EntryUri extends Newtype[URI]
 
   case class NewAssetEntry(no: EntryNo, uri: EntryUri)
-  case class ExistingAssetEntry[Id](id: Id, no: EntryNo, uri: EntryUri)
+  case class ExistingAssetEntry(id: Long, no: EntryNo, uri: EntryUri)
 
   /**
    * Errors

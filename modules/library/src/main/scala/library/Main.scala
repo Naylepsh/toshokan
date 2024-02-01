@@ -4,6 +4,9 @@ import cats.effect.IOApp
 import cats.effect.IO
 import cats.syntax.all.*
 import cats.effect.syntax.all.*
+import io.github.arainko.ducktape.*
+import core.Tuples
+import library.domain.*
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
@@ -13,9 +16,5 @@ object Main extends IOApp.Simple:
       ""
     )
     database.makeSqliteTransactorResource[IO](config).use: xa =>
-      for
-        column  <- AssetRepository.testSelectColumn(xa)
-        columns <- AssetRepository.testSelectAllColumns(xa)
-        _ = println(column)
-        _ = println(columns)
-      yield ()
+      val repository = AssetRepository.make(xa)
+      repository.add(NewAsset(AssetTitle("Hello"))).flatMap(IO.println)
