@@ -1,10 +1,10 @@
 package core
 
 import cats.kernel.Order
+import doobie.implicits.*
+import doobie.{ Put, Read }
 import io.circe.{ Decoder, Encoder }
 import monocle.Iso
-import doobie.{ Put, Read }
-import doobie.implicits.*
 
 abstract class Newtype[A](
     using ord: Order[A],
