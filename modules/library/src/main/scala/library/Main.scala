@@ -32,4 +32,6 @@ object Main extends IOApp.Simple:
           asset => repository.addEntry(newEntry(asset.id))
         )
         _ <- IO.println(entry)
+        all <- repository.findAll
+        _ <- IO.print(all)
       yield ()

@@ -9,6 +9,7 @@ import doobiex.*
 import library.domain.*
 
 trait AssetRepository[F[_]]:
+  def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def addEntry(entry: NewAssetEntry)
       : F[Either[AddEntryError, ExistingAssetEntry]]
@@ -29,7 +30,42 @@ object AssetRepository:
     val allExceptId = Columns((no, uri, assetId))
     val *           = Columns((id, no, uri, assetId))
 
+  private val A  = Assets as "a"
+  private val AE = AssetEntries as "ae"
+  private val findAllColumns =
+    Columns(
+      A(_.id),
+      A(_.title),
+      AE(_.id).option,
+      AE(_.no).option,
+      AE(_.uri).option
+    )
+
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
+
+    def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
+      sql"""
+          SELECT ${findAllColumns} 
+          FROM ${A}
+          LEFT JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
+      """.queryOf(findAllColumns)
+        .to[List]
+        .transact(xa)
+        .map: rows =>
+          rows
+            .groupBy(row => (row._1, row._2))
+            .map: (asset, records) =>
+              val (assetId, assetTitle) = asset
+              val entries = records
+                .map: (_, title, entryId, entryNo, entryUri) =>
+                  (entryId, entryNo, entryUri, assetId.some)
+                    .tupled
+                    .map(Tuples.from[ExistingAssetEntry](_))
+                .collect:
+                  case Some(entry) => entry
+              ExistingAsset(assetId, assetTitle) -> entries
+            .toList
+
     def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
       sql"INSERT INTO ${Assets}(${Assets.title}) VALUES (${asset.title}) RETURNING ${Assets.*}"
         .queryOf(Assets.*)

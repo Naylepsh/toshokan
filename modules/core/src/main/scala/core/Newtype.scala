@@ -4,12 +4,14 @@ import cats.kernel.Order
 import io.circe.{ Decoder, Encoder }
 import monocle.Iso
 import doobie.{ Put, Read }
+import doobie.implicits.*
 
 abstract class Newtype[A](
     using ord: Order[A],
     enc: Encoder[A],
     dec: Decoder[A],
     read: Read[A],
+    readOpt: Read[Option[A]],
     put: Put[A]
 ):
   /**
@@ -32,4 +34,5 @@ abstract class Newtype[A](
   given Encoder[Type] = enc
   given Decoder[Type] = dec
   given Read[Type]    = read
+  given Read[Option[Type]] = readOpt
   given Put[Type]     = put
