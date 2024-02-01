@@ -27,8 +27,8 @@ object domain:
   type EntryUri = EntryUri.Type
   object EntryUri extends Newtype[URI]
 
-  case class NewAssetEntry(no: EntryNo, uri: EntryUri)
-  case class ExistingAssetEntry(id: Long, no: EntryNo, uri: EntryUri)
+  case class NewAssetEntry(no: EntryNo, uri: EntryUri, assetId: Long)
+  case class ExistingAssetEntry(id: Long, no: EntryNo, uri: EntryUri, assetId: Long)
 
   /**
    * Errors

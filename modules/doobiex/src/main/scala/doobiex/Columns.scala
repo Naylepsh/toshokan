@@ -32,3 +32,6 @@ object Columns:
   def apply[A1, A2, A3](t: (Column[A1], Column[A2], Column[A3]))
       : Columns[(A1, A2, A3)] =
     new Columns(makeFragmentUnsafe(t))
+  def apply[A1, A2, A3, A4](t: (Column[A1], Column[A2], Column[A3], Column[A4]))
+      : Columns[(A1, A2, A3, A4)] =
+    new Columns(makeFragmentUnsafe(t))

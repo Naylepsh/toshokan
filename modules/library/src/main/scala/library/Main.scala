@@ -7,6 +7,7 @@ import cats.effect.syntax.all.*
 import io.github.arainko.ducktape.*
 import core.Tuples
 import library.domain.*
+import java.net.URI
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
@@ -17,4 +18,18 @@ object Main extends IOApp.Simple:
     )
     database.makeSqliteTransactorResource[IO](config).use: xa =>
       val repository = AssetRepository.make(xa)
-      repository.add(NewAsset(AssetTitle("Hello"))).flatMap(IO.println)
+      val newAsset   = NewAsset(AssetTitle("Hello"))
+      def newEntry(assetId: Long) = NewAssetEntry(
+        EntryNo("42"),
+        EntryUri(URI("http://localhost:8080/hello")),
+          assetId
+      )
+      for
+        asset <- repository.add(newAsset)
+        _     <- IO.println(asset)
+        entry <- asset.fold(
+          _ => IO.unit,
+          asset => repository.addEntry(newEntry(asset.id))
+        )
+        _ <- IO.println(entry)
+      yield ()

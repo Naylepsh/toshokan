@@ -1,19 +1,17 @@
 package library
 
-import cats.syntax.all.*
 import cats.effect.MonadCancelThrow
-import library.domain.*
+import cats.syntax.all.*
+import core.Tuples
 import doobie.*
 import doobie.implicits.*
 import doobiex.*
-import core.Tuples
+import library.domain.*
 
 trait AssetRepository[F[_]]:
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
-  def addEntries(
-      assetId: Long,
-      entry: NewAssetEntry
-  ): F[Either[AddEntryError, ExistingAssetEntry]]
+  def addEntry(entry: NewAssetEntry)
+      : F[Either[AddEntryError, ExistingAssetEntry]]
 
 object AssetRepository:
   object Assets extends TableDefinition("assets"):
@@ -23,11 +21,13 @@ object AssetRepository:
     val * = Columns((id, title))
 
   object AssetEntries extends TableDefinition("asset_entries"):
-    val id  = Column[Long]("id")
-    val no  = Column[EntryNo]("no")
-    val uri = Column[EntryUri]("uri")
+    val id      = Column[Long]("id")
+    val no      = Column[EntryNo]("no")
+    val uri     = Column[EntryUri]("uri")
+    val assetId = Column[Long]("asset_id")
 
-    val * = Columns((id, no, uri))
+    val allExceptId = Columns((no, uri, assetId))
+    val *           = Columns((id, no, uri, assetId))
 
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
     def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
@@ -38,7 +38,12 @@ object AssetRepository:
         .map: row =>
           Tuples.from[ExistingAsset](row).asRight
 
-    def addEntries(
-        assetId: Long,
-        entry: NewAssetEntry
-    ): F[Either[AddEntryError, ExistingAssetEntry]] = ???
+    def addEntry(entry: NewAssetEntry)
+        : F[Either[AddEntryError, ExistingAssetEntry]] =
+      val values = Tuples.to(entry)
+      sql"INSERT INTO ${AssetEntries}(${AssetEntries.allExceptId}) VALUES ($values) RETURNING ${AssetEntries.*}"
+        .queryOf(AssetEntries.*)
+        .unique
+        .transact(xa)
+        .map: row =>
+          Tuples.from[ExistingAssetEntry](row).asRight
