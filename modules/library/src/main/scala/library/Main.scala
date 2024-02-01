@@ -19,10 +19,10 @@ object Main extends IOApp.Simple:
     database.makeSqliteTransactorResource[IO](config).use: xa =>
       val repository = AssetRepository.make(xa)
       val newAsset   = NewAsset(AssetTitle("Hello"))
-      def newEntry(assetId: Long) = NewAssetEntry(
+      def newEntry(assetId: AssetId) = NewAssetEntry(
         EntryNo("42"),
         EntryUri(URI("http://localhost:8080/hello")),
-          assetId
+        assetId
       )
       for
         asset <- repository.add(newAsset)

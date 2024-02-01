@@ -15,16 +15,16 @@ trait AssetRepository[F[_]]:
 
 object AssetRepository:
   object Assets extends TableDefinition("assets"):
-    val id    = Column[Long]("id")
+    val id    = Column[AssetId]("id")
     val title = Column[AssetTitle]("title")
 
     val * = Columns((id, title))
 
   object AssetEntries extends TableDefinition("asset_entries"):
-    val id      = Column[Long]("id")
+    val id      = Column[EntryId]("id")
     val no      = Column[EntryNo]("no")
     val uri     = Column[EntryUri]("uri")
-    val assetId = Column[Long]("asset_id")
+    val assetId = Column[AssetId]("asset_id")
 
     val allExceptId = Columns((no, uri, assetId))
     val *           = Columns((id, no, uri, assetId))
