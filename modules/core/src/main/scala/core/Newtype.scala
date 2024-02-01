@@ -36,3 +36,5 @@ abstract class Newtype[A](
   given Read[Type]         = read
   given Read[Option[Type]] = readOpt
   given Put[Type]          = put
+
+  given Conversion[Type, A] = identity

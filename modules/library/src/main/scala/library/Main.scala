@@ -1,22 +1,23 @@
 package library
 
-import cats.effect.IOApp
-import cats.effect.IO
-import cats.syntax.all.*
-import cats.effect.syntax.all.*
-import io.github.arainko.ducktape.*
-import core.Tuples
-import library.domain.*
 import java.net.URI
+
+import cats.effect.syntax.all.*
+import cats.effect.{ IO, IOApp }
+import cats.syntax.all.*
+import core.Tuples
+import db.*
+import io.github.arainko.ducktape.*
+import library.domain.*
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
-    val config = database.Config(
-      "sqlite:///home/naylepsh/dev/toshokan/db.sqlite",
-      "",
-      ""
+    val config = Config(
+      Path("sqlite:///home/naylepsh/dev/toshokan/db.sqlite"),
+      Username(""),
+      Password("")
     )
-    database.makeSqliteTransactorResource[IO](config).use: xa =>
+    transactors.makeSqliteTransactorResource[IO](config).use: xa =>
       val repository = AssetRepository.make(xa)
       val newAsset   = NewAsset(AssetTitle("Hello"))
       def newEntry(assetId: AssetId) = NewAssetEntry(
@@ -31,7 +32,7 @@ object Main extends IOApp.Simple:
           _ => IO.unit,
           asset => repository.addEntry(newEntry(asset.id))
         )
-        _ <- IO.println(entry)
+        _   <- IO.println(entry)
         all <- repository.findAll
-        _ <- IO.print(all)
+        _   <- IO.print(all)
       yield ()

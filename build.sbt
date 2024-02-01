@@ -21,8 +21,8 @@ lazy val doobiex = project
   )
   .dependsOn(core)
 
-lazy val library = project
-  .in(file("modules/library"))
+lazy val db = project
+  .in(file("modules/db"))
   .settings(
     libraryDependencies ++= commonDependencies ++ Seq(
       Dependencies.doobieHikari,
@@ -30,7 +30,14 @@ lazy val library = project
       Dependencies.sqliteJDBC
     )
   )
-  .dependsOn(core, doobiex)
+  .dependsOn(core)
+
+lazy val library = project
+  .in(file("modules/library"))
+  .settings(
+    libraryDependencies ++= commonDependencies
+  )
+  .dependsOn(core, doobiex, db)
 
 lazy val scraper = project
   .in(file("modules/scaper"))
