@@ -14,6 +14,13 @@ lazy val core = project
   .in(file("modules/core"))
   .settings(libraryDependencies ++= commonDependencies)
 
+lazy val doobiex = project
+  .in(file("modules/doobiex"))
+  .settings(
+    libraryDependencies ++= commonDependencies
+  )
+  .dependsOn(core)
+
 lazy val library = project
   .in(file("modules/library"))
   .settings(
@@ -23,7 +30,7 @@ lazy val library = project
       Dependencies.sqliteJDBC
     )
   )
-  .dependsOn(core)
+  .dependsOn(core, doobiex)
 
 lazy val scraper = project
   .in(file("modules/scaper"))

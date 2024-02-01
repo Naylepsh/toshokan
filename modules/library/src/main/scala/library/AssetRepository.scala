@@ -24,7 +24,7 @@ trait AssetRepository[F[_], AssetId, AssetEntryId]:
 object AssetRepository:
   case class Column[A: Read: Put](rawName: String):
     val name = Fragment.const0(f"${rawName}")
-    val sql = name
+    val sql  = name
 
     def read = summon[Read[A]]
 
@@ -50,8 +50,15 @@ object AssetRepository:
       val frags = t.productIterator.map(_.asInstanceOf[Column[?]].sql)
       new Columns(concatFrags(Iterable.from(frags)))
 
-  class TableDefinition(private val rawName: String):
-    val name = Fragment.const0(rawName)
+  class TableDefinition(
+      private val rawName: String,
+      private val alias: Option[String] = None
+  ):
+    val name =
+      Fragment.const0(alias.fold(rawName)(alias => s"${alias}.${rawName}"))
+
+    def as(alias: String): TableDefinition = TableDefinition(rawName, alias.some)
+
   object TableDefinition:
     given Conversion[TableDefinition, Fragment] = table => fr"${table.name}"
     given Conversion[TableDefinition, SingleFragment[Nothing]] =
