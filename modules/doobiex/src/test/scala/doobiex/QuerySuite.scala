@@ -18,13 +18,12 @@ class QuerySuite extends munit.FunSuite:
 
     assertEquals(normalize(actual), expected)
 
-  // TODO: Required more work
-  // test("select columns from aliased table"):
-  //   val P = Person as "p"
-  //   val expected = "SELECT id, first_name, age FROM people AS p"
-  //   val actual   = sql"SELECT ${P.*} FROM ${P}".queryOf(P.*).sql
-  //
-  //   assertEquals(normalize(actual), expected)
+  test("select column from aliased table"):
+    val P        = Person as "p"
+    val expected = "SELECT p.id FROM people AS p"
+    val actual   = sql"SELECT ${P(_.id)} FROM ${P}".queryOf(P(_.id)).sql
+
+    assertEquals(normalize(actual), expected)
 
 object QuerySuite:
   object Person extends TableDefinition("people"):
@@ -32,6 +31,7 @@ object QuerySuite:
     val firstName = Column[String]("first_name")
     val age       = Column[Int]("age")
 
-    val * = Columns((id, firstName, age))
+    val columns = Columns((id, firstName, age))
+    val *       = Columns((id, firstName, age))
 
   def normalize(str: String): String = str.replaceAll("[ ]+", " ").trim

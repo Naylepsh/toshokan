@@ -4,8 +4,8 @@ import doobie.*
 import doobie.implicits.*
 import doobie.syntax.SqlInterpolator.SingleFragment
 
-case class Column[A: Read: Put](rawName: String):
-  val name = Fragment.const0(f"${rawName}")
+case class Column[A: Read: Put](rawName: String, alias: Option[String] = None):
+  val name = Fragment.const0(alias.fold(rawName)(alias => s"${alias}.${rawName}"))
   val sql  = name
 
   def read = summon[Read[A]]
