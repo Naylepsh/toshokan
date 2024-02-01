@@ -31,7 +31,6 @@ object QuerySuite:
     val firstName = Column[String]("first_name")
     val age       = Column[Int]("age")
 
-    val columns = Columns((id, firstName, age))
     val *       = Columns((id, firstName, age))
 
   def normalize(str: String): String = str.replaceAll("[ ]+", " ").trim
