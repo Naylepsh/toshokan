@@ -25,10 +25,11 @@ object AssetRepository:
     val id      = Column[EntryId]("id")
     val no      = Column[EntryNo]("no")
     val uri     = Column[EntryUri]("uri")
+    val wasSeen = Column[WasEntrySeen]("was_seen")
     val assetId = Column[AssetId]("asset_id")
 
-    val allExceptId = Columns((no, uri, assetId))
-    val *           = Columns((id, no, uri, assetId))
+    val allExceptId = Columns((no, uri, wasSeen, assetId))
+    val *           = Columns((id, no, uri, wasSeen, assetId))
 
   private val A  = Assets as "a"
   private val AE = AssetEntries as "ae"
@@ -38,7 +39,8 @@ object AssetRepository:
       A(_.title),
       AE(_.id).option,
       AE(_.no).option,
-      AE(_.uri).option
+      AE(_.uri).option,
+      AE(_.wasSeen).option
     )
 
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
@@ -57,8 +59,8 @@ object AssetRepository:
             .map: (asset, records) =>
               val (assetId, assetTitle) = asset
               val entries = records
-                .map: (_, title, entryId, entryNo, entryUri) =>
-                  (entryId, entryNo, entryUri, assetId.some)
+                .map: (_, title, entryId, entryNo, entryUri, wasSeen) =>
+                  (entryId, entryNo, entryUri, wasSeen, assetId.some)
                     .tupled
                     .map(Tuples.from[ExistingAssetEntry](_))
                 .collect:
@@ -94,8 +96,7 @@ object AssetRepository:
         .queryOf(AssetEntries.*)
         .unique
         .transact(xa)
-        .map: row =>
-          Tuples.from[ExistingAssetEntry](row)
+        .map(Tuples.from[ExistingAssetEntry](_))
 
     private def exists(title: AssetTitle): F[Boolean] =
       sql"""

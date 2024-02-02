@@ -23,6 +23,7 @@ object Main extends IOApp.Simple:
       def newEntry(assetId: AssetId) = NewAssetEntry(
         EntryNo("42"),
         EntryUri(URI("http://localhost:8080/hello")),
+        WasEntrySeen(false),
         assetId
       )
       for

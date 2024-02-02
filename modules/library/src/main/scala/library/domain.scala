@@ -33,8 +33,22 @@ object domain:
   type EntryUri = EntryUri.Type
   object EntryUri extends Newtype[URI]
 
-  case class NewAssetEntry(no: EntryNo, uri: EntryUri, assetId: AssetId)
-  case class ExistingAssetEntry(id: EntryId, no: EntryNo, uri: EntryUri, assetId: AssetId)
+  type WasEntrySeen = WasEntrySeen.Type
+  object WasEntrySeen extends Newtype[Boolean]
+
+  case class NewAssetEntry(
+      no: EntryNo,
+      uri: EntryUri,
+      wasSeen: WasEntrySeen,
+      assetId: AssetId,
+  )
+  case class ExistingAssetEntry(
+      id: EntryId,
+      no: EntryNo,
+      uri: EntryUri,
+      wasSeen: WasEntrySeen,
+      assetId: AssetId,
+  )
 
   /**
    * Errors
