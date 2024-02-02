@@ -39,13 +39,13 @@ lazy val library = project
   )
   .dependsOn(core, doobiex, db)
 
-lazy val scraper = project
-  .in(file("modules/scaper"))
-  .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core)
-
 lazy val scrapeConfigs = project
   .in(file("modules/scrapeConfigs"))
+  .settings(libraryDependencies ++= commonDependencies)
+  .dependsOn(core, doobiex)
+
+lazy val scraper = project
+  .in(file("modules/scaper"))
   .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core)
 
