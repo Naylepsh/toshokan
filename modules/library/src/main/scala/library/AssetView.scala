@@ -20,6 +20,11 @@ object AssetView:
           ExistingAsset,
           List[ExistingAssetEntry]
       )]): String =
+        /**
+         * TODO: 
+         * Accordion probably fits entries view more.
+         * This view (assets) could/should probably be a table?
+         */
         val accordionId = "asset-list"
         layout(
           "Assets".some,
