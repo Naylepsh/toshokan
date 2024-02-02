@@ -67,19 +67,54 @@ object AssetRepository:
             .toList
 
     def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
+      exists(asset.title).flatMap:
+        case true  => AddAssetError.AssetAlreadyExists.asLeft.pure
+        case false => addWithoutChecking(asset).map(_.asRight)
+
+    private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
       sql"INSERT INTO ${Assets}(${Assets.title}) VALUES (${asset.title}) RETURNING ${Assets.*}"
         .queryOf(Assets.*)
         .unique
         .transact(xa)
         .map: row =>
-          Tuples.from[ExistingAsset](row).asRight
+          Tuples.from[ExistingAsset](row)
 
     def addEntry(entry: NewAssetEntry)
         : F[Either[AddEntryError, ExistingAssetEntry]] =
+      (exists(entry.assetId), exists(entry.assetId, entry.no)).tupled.flatMap:
+        (assetExists, entryExists) =>
+          if entryExists then AddEntryError.EntryAlreadyExists.asLeft.pure
+          else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
+          else addEntryWithoutChecking(entry).map(_.asRight)
+
+    private def addEntryWithoutChecking(entry: NewAssetEntry)
+        : F[ExistingAssetEntry] =
       val values = Tuples.to(entry)
       sql"INSERT INTO ${AssetEntries}(${AssetEntries.allExceptId}) VALUES ($values) RETURNING ${AssetEntries.*}"
         .queryOf(AssetEntries.*)
         .unique
         .transact(xa)
         .map: row =>
-          Tuples.from[ExistingAssetEntry](row).asRight
+          Tuples.from[ExistingAssetEntry](row)
+
+    private def exists(title: AssetTitle): F[Boolean] =
+      sql"""
+        SELECT 1
+        FROM ${Assets}
+        WHERE ${Assets.title} = ${title}
+      """.query[Int].option.transact(xa).map(_.isDefined)
+
+    private def exists(id: AssetId): F[Boolean] =
+      sql"""
+        SELECT 1
+        FROM ${Assets}
+        WHERE ${Assets.id} = ${id}
+      """.query[Int].option.transact(xa).map(_.isDefined)
+
+    private def exists(assetId: AssetId, entryNo: EntryNo): F[Boolean] =
+      sql"""
+        SELECT 1
+        FROM ${AssetEntries}
+        WHERE ${AssetEntries.assetId} = ${assetId}
+        AND ${AssetEntries.no} ${entryNo}
+      """.query[Int].option.transact(xa).map(_.isDefined)
