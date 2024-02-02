@@ -7,9 +7,10 @@ object Dependencies {
   val monocle    = "dev.optics"        %% "monocle-core" % "3.2.0"
   val ducktape   = "io.github.arainko" %% "ducktape"     % "0.1.11"
 
-  val http4sServer = "org.http4s" %% "http4s-ember-server" % "0.23.25"
-  val http4sDsl    = "org.http4s" %% "http4s-dsl"          % http4sServer.revision
-  val http4sCirce  = "org.http4s" %% "http4s-circe"        % http4sServer.revision
+  val http4sServer = "org.http4s"  %% "http4s-ember-server" % "0.23.25"
+  val http4sDsl    = "org.http4s"  %% "http4s-dsl"          % http4sServer.revision
+  val http4sCirce  = "org.http4s"  %% "http4s-circe"        % http4sServer.revision
+  val scalaTags    = "com.lihaoyi" %% "scalatags"           % "0.12.0"
 
   val doobieCore   = "org.tpolecat" %% "doobie-core"   % "1.0.0-RC5"
   val doobieHikari = "org.tpolecat" %% "doobie-hikari" % doobieCore.revision

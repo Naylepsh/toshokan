@@ -38,7 +38,8 @@ lazy val library = project
     libraryDependencies ++= commonDependencies ++ Seq(
       Dependencies.http4sCirce,
       Dependencies.http4sDsl,
-      Dependencies.http4sServer
+      Dependencies.http4sServer,
+      Dependencies.scalaTags
     )
   )
   .dependsOn(core, doobiex, db)
