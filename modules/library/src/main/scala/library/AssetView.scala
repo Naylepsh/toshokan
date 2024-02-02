@@ -21,7 +21,7 @@ object AssetView:
           List[ExistingAssetEntry]
       )]): String =
         /**
-         * TODO: 
+         * TODO:
          * Accordion probably fits entries view more.
          * This view (assets) could/should probably be a table?
          */
@@ -65,6 +65,7 @@ object AssetView:
       case Some(sub) => s"$sub | Toshokan"
       case None      => "Toshokan"
     html(
+      attr("data-bs-theme") := "dark",
       head(
         title(titleContent),
         script(src := "https://unpkg.com/htmx.org@1.9.4"),
