@@ -16,3 +16,5 @@ case class Config(
     username: Username,
     password: Password
 )
+object Config:
+    def forSqlite(path: Path): Config = Config(path, Username(""), Password(""))

@@ -35,7 +35,11 @@ lazy val db = project
 lazy val library = project
   .in(file("modules/library"))
   .settings(
-    libraryDependencies ++= commonDependencies
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.http4sCirce,
+      Dependencies.http4sDsl,
+      Dependencies.http4sServer
+    )
   )
   .dependsOn(core, doobiex, db)
 
