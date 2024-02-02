@@ -81,7 +81,7 @@ object AssetRepository:
 
     def addEntry(entry: NewAssetEntry)
         : F[Either[AddEntryError, ExistingAssetEntry]] =
-      (exists(entry.assetId), exists(entry.assetId, entry.no)).tupled.flatMap:
+      (exists(entry.assetId), exists(entry.assetId, entry.uri)).tupled.flatMap:
         (assetExists, entryExists) =>
           if entryExists then AddEntryError.EntryAlreadyExists.asLeft.pure
           else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
@@ -111,10 +111,10 @@ object AssetRepository:
         WHERE ${Assets.id} = ${id}
       """.query[Int].option.transact(xa).map(_.isDefined)
 
-    private def exists(assetId: AssetId, entryNo: EntryNo): F[Boolean] =
+    private def exists(assetId: AssetId, entryUri: EntryUri): F[Boolean] =
       sql"""
         SELECT 1
         FROM ${AssetEntries}
         WHERE ${AssetEntries.assetId} = ${assetId}
-        AND ${AssetEntries.no} ${entryNo}
+        AND ${AssetEntries.uri} = ${entryUri}
       """.query[Int].option.transact(xa).map(_.isDefined)
