@@ -1,11 +1,12 @@
 package library
 
 import java.net.URI
+import java.time.LocalDate
 
 import core.Newtype
 import core.given
+import doobie.implicits.legacy.localdate.*
 import org.typelevel.cats.time.*
-import java.time.LocalDate
 
 object domain:
 
