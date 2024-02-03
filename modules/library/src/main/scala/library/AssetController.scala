@@ -48,6 +48,21 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
                 Conflict(s"${newAsset.title} already exists")
               case Right(asset) => Ok(asset.id.value.toString)
 
+    case req @ PUT -> Root / AssetIdVar(assetId) =>
+      req
+        .as[NewAsset]
+        .attempt
+        .flatMap:
+          case Left(InvalidMessageBodyFailure(details, cause)) =>
+            BadRequest(cause.map(_.toString).getOrElse(details))
+          case Left(error) =>
+            println(s"[ERROR]: $error")
+            InternalServerError("Something went wrong")
+          case Right(newAsset) =>
+            val asset = newAsset.asExisting(assetId)
+            // TODO
+            ???
+
     case DELETE -> Root / AssetIdVar(assetId) =>
       service.delete(assetId) *> Ok()
 

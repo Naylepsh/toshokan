@@ -9,6 +9,7 @@ import doobie.implicits.legacy.localdate.*
 import org.typelevel.cats.time.*
 
 import io.circe.Decoder
+import io.github.arainko.ducktape.*
 
 object domain:
 
@@ -22,7 +23,9 @@ object domain:
   type AssetTitle = AssetTitle.Type
   object AssetTitle extends Newtype[String]
 
-  case class NewAsset(title: AssetTitle) derives Decoder
+  case class NewAsset(title: AssetTitle) derives Decoder:
+    def asExisting(id: AssetId): ExistingAsset =
+      this.into[ExistingAsset].transform(Field.const(_.id, id))
   case class ExistingAsset(id: AssetId, title: AssetTitle)
 
   /**
@@ -50,7 +53,7 @@ object domain:
       wasSeen: WasEntrySeen,
       dateUploaded: DateUploaded,
       assetId: AssetId
-  ) 
+  )
   case class ExistingAssetEntry(
       id: EntryId,
       no: EntryNo,
