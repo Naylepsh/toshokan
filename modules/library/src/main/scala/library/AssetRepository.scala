@@ -22,14 +22,15 @@ object AssetRepository:
     val * = Columns((id, title))
 
   object AssetEntries extends TableDefinition("asset_entries"):
-    val id      = Column[EntryId]("id")
-    val no      = Column[EntryNo]("no")
-    val uri     = Column[EntryUri]("uri")
-    val wasSeen = Column[WasEntrySeen]("was_seen")
-    val assetId = Column[AssetId]("asset_id")
+    val id           = Column[EntryId]("id")
+    val no           = Column[EntryNo]("no")
+    val uri          = Column[EntryUri]("uri")
+    val wasSeen      = Column[WasEntrySeen]("was_seen")
+    val dateUploaded = Column[DateUploaded]("date_uploaded")
+    val assetId      = Column[AssetId]("asset_id")
 
-    val allExceptId = Columns((no, uri, wasSeen, assetId))
-    val *           = Columns((id, no, uri, wasSeen, assetId))
+    val allExceptId = Columns((no, uri, wasSeen, dateUploaded, assetId))
+    val *           = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
 
   private val A  = Assets as "a"
   private val AE = AssetEntries as "ae"
@@ -40,7 +41,8 @@ object AssetRepository:
       AE(_.id).option,
       AE(_.no).option,
       AE(_.uri).option,
-      AE(_.wasSeen).option
+      AE(_.wasSeen).option,
+      AE(_.dateUploaded).option
     )
 
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
@@ -59,8 +61,15 @@ object AssetRepository:
             .map: (asset, records) =>
               val (assetId, assetTitle) = asset
               val entries = records
-                .map: (_, title, entryId, entryNo, entryUri, wasSeen) =>
-                  (entryId, entryNo, entryUri, wasSeen, assetId.some)
+                .map: record =>
+                  (
+                    record._3,
+                    record._4,
+                    record._5,
+                    record._6,
+                    record._7,
+                    assetId.some
+                  )
                     .tupled
                     .map(Tuples.from[ExistingAssetEntry](_))
                 .collect:

@@ -9,6 +9,7 @@ import core.Tuples
 import db.*
 import io.github.arainko.ducktape.*
 import library.domain.*
+import java.time.LocalDate
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
@@ -24,6 +25,7 @@ object Main extends IOApp.Simple:
         EntryNo("42"),
         EntryUri(URI("http://localhost:8080/hello")),
         WasEntrySeen(false),
+        DateUploaded(LocalDate.now()),
         assetId
       )
       for

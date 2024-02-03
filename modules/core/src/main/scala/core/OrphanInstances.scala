@@ -6,6 +6,7 @@ import cats.kernel.Order
 import cats.syntax.all.*
 import doobie.util.{ Get, Put }
 import doobie.implicits.*
+import java.util.Date
 
 given Order[URI] = Order[String].contramap(_.toString)
 given Get[URI]   = Get[String].map(URI(_))

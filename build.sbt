@@ -3,6 +3,7 @@ ThisBuild / scalaVersion := "3.3.1"
 val commonDependencies = Seq(
   Dependencies.catsCore,
   Dependencies.catsEffect,
+  Dependencies.catsTime,
   Dependencies.circeCore,
   Dependencies.monocle,
   Dependencies.ducktape,
