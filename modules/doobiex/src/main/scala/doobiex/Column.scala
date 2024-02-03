@@ -29,11 +29,12 @@ case class Column[A: Read: Write](
     // This is somewhat unsafe, but given that a column is a single column, it should be fine.
     write.puts.head._1.asInstanceOf[Put[A]]
 
-  def option[B](using
-  @unused ng: NotGiven[A =:= Option[B]]): Column[Option[A]] =
+  def option[B](using NotGiven[A =:= Option[B]]): Column[Option[A]] =
     given Read[Option[A]]  = Read.fromGetOption(self.get)
     given Write[Option[A]] = Write.fromPutOption(self.put)
     Column[Option[A]](rawName, alias)
+
+  def ->(value: A): Fragment = sql ++ fr" = ${value}"
 
 object Column:
   given [A]: Conversion[Column[A], SingleFragment[A]] =

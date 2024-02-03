@@ -25,12 +25,19 @@ class QuerySuite extends munit.FunSuite:
 
     assertEquals(normalize(actual), expected)
 
+  test("update columns"):
+    val expected = "UPDATE people SET age = ? WHERE id = ?"
+    val actual =
+      sql"UPDATE ${Person} SET ${Person.age.->(42)} WHERE ${Person.id.->(27)}".query.sql
+
+    assertEquals(normalize(actual), expected)
+
 object QuerySuite:
   object Person extends TableDefinition("people"):
     val id        = Column[Long]("id")
     val firstName = Column[String]("first_name")
     val age       = Column[Int]("age")
 
-    val *       = Columns((id, firstName, age))
+    val * = Columns((id, firstName, age))
 
   def normalize(str: String): String = str.replaceAll("[ ]+", " ").trim

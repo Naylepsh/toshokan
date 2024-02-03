@@ -26,6 +26,7 @@ object Columns:
       .map: head =>
         frags.tail.foldLeft(head)(_ ++ fr"," ++ _)
       .getOrElse(fr0"")
+    
 
   // format: off
   def apply[A1, A2](t: (Column[A1], Column[A2])): Columns[(A1, A2)] =
