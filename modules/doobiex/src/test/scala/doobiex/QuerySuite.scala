@@ -25,10 +25,10 @@ class QuerySuite extends munit.FunSuite:
 
     assertEquals(normalize(actual), expected)
 
-  test("update columns"):
+  test("update column"):
     val expected = "UPDATE people SET age = ? WHERE id = ?"
     val actual =
-      sql"UPDATE ${Person} SET ${Person.age.->(42)} WHERE ${Person.id.->(27)}".query.sql
+      sql"UPDATE ${Person} SET ${Person.age -> 42} WHERE ${Person.id -> 27}".query.sql
 
     assertEquals(normalize(actual), expected)
 
