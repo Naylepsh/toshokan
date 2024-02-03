@@ -13,6 +13,7 @@ trait AssetRepository[F[_]]:
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def addEntry(entry: NewAssetEntry)
       : F[Either[AddEntryError, ExistingAssetEntry]]
+  def delete(assetId: AssetId): F[Unit]
 
 object AssetRepository:
   object Assets extends TableDefinition("assets"):
@@ -46,7 +47,6 @@ object AssetRepository:
     )
 
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
-
     def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
       sql"""
           SELECT ${findAllColumns} 
@@ -83,6 +83,10 @@ object AssetRepository:
       exists(asset.title).flatMap:
         case true  => AddAssetError.AssetAlreadyExists.asLeft.pure
         case false => addWithoutChecking(asset).map(_.asRight)
+
+    def delete(assetId: AssetId): F[Unit] =
+      sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}"
+        .update.run.transact(xa).void
 
     private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
       sql"INSERT INTO ${Assets}(${Assets.title}) VALUES (${asset.title}) RETURNING ${Assets.*}"

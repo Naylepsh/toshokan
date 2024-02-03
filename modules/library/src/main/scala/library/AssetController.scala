@@ -4,7 +4,7 @@ import cats.effect.{ Concurrent, IO, MonadCancelThrow }
 import cats.syntax.all.*
 import io.circe.*
 import io.circe.syntax.*
-import library.domain.{ AssetId, NewAsset }
+import library.domain.{ AddAssetError, AssetId, NewAsset }
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.dsl.Http4sDsl
@@ -43,7 +43,13 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
             println(s"[ERROR]: $error")
             InternalServerError("Something went wrong")
           case Right(newAsset) =>
-            Ok(s"Asset {newAsset} will be created shortly... (TODO)")
+            service.add(newAsset).flatMap:
+              case Left(AddAssetError.AssetAlreadyExists) =>
+                Conflict(s"${newAsset.title} already exists")
+              case Right(asset) => Ok(asset.id.value.toString)
+
+    case DELETE -> Root / AssetIdVar(assetId) =>
+      service.delete(assetId) *> Ok()
 
   val routes = Router("assets" -> httpRoutes)
 

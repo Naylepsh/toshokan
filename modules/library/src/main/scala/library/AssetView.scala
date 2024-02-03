@@ -45,14 +45,28 @@ object AssetView:
               ),
               tbody(
                 assetsViewEntries.map: (asset, _) =>
+                  val rowId = s"asset-${asset.id}"
                   tr(
+                    id := rowId,
                     th(asset.id.value),
                     td(asset.title.value),
                     td(
-                      a(
-                        cls  := "text-light",
-                        href := s"/assets/edit/${asset.id}",
-                        i(cls := "fa-solid fa-pen-to-square")
+                      div(
+                        cls := "d-flex gap-2",
+                        a(
+                          cls  := "text-light",
+                          href := s"/assets/edit/${asset.id}",
+                          i(cls := "fa-solid fa-pen-to-square")
+                        ),
+                        a(
+                          cls                := "text-light",
+                          style              := "cursor:pointer",
+                          attr("hx-delete")  := s"/assets/${asset.id}",
+                          attr("hx-trigger") := "click",
+                          attr("hx-target")  := s"#${rowId}",
+                          attr("hx-swap")    := "outerHTML swap:1s",
+                          i(cls := "fa-solid fa-trash")
+                        )
                       )
                     )
                   )

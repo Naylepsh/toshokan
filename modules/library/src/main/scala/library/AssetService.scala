@@ -1,13 +1,14 @@
 package library
 
-import cats.syntax.all.*
-import library.domain.{ ExistingAsset, ExistingAssetEntry }
-import library.domain.AssetId
 import cats.Functor
+import cats.syntax.all.*
+import library.domain.*
 
 trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
+  def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
+  def delete(assetId: AssetId): F[Unit]
 
 object AssetService:
   def make[F[_]: Functor](repository: AssetRepository[F]): AssetService[F] =
@@ -21,3 +22,9 @@ object AssetService:
         findAll.map: all =>
           all.find: (asset, _) =>
             asset.id == id
+
+      def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
+        repository.add(asset)
+
+      def delete(assetId: AssetId): F[Unit] =
+        repository.delete(assetId)
