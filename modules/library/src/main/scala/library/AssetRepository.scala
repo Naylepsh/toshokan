@@ -1,7 +1,7 @@
 package library
 
 import cats.effect.MonadCancelThrow
-import cats.syntax.all.*
+import cats.implicits.*
 import core.Tuples
 import doobie.*
 import doobie.implicits.*
@@ -52,6 +52,7 @@ object AssetRepository:
           SELECT ${findAllColumns} 
           FROM ${A}
           LEFT JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
+          ORDER BY ${A(_.id)}
       """.queryOf(findAllColumns)
         .to[List]
         .transact(xa)
@@ -76,6 +77,7 @@ object AssetRepository:
                   case Some(entry) => entry
               ExistingAsset(assetId, assetTitle) -> entries
             .toList
+            .sortBy((asset, _) => asset.id)
 
     def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
       exists(asset.title).flatMap:

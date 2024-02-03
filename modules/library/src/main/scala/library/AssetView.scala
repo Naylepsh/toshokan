@@ -12,6 +12,8 @@ trait AssetView[F[_], A](using EntityDecoder[F, A]):
       : A
 
 object AssetView:
+  given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
+
   def makeHtmlView[F[_]](using EntityDecoder[F, String]): AssetView[F, String] =
     new:
       val mediaType: MediaType = MediaType.text.html
@@ -20,10 +22,32 @@ object AssetView:
           ExistingAsset,
           List[ExistingAssetEntry]
       )]): String =
+        layout(
+          "Assets".some,
+          table(
+            cls := "table table-striped mt-5",
+            thead(
+              tr(
+                th("Id"),
+                th("Title")
+              )
+            ),
+            tbody(
+              assetsViewEntries.map: (asset, _) =>
+                tr(
+                  th(asset.id.value),
+                  td(asset.title.value)
+                )
+            )
+          )
+        )
+
+      private def renderAccordion(assetsViewEntries: List[(
+          ExistingAsset,
+          List[ExistingAssetEntry]
+      )]): String =
         /**
-         * TODO:
-         * Accordion probably fits entries view more.
-         * This view (assets) could/should probably be a table?
+         * TODO: This will be used for entries view ig?
          */
         val accordionId = "asset-list"
         layout(
