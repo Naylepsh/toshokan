@@ -34,7 +34,7 @@ case class Column[A: Read: Write](
     given Write[Option[A]] = Write.fromPutOption(self.put)
     Column[Option[A]](rawName, alias)
 
-  def ->(value: A): Fragment = sql ++ fr" = ${value}"
+  def ===(value: A): Fragment = sql ++ fr" = ${value}"
 
 object Column:
   given [A]: Conversion[Column[A], SingleFragment[A]] =
