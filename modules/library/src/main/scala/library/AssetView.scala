@@ -8,8 +8,11 @@ import scalatags.Text.all.*
 
 trait AssetView[F[_], A](using EntityDecoder[F, A]):
   val mediaType: MediaType
-  def render(assetsViewEntries: List[(ExistingAsset, List[ExistingAssetEntry])])
-      : A
+  def renderAssets(assetsViewEntries: List[(
+      ExistingAsset,
+      List[ExistingAssetEntry]
+  )]): A
+  def renderForm(asset: Option[ExistingAsset]): A
 
 object AssetView:
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
@@ -18,26 +21,69 @@ object AssetView:
     new:
       val mediaType: MediaType = MediaType.text.html
 
-      def render(assetsViewEntries: List[(
+      def renderAssets(assetsViewEntries: List[(
           ExistingAsset,
           List[ExistingAssetEntry]
       )]): String =
         layout(
           "Assets".some,
-          table(
-            cls := "table table-striped mt-5",
-            thead(
-              tr(
-                th("Id"),
-                th("Title")
-              )
+          div(
+            cls := "mt-5",
+            a(
+              cls  := "btn btn-light float-end",
+              href := "/assets/new",
+              "New Asset"
             ),
-            tbody(
-              assetsViewEntries.map: (asset, _) =>
+            table(
+              cls := "table table-striped",
+              thead(
                 tr(
-                  th(asset.id.value),
-                  td(asset.title.value)
+                  th("Id"),
+                  th("Title"),
+                  th("")
                 )
+              ),
+              tbody(
+                assetsViewEntries.map: (asset, _) =>
+                  tr(
+                    th(asset.id.value),
+                    td(asset.title.value),
+                    td(
+                      a(
+                        cls  := "text-light",
+                        href := s"/assets/edit/${asset.id}",
+                        i(cls := "fa-solid fa-pen-to-square")
+                      )
+                    )
+                  )
+              )
+            )
+          )
+        )
+
+      def renderForm(asset: Option[ExistingAsset]): String =
+        val titleId = "title"
+        val (hxMethod, url) = asset
+          .map(asset => (attr("hx-put"), s"/assets/${asset.id}"))
+          .getOrElse((attr("hx-post"), "/assets"))
+        layout(
+          asset.map(_.title.value).getOrElse("New Asset").some,
+          div(
+            cls := "mt-5",
+            form(
+              hxMethod       := url,
+              attr("hx-ext") := "json-enc",
+              div(
+                cls := "mb-3",
+                label(`for` := titleId, cls := "form-label", "Title"),
+                input(
+                  cls   := "form-control",
+                  id    := titleId,
+                  name  := "title",
+                  value := asset.map(_.title.value).getOrElse("")
+                )
+              ),
+              button(`type` := "submit", cls := "btn btn-light w-100", "Submit")
             )
           )
         )

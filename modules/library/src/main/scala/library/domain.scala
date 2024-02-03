@@ -8,6 +8,8 @@ import core.given
 import doobie.implicits.legacy.localdate.*
 import org.typelevel.cats.time.*
 
+import io.circe.Decoder
+
 object domain:
 
   /**
@@ -20,7 +22,7 @@ object domain:
   type AssetTitle = AssetTitle.Type
   object AssetTitle extends Newtype[String]
 
-  case class NewAsset(title: AssetTitle)
+  case class NewAsset(title: AssetTitle) derives Decoder
   case class ExistingAsset(id: AssetId, title: AssetTitle)
 
   /**
@@ -48,7 +50,7 @@ object domain:
       wasSeen: WasEntrySeen,
       dateUploaded: DateUploaded,
       assetId: AssetId
-  )
+  ) 
   case class ExistingAssetEntry(
       id: EntryId,
       no: EntryNo,
