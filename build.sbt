@@ -61,7 +61,7 @@ lazy val root = project
     name    := "toshokan",
     version := "0.1.0",
     fork    := true,
-    libraryDependencies ++= commonDependencies
+    libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
   .aggregate(core, library, scraper, scrapeConfigs)
   .dependsOn(core, library, scraper, scrapeConfigs)

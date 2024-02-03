@@ -8,6 +8,7 @@ CREATE TABLE asset_entries (
     no TEXT NOT NULL,
     uri TEXT NOT NULL,
     was_seen INTEGER NOT NULL DEFAULT 0,
+    date_uploaded TEXT NOT NULL,
     asset_id INTEGER NOT NULL,
 
     CONSTRAINT fk_asset_id

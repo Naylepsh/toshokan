@@ -18,5 +18,7 @@ object Dependencies {
   val hikariCp     = "com.zaxxer"    % "HikariCP"      % "5.0.1"
   val sqliteJDBC   = "org.xerial"    % "sqlite-jdbc"   % "3.44.0.0"
 
+  val slf4j = "org.slf4j" % "slf4j-simple" % "2.0.7"
+
   val munit = "org.scalameta" %% "munit" % "0.7.29"
 }

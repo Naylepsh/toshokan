@@ -6,7 +6,6 @@ import core.Newtype
 import core.given
 import org.typelevel.cats.time.*
 import java.time.LocalDate
-import doobie.implicits.javatimedrivernative.*
 
 object domain:
 
