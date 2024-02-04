@@ -56,7 +56,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
           addRedirectHeaderIfHtmxRequest(req, "/assets")
         )
 
-    case req @ PUT -> Root / AssetIdVar(assetId) / "scraping" / "configs" =>
+    case req @ POST -> Root / AssetIdVar(assetId) / "scraping" / "configs" =>
       withJsonErrorsHandled[NewAssetScrapingConfig](req): newConfig =>
         service.add(newConfig).flatMap:
           case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
