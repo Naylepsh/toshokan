@@ -76,7 +76,8 @@ object AssetView:
         )
 
       def renderForm(asset: Option[ExistingAsset]): String =
-        val titleId = "title"
+        val configGroupId = "configs"
+        val titleId       = "title"
         val (hxMethod, url) = asset
           .map(asset => (attr("hx-put"), s"/assets/${asset.id}"))
           .getOrElse((attr("hx-post"), "/assets"))
@@ -98,7 +99,15 @@ object AssetView:
                 )
               ),
               button(`type` := "submit", cls := "btn btn-light w-100", "Submit")
-            )
+            ),
+            asset
+              .map: _ =>
+                // TODO: Add the new config handling
+                div(
+                  div(id     := configGroupId),
+                  button(cls := "btn btn-light", "Add new scraping config")
+                )
+              .getOrElse(div())
           )
         )
 
