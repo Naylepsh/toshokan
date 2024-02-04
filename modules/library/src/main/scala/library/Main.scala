@@ -33,7 +33,7 @@ object Main extends IOApp.Simple:
         _     <- IO.println(asset)
         entry <- asset.fold(
           _ => IO.unit,
-          asset => repository.addEntry(newEntry(asset.id))
+          asset => repository.add(newEntry(asset.id))
         )
         _   <- IO.println(entry)
         all <- repository.findAll

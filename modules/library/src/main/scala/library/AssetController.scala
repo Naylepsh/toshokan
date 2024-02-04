@@ -4,13 +4,15 @@ import cats.effect.{ Concurrent, IO, MonadCancelThrow }
 import cats.syntax.all.*
 import io.circe.*
 import io.circe.syntax.*
-import library.domain.{ AddAssetError, AssetId, NewAsset }
+import library.domain.*
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
+
+import io.github.arainko.ducktape.*
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     service: AssetService[F],
@@ -35,7 +37,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
 
     case req @ POST -> Root =>
       req
-        .as[NewAsset]
+        .as[NewAssetPayload]
         .attempt
         .flatMap:
           case Left(InvalidMessageBodyFailure(details, cause)) =>
@@ -44,10 +46,16 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
             println(s"[ERROR]: $error")
             InternalServerError("Something went wrong")
           case Right(newAsset) =>
-            service.add(newAsset).flatMap:
+            service.add(newAsset.to[NewAsset], newAsset.configs).flatMap:
               case Left(AddAssetError.AssetAlreadyExists) =>
                 Conflict(s"${newAsset.title} already exists")
-              case Right(asset) =>
+              case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
+                Conflict(
+                  s"At least one of the configs for ${newAsset.title} already exists"
+                )
+              case Left(AddScrapingConfigError.AssetDoesNotExists) =>
+                InternalServerError("Asset disappeared")
+              case Right(asset, configs) =>
                 Ok(asset.id.value.toString, addRedirectHeaderIfHtmxRequest(req))
 
     case req @ PUT -> Root / AssetIdVar(assetId) =>
@@ -75,7 +83,14 @@ object AssetController:
     def unapply(str: String): Option[AssetId] =
       str.toIntOption.map(AssetId(_))
 
+  case class NewAssetPayload(
+      title: AssetTitle,
+      configs: List[NewScrapingConfig]
+  ) derives Decoder
+
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
+  given [F[_]: Concurrent]: EntityDecoder[F, NewAssetPayload] =
+    jsonOf[F, NewAssetPayload]
 
   private def addRedirectHeaderIfHtmxRequest[F[_]](request: Request[F])
       : List[Header.Raw] =
