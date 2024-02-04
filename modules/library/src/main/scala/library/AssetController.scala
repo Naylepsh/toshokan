@@ -4,6 +4,7 @@ import cats.effect.{ Concurrent, IO, MonadCancelThrow }
 import cats.syntax.all.*
 import io.circe.*
 import io.circe.syntax.*
+import io.github.arainko.ducktape.*
 import library.domain.*
 import org.http4s.*
 import org.http4s.circe.*
@@ -11,8 +12,6 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
-
-import io.github.arainko.ducktape.*
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     service: AssetService[F],
