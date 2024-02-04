@@ -106,7 +106,7 @@ object domain:
       site: Site,
       isEnabled: IsConfigEnabled,
       assetId: AssetId
-  )
+  ) derives Decoder
   case class ExistingAssetScrapingConfig(
       id: AssetScrapingConfigId,
       uri: ScrapingConfigUri,
