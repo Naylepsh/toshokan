@@ -13,6 +13,7 @@ trait AssetRepository[F[_]]:
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def addEntry(entry: NewAssetEntry)
       : F[Either[AddEntryError, ExistingAssetEntry]]
+  def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
 
 object AssetRepository:
@@ -84,6 +85,21 @@ object AssetRepository:
         case true  => AddAssetError.AssetAlreadyExists.asLeft.pure
         case false => addWithoutChecking(asset).map(_.asRight)
 
+    def addEntry(entry: NewAssetEntry)
+        : F[Either[AddEntryError, ExistingAssetEntry]] =
+      (exists(entry.assetId), exists(entry.assetId, entry.uri)).tupled.flatMap:
+        (assetExists, entryExists) =>
+          if entryExists then AddEntryError.EntryAlreadyExists.asLeft.pure
+          else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
+          else addEntryWithoutChecking(entry).map(_.asRight)
+
+    def update(asset: ExistingAsset): F[Unit] =
+      sql"""
+      UPDATE ${Assets}
+      SET ${Assets.title === asset.title}
+      WHERE ${Assets.id === asset.id}
+      """.update.run.transact(xa).void
+
     def delete(assetId: AssetId): F[Unit] =
       sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}"
         .update.run.transact(xa).void
@@ -95,14 +111,6 @@ object AssetRepository:
         .transact(xa)
         .map: row =>
           Tuples.from[ExistingAsset](row)
-
-    def addEntry(entry: NewAssetEntry)
-        : F[Either[AddEntryError, ExistingAssetEntry]] =
-      (exists(entry.assetId), exists(entry.assetId, entry.uri)).tupled.flatMap:
-        (assetExists, entryExists) =>
-          if entryExists then AddEntryError.EntryAlreadyExists.asLeft.pure
-          else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
-          else addEntryWithoutChecking(entry).map(_.asRight)
 
     private def addEntryWithoutChecking(entry: NewAssetEntry)
         : F[ExistingAssetEntry] =

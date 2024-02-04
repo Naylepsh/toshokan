@@ -8,6 +8,7 @@ trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
+  def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
 
 object AssetService:
@@ -25,6 +26,13 @@ object AssetService:
 
       def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
         repository.add(asset)
+
+      def update(asset: ExistingAsset): F[Unit] =
+        /**
+         * TODO: This should probably check whether the asset exists first?
+         * But it's not like it's needed for the UI for now
+         */
+        repository.update(asset)
 
       def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)
