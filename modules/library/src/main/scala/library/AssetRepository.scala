@@ -21,6 +21,7 @@ trait AssetRepository[F[_]]:
       : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
   def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
+  def deleteScrapingConfig(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetRepository:
   object Assets extends TableDefinition("assets"):
@@ -112,40 +113,6 @@ object AssetRepository:
       ).tupled.map: (maybeAsset, entries, configs) =>
         maybeAsset.map(asset => (asset, entries, configs))
 
-    private def findAsset(assetId: AssetId): F[Option[ExistingAsset]] =
-      sql"""
-        SELECT ${Assets.*}
-        FROM ${Assets}
-        WHERE ${Assets.id === assetId}
-      """.queryOf(Assets.*)
-        .option
-        .transact(xa)
-        .map: row =>
-          row.map(Tuples.from[ExistingAsset](_))
-
-    private def findEntries(assetId: AssetId): F[List[ExistingAssetEntry]] =
-      sql"""
-        SELECT ${AssetEntries.*} 
-        FROM ${AssetEntries} 
-        WHERE ${AssetEntries.assetId === assetId}
-      """.queryOf(AssetEntries.*)
-        .to[List]
-        .transact(xa)
-        .map: rows =>
-          rows.map(Tuples.from[ExistingAssetEntry](_))
-
-    private def findScrapingConfigs(assetId: AssetId)
-        : F[List[ExistingAssetScrapingConfig]] =
-      sql"""
-        SELECT ${AssetScrapingConfigs.*}
-        FROM ${AssetScrapingConfigs}
-        WHERE ${AssetScrapingConfigs.assetId === assetId}
-      """.queryOf(AssetScrapingConfigs.*)
-        .to[List]
-        .transact(xa)
-        .map: rows =>
-          rows.map(Tuples.from[ExistingAssetScrapingConfig](_))
-
     def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
       doesAssetExist(asset.title).flatMap:
         case true  => AddAssetError.AssetAlreadyExists.asLeft.pure
@@ -181,6 +148,46 @@ object AssetRepository:
     def delete(assetId: AssetId): F[Unit] =
       sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}"
         .update.run.transact(xa).void
+
+    def deleteScrapingConfig(scrapingConfigId: AssetScrapingConfigId): F[Unit] =
+      sql"""
+        DELETE FROM ${AssetScrapingConfigs} 
+        WHERE ${AssetScrapingConfigs.id === scrapingConfigId}
+      """.update.run.transact(xa).void
+
+    private def findAsset(assetId: AssetId): F[Option[ExistingAsset]] =
+      sql"""
+        SELECT ${Assets.*}
+        FROM ${Assets}
+        WHERE ${Assets.id === assetId}
+      """.queryOf(Assets.*)
+        .option
+        .transact(xa)
+        .map: row =>
+          row.map(Tuples.from[ExistingAsset](_))
+
+    private def findEntries(assetId: AssetId): F[List[ExistingAssetEntry]] =
+      sql"""
+        SELECT ${AssetEntries.*} 
+        FROM ${AssetEntries} 
+        WHERE ${AssetEntries.assetId === assetId}
+      """.queryOf(AssetEntries.*)
+        .to[List]
+        .transact(xa)
+        .map: rows =>
+          rows.map(Tuples.from[ExistingAssetEntry](_))
+
+    private def findScrapingConfigs(assetId: AssetId)
+        : F[List[ExistingAssetScrapingConfig]] =
+      sql"""
+        SELECT ${AssetScrapingConfigs.*}
+        FROM ${AssetScrapingConfigs}
+        WHERE ${AssetScrapingConfigs.assetId === assetId}
+      """.queryOf(AssetScrapingConfigs.*)
+        .to[List]
+        .transact(xa)
+        .map: rows =>
+          rows.map(Tuples.from[ExistingAssetScrapingConfig](_))
 
     private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
       sql"INSERT INTO ${Assets}(${Assets.title}) VALUES (${asset.title}) RETURNING ${Assets.*}"

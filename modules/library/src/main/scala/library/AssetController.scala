@@ -27,12 +27,12 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     case GET -> Root / "new" =>
       Ok(view.renderForm(None), `Content-Type`(view.mediaType))
 
-    case GET -> Root / "edit" / AssetIdVar(assetId) =>
-      service.find(assetId).flatMap:
+    case GET -> Root / "edit" / AssetIdVar(id) =>
+      service.find(id).flatMap:
         case Some(asset, _) =>
           Ok(view.renderForm(asset.some), `Content-Type`(view.mediaType))
         case None =>
-          NotFound(s"Asset ${assetId} not found")
+          NotFound(s"Asset ${id} not found")
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[NewAsset](req): newAsset =>
@@ -48,15 +48,18 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
               )
             )
 
-    case req @ PUT -> Root / AssetIdVar(assetId) =>
+    case req @ PUT -> Root / AssetIdVar(id) =>
       withJsonErrorsHandled[NewAsset](req): newAsset =>
-        val asset = newAsset.asExisting(assetId)
+        val asset = newAsset.asExisting(id)
         service.update(asset) *> Ok(
           asset.id.value.toString,
           addRedirectHeaderIfHtmxRequest(req, "/assets")
         )
 
-    case req @ POST -> Root / AssetIdVar(assetId) / "scraping" / "configs" =>
+    case DELETE -> Root / AssetIdVar(id) =>
+      service.delete(id) *> Ok()
+
+    case req @ POST -> Root / AssetIdVar(_) / "scraping" / "configs" =>
       withJsonErrorsHandled[NewAssetScrapingConfig](req): newConfig =>
         service.add(newConfig).flatMap:
           case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
@@ -66,8 +69,12 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
           case Right(config) =>
             Ok(config.id.value.toString)
 
-    case DELETE -> Root / AssetIdVar(assetId) =>
-      service.delete(assetId) *> Ok()
+    case req @ DELETE -> Root
+        / AssetIdVar(_)
+        / "scraping"
+        / "configs"
+        / AssetScrapingConfigIdVar(id) =>
+      service.deleteScrapingConfig(id) *> Ok()
 
   val routes = Router("assets" -> httpRoutes)
 
@@ -87,6 +94,10 @@ object AssetController:
   object AssetIdVar:
     def unapply(str: String): Option[AssetId] =
       str.toIntOption.map(AssetId(_))
+
+  object AssetScrapingConfigIdVar:
+    def unapply(str: String): Option[AssetScrapingConfigId] =
+      str.toIntOption.map(AssetScrapingConfigId(_))
 
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
   given [F[_]: Concurrent]: EntityDecoder[F, NewAssetScrapingConfig] =

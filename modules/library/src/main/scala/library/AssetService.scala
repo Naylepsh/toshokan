@@ -15,6 +15,7 @@ trait AssetService[F[_]]:
   ]]
   def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
+  def deleteScrapingConfig(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetService:
   def make[F[_]: Monad](repository: AssetRepository[F]): AssetService[F] =
@@ -45,3 +46,7 @@ object AssetService:
 
       def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)
+
+      def deleteScrapingConfig(scrapingConfigId: AssetScrapingConfigId)
+          : F[Unit] =
+        repository.deleteScrapingConfig(scrapingConfigId)
