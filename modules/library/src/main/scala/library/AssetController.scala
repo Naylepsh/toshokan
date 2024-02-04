@@ -11,7 +11,6 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
-import org.http4s.dsl.impl.EntityResponseGenerator
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     service: AssetService[F],
