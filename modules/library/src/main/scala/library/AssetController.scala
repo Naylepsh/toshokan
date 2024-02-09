@@ -75,6 +75,9 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
         / AssetScrapingConfigIdVar(id) =>
       service.deleteScrapingConfig(id) *> Ok()
 
+    case POST -> Root / "test" => 
+      Ok("Very nice!")
+
   val routes = Router("assets" -> httpRoutes)
 
   private type EntityDecoderF[A] = EntityDecoder[F, A]

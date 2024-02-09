@@ -5,6 +5,8 @@ import library.domain.{ ExistingAsset, ExistingAssetEntry }
 import org.http4s.dsl.Http4sDsl
 import org.http4s.{ EntityDecoder, * }
 import scalatags.Text.all.*
+import library.domain.ExistingAssetScrapingConfig
+import library.domain.AssetId
 
 trait AssetView[F[_], A](using EntityDecoder[F, A]):
   val mediaType: MediaType
@@ -76,8 +78,9 @@ object AssetView:
         )
 
       def renderForm(asset: Option[ExistingAsset]): String =
-        val configGroupId = "configs"
-        val titleId       = "title"
+        val configTemplateId = "config-template"
+        val configGroupId    = "configs"
+        val titleId          = "title"
         val (hxMethod, url) = asset
           .map(asset => (attr("hx-put"), s"/assets/${asset.id}"))
           .getOrElse((attr("hx-post"), "/assets"))
@@ -101,14 +104,83 @@ object AssetView:
               button(`type` := "submit", cls := "btn btn-light w-100", "Submit")
             ),
             asset
-              .map: _ =>
+              .map: asset =>
                 // TODO: Add the new config handling
+                // TODO: There cannot be forms inside a table
+                //  At best a table has to be mimicked by divs and css
                 div(
-                  div(id     := configGroupId),
-                  button(cls := "btn btn-light", "Add new scraping config")
+                  id := configGroupId,
+                  // TODO: Use actual asset's configs
+                  List.empty[ExistingAssetScrapingConfig].map(config =>
+                    renderConfigRow(asset.id, config.some)
+                  ),
+                  div(
+                    div(
+                      id := configTemplateId,
+                      renderConfigRow(asset.id, None)
+                    )
+                  ),
+                  button(
+                    cls     := "btn btn-light",
+                    onclick := s"addScrapingConfig('#${configTemplateId} form', '#${configGroupId}')",
+                    "Add new scraping config"
+                  )
                 )
               .getOrElse(div())
           )
+        )
+
+      private def renderConfigRow(
+          assetId: AssetId,
+          config: Option[ExistingAssetScrapingConfig]
+      ) =
+        var idField = span("-")
+        var isEnabledModifiers =
+          List(name := "isEnabled", `type` := "checkbox", checked := "1")
+        var siteModifiers = (name := "site") :: Nil
+        var uriModifiers  = (name := "uri") :: Nil
+        var hxMethod      = attr("hx-post")
+        var url           = s"/assets/${assetId}/scraping/configs"
+        // var url = s"/assets/test"
+        config.foreach: cfg =>
+          idField = input(name := "id", value := cfg.id.value.toString)
+          isEnabledModifiers =
+            (value               := cfg.isEnabled.value.toString) :: isEnabledModifiers
+          siteModifiers = (value := cfg.site.toString) :: siteModifiers
+          uriModifiers = (value  := cfg.uri.value.toString) :: uriModifiers
+          hxMethod = attr("hx-put")
+          url = s"/assets/${assetId}/scraping/configs/${cfg.id}"
+
+        form(
+          cls := "config-form",
+          hxMethod       := url,
+          attr("hx-ext") := "json-enc",
+          attr("hx-target") := ".config-form",
+          label(cls := "form-label", "Id:"),
+          idField,
+          label(`for` := "isEnabled", cls := "form-label", "Enabled:"),
+          input(isEnabledModifiers),
+          label(`for` := "site", cls := "form-label", "Site"),
+          input(siteModifiers),
+          label(`for` := "uri", cls := "form-label", "URI:"),
+          input(uriModifiers),
+          button(
+            `type` := "submit",
+            cls    := "text-light",
+            "Submit"
+            // i(cls := "fa-solid fa-floppy-disk")
+          )
+          // If config exists, this should delete it from db AND table rows
+          // If config does not exist, this should remove it from table rows
+          // a(
+          //   cls   := "text-light",
+          //   style := "cursor:pointer",
+          //   // attr("hx-delete")  := s"/assets/${asset.id}",
+          //   attr("hx-trigger") := "click",
+          //   // attr("hx-target")  := s"#${rowId}",
+          //   attr("hx-swap") := "outerHTML swap:1s",
+          //   i(cls := "fa-solid fa-trash")
+          // )
         )
 
       private def renderAccordion(assetsViewEntries: List[(
@@ -161,9 +233,6 @@ object AssetView:
       attr("data-bs-theme") := "dark",
       head(
         title(titleContent),
-        script(src := "https://unpkg.com/htmx.org@1.9.4"),
-        script(src := "https://unpkg.com/htmx.org/dist/ext/json-enc.js"),
-        script(src := "https://unpkg.com/hyperscript.org@0.9.11"),
         link(
           href := "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css",
           rel  := "stylesheet"
@@ -174,7 +243,12 @@ object AssetView:
         ),
         script(
           src := "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-        )
+        ),
+        // GREAT, htmx stops worker after bootstrap is added
+        script(src    := "https://unpkg.com/htmx.org@1.9.4"),
+        script(src    := "https://unpkg.com/htmx.org/dist/ext/json-enc.js"),
+        script(src    := "https://unpkg.com/hyperscript.org@0.9.11"),
+        script(`type` := "text/javascript", src := "/public/js/index.js")
       ),
       body(
         cls := "container",

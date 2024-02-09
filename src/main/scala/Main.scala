@@ -1,5 +1,6 @@
-import cats.effect.IOApp
-import cats.effect.IO
+import cats.effect.{ IO, IOApp }
+import cats.syntax.all.*
+import org.http4s.syntax.all.*
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
@@ -14,7 +15,9 @@ object Main extends IOApp.Simple:
       val assetView       = library.AssetView.makeHtmlView[IO]
       val assetController = library.AssetController(assetService, assetView)
 
-      val routes = assetController.routes
+      val publicController = PublicController[IO]()
+
+      val routes = assetController.routes <+> publicController.routes
 
       HttpServer[IO]
         .newEmber(serverConfig, routes.orNotFound)
