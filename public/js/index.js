@@ -1,15 +1,23 @@
 /**
- * @param {string} configTemplateElemPath
- * @param {string} targetParentPath
+ * @param {string} templatePath
+ * @param {string} targetPath
  */
-const addScrapingConfig = (configTemplateElemPath, targetParentPath) => {
-  const template = document.querySelector(configTemplateElemPath)
-  const parent = document.querySelector(targetParentPath)
-  if (template && parent) {
-    const newConfigElem = template.cloneNode(true)
-    newConfigElem.removeAttribute('id')
-
-
-    parent.appendChild(newConfigElem)
+const loadTemplate = (templatePath, targetPath) => {
+  const template = document.querySelector(templatePath)
+  const parent = document.querySelector(targetPath)
+  if (!template) {
+    throw new Error(`${templatePath} was not found in DOM`)
   }
+  if (template.tagName !== "TEMPLATE") {
+    throw new Error(`${templatePath}'s element is not a template`)
+  }
+
+  if (!parent) {
+    throw new Error(`${targetPath} was not found in DOM`)
+  }
+
+  const newConfigElem = template.content.cloneNode(true)
+  parent.appendChild(newConfigElem)
+  // This is needed to make HTMX attributes work on newly added elements
+  htmx.process(document.body)
 }

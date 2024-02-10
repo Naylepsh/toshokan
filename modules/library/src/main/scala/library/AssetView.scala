@@ -106,23 +106,19 @@ object AssetView:
             asset
               .map: asset =>
                 // TODO: Add the new config handling
-                // TODO: There cannot be forms inside a table
-                //  At best a table has to be mimicked by divs and css
                 div(
                   id := configGroupId,
                   // TODO: Use actual asset's configs
                   List.empty[ExistingAssetScrapingConfig].map(config =>
                     renderConfigRow(asset.id, config.some)
                   ),
-                  div(
-                    div(
-                      id := configTemplateId,
-                      renderConfigRow(asset.id, None)
-                    )
+                  template(
+                    id := configTemplateId,
+                    renderConfigRow(asset.id, None)
                   ),
                   button(
                     cls     := "btn btn-light",
-                    onclick := s"addScrapingConfig('#${configTemplateId} form', '#${configGroupId}')",
+                    onclick := s"loadTemplate('#${configTemplateId}', '#${configGroupId}')",
                     "Add new scraping config"
                   )
                 )
@@ -141,7 +137,6 @@ object AssetView:
         var uriModifiers  = (name := "uri") :: Nil
         var hxMethod      = attr("hx-post")
         var url           = s"/assets/${assetId}/scraping/configs"
-        // var url = s"/assets/test"
         config.foreach: cfg =>
           idField = input(name := "id", value := cfg.id.value.toString)
           isEnabledModifiers =
@@ -152,9 +147,9 @@ object AssetView:
           url = s"/assets/${assetId}/scraping/configs/${cfg.id}"
 
         form(
-          cls := "config-form",
-          hxMethod       := url,
-          attr("hx-ext") := "json-enc",
+          cls               := "config-form",
+          hxMethod          := url,
+          attr("hx-ext")    := "json-enc",
           attr("hx-target") := ".config-form",
           label(cls := "form-label", "Id:"),
           idField,
@@ -220,7 +215,8 @@ object AssetView:
           )
         ).toString
 
-  private val title = tag("title")
+  private val template = tag("template")
+  private val title    = tag("title")
 
   private def layout(
       subTitle: Option[String],
@@ -244,7 +240,6 @@ object AssetView:
         script(
           src := "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
         ),
-        // GREAT, htmx stops worker after bootstrap is added
         script(src    := "https://unpkg.com/htmx.org@1.9.4"),
         script(src    := "https://unpkg.com/htmx.org/dist/ext/json-enc.js"),
         script(src    := "https://unpkg.com/hyperscript.org@0.9.11"),
