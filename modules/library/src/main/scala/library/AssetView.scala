@@ -148,7 +148,12 @@ object AssetView:
       ) =
         var idField = span("-")
         var isEnabledModifiers =
-          List(name := "isEnabled", `type` := "checkbox", checked := "1")
+          List(
+            name    := "isEnabled",
+            `type`  := "checkbox",
+            checked := "1",
+            value   := "true"
+          )
         var uriModifiers = List(name := "uri", cls := "w-100")
         var hxMethod     = attr("hx-post")
         var url          = s"/assets/${assetId}/scraping/configs"
@@ -192,19 +197,15 @@ object AssetView:
               `type` := "submit",
               cls    := "btn",
               i(cls := "fa-solid fa-floppy-disk")
+            ),
+            // If config exists, this should delete it from db AND table rows
+            // If config does not exist, this should remove it from table rows
+            button(
+              `type` := "button",
+              cls    := "btn",
+              i(cls := "fa-solid fa-trash")
             )
           )
-          // If config exists, this should delete it from db AND table rows
-          // If config does not exist, this should remove it from table rows
-          // a(
-          //   cls   := "text-light",
-          //   style := "cursor:pointer",
-          //   // attr("hx-delete")  := s"/assets/${asset.id}",
-          //   attr("hx-trigger") := "click",
-          //   // attr("hx-target")  := s"#${rowId}",
-          //   attr("hx-swap") := "outerHTML swap:1s",
-          //   i(cls := "fa-solid fa-trash")
-          // )
         )
 
       private def renderAccordion(assetsViewEntries: List[(

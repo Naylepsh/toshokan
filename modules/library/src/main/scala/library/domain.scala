@@ -94,12 +94,10 @@ object domain:
       case Mangadex     => "mangadex"
       case Mangakakalot => "mangakakalot"
     given Decoder[Site] = Decoder[String].emap:
-      case "mangadex"     => Mangadex.asRight
-      case "mangakakalot" => Mangakakalot.asRight
+      case "Mangadex"     => Mangadex.asRight
+      case "Mangakakalot" => Mangakakalot.asRight
       case other          => s"'$other' is not a valid site".asLeft
-    given Encoder[Site] = Encoder[String].contramap:
-      case Mangadex     => "mangadex"
-      case Mangakakalot => "mangakakalot"
+    given Encoder[Site] = Encoder[String].contramap(_.toString)
 
   case class NewAssetScrapingConfig(
       uri: ScrapingConfigUri,
