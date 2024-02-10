@@ -7,6 +7,7 @@ import org.http4s.{ EntityDecoder, * }
 import scalatags.Text.all.*
 import library.domain.ExistingAssetScrapingConfig
 import library.domain.AssetId
+import library.domain.Site
 
 trait AssetView[F[_], A](using EntityDecoder[F, A]):
   val mediaType: MediaType
@@ -135,16 +136,14 @@ object AssetView:
         var idField = span("-")
         var isEnabledModifiers =
           List(name := "isEnabled", `type` := "checkbox", checked := "1")
-        var siteModifiers = (name := "site") :: Nil
-        var uriModifiers  = (name := "uri") :: Nil
-        var hxMethod      = attr("hx-post")
-        var url           = s"/assets/${assetId}/scraping/configs"
+        var uriModifiers = (name := "uri") :: Nil
+        var hxMethod     = attr("hx-post")
+        var url          = s"/assets/${assetId}/scraping/configs"
         config.foreach: cfg =>
           idField = input(name := "id", value := cfg.id.value.toString)
           isEnabledModifiers =
-            (value               := cfg.isEnabled.value.toString) :: isEnabledModifiers
-          siteModifiers = (value := cfg.site.toString) :: siteModifiers
-          uriModifiers = (value  := cfg.uri.value.toString) :: uriModifiers
+            (value              := cfg.isEnabled.value.toString) :: isEnabledModifiers
+          uriModifiers = (value := cfg.uri.value.toString) :: uriModifiers
           hxMethod = attr("hx-put")
           url = s"/assets/${assetId}/scraping/configs/${cfg.id}"
 
@@ -158,7 +157,12 @@ object AssetView:
           label(`for` := "isEnabled", cls := "form-label", "Enabled:"),
           input(isEnabledModifiers),
           label(`for` := "site", cls := "form-label", "Site"),
-          input(siteModifiers),
+          select(
+            name := "site",
+            cls  := "form-select",
+            Site.values.map: site =>
+              option(value := site.toString, site.toString)
+          ),
           label(`for` := "uri", cls := "form-label", "URI:"),
           input(uriModifiers),
           button(
