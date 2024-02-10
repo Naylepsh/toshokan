@@ -109,10 +109,23 @@ object AssetView:
                 // TODO: Add the new config handling
                 div(
                   div(
-                    id := configGroupId,
-                    // TODO: Use actual asset's configs
-                    List.empty[ExistingAssetScrapingConfig].map(config =>
-                      renderConfigRow(asset.id, config.some)
+                    cls := "container",
+                    div(
+                      cls := "row pb-2",
+                      div(cls := "col-1 fw-bold", "Enabled"),
+                      div(cls := "col-1 fw-bold", "Id"),
+                      div(cls := "col-2 fw-bold", "Site"),
+                      div(cls := "col fw-bold", "URI"),
+                      // Column for actions (add / update / delete / remove)
+                      div(cls := "col-1", "")
+                    ),
+                    div(
+                      id  := configGroupId,
+                      cls := "div-striped",
+                      // TODO: Use actual asset's configs
+                      List.empty[ExistingAssetScrapingConfig].map(config =>
+                        renderConfigRow(asset.id, config.some)
+                      )
                     )
                   ),
                   template(
@@ -136,7 +149,7 @@ object AssetView:
         var idField = span("-")
         var isEnabledModifiers =
           List(name := "isEnabled", `type` := "checkbox", checked := "1")
-        var uriModifiers = (name := "uri") :: Nil
+        var uriModifiers = List(name := "uri", cls := "w-100")
         var hxMethod     = attr("hx-post")
         var url          = s"/assets/${assetId}/scraping/configs"
         config.foreach: cfg =>
@@ -148,22 +161,20 @@ object AssetView:
           url = s"/assets/${assetId}/scraping/configs/${cfg.id}"
 
         form(
-          cls               := "config-form row",
+          cls               := "config-form row mb-0 py-2",
           hxMethod          := url,
           attr("hx-ext")    := "json-enc",
           attr("hx-target") := ".config-form",
           div(
-            cls := "col",
-            label(cls := "form-label", "Id:"),
-            idField
-          ),
-          div(
-            cls := "col",
-            label(`for` := "isEnabled", cls := "form-label", "Enabled:"),
+            cls := "col-1 d-flex",
             input(isEnabledModifiers)
           ),
           div(
-            cls := "col",
+            cls := "col-1",
+            idField
+          ),
+          div(
+            cls := "col-2",
             select(
               name := "site",
               cls  := "form-select",
@@ -172,15 +183,14 @@ object AssetView:
             )
           ),
           div(
-            cls := "col",
-            label(`for` := "uri", cls := "form-label", "URI:"),
+            cls := "col d-flex",
             input(uriModifiers)
           ),
           div(
-            cls := "col",
+            cls := "col-2 d-flex",
             button(
               `type` := "submit",
-              cls    := "text-light",
+              cls    := "btn",
               i(cls := "fa-solid fa-floppy-disk")
             )
           )
@@ -254,6 +264,10 @@ object AssetView:
         ),
         link(
           href := "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css",
+          rel  := "stylesheet"
+        ),
+        link(
+          href := "/public/css/index.css",
           rel  := "stylesheet"
         ),
         script(
