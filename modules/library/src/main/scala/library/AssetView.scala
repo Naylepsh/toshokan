@@ -148,28 +148,41 @@ object AssetView:
           url = s"/assets/${assetId}/scraping/configs/${cfg.id}"
 
         form(
-          cls               := "config-form",
+          cls               := "config-form row",
           hxMethod          := url,
           attr("hx-ext")    := "json-enc",
           attr("hx-target") := ".config-form",
-          label(cls := "form-label", "Id:"),
-          idField,
-          label(`for` := "isEnabled", cls := "form-label", "Enabled:"),
-          input(isEnabledModifiers),
-          label(`for` := "site", cls := "form-label", "Site"),
-          select(
-            name := "site",
-            cls  := "form-select",
-            Site.values.map: site =>
-              option(value := site.toString, site.toString)
+          div(
+            cls := "col",
+            label(cls := "form-label", "Id:"),
+            idField
           ),
-          label(`for` := "uri", cls := "form-label", "URI:"),
-          input(uriModifiers),
-          button(
-            `type` := "submit",
-            cls    := "text-light",
-            "Submit"
-            // i(cls := "fa-solid fa-floppy-disk")
+          div(
+            cls := "col",
+            label(`for` := "isEnabled", cls := "form-label", "Enabled:"),
+            input(isEnabledModifiers)
+          ),
+          div(
+            cls := "col",
+            select(
+              name := "site",
+              cls  := "form-select",
+              Site.values.map: site =>
+                option(value := site.toString, site.toString)
+            )
+          ),
+          div(
+            cls := "col",
+            label(`for` := "uri", cls := "form-label", "URI:"),
+            input(uriModifiers)
+          ),
+          div(
+            cls := "col",
+            button(
+              `type` := "submit",
+              cls    := "text-light",
+              i(cls := "fa-solid fa-floppy-disk")
+            )
           )
           // If config exists, this should delete it from db AND table rows
           // If config does not exist, this should remove it from table rows
