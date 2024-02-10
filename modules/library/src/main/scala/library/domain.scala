@@ -3,15 +3,14 @@ package library
 import java.net.URI
 import java.time.LocalDate
 
+import cats.syntax.all.*
 import core.Newtype
 import core.given
 import doobie.implicits.legacy.localdate.*
 import doobie.util.{ Read, Write }
-import io.circe.Decoder
+import io.circe.{ Codec, Decoder, Encoder }
 import io.github.arainko.ducktape.*
 import org.typelevel.cats.time.*
-import io.circe.Codec
-import io.circe.Encoder
 
 object domain:
 
@@ -94,9 +93,10 @@ object domain:
     given Write[Site] = Write[String].contramap:
       case Mangadex     => "mangadex"
       case Mangakakalot => "mangakakalot"
-    given Decoder[Site] = Decoder[String].map:
-      case "mangadex"     => Mangadex
-      case "mangakakalot" => Mangakakalot
+    given Decoder[Site] = Decoder[String].emap:
+      case "mangadex"     => Mangadex.asRight
+      case "mangakakalot" => Mangakakalot.asRight
+      case other          => s"'$other' is not a valid site".asLeft
     given Encoder[Site] = Encoder[String].contramap:
       case Mangadex     => "mangadex"
       case Mangakakalot => "mangakakalot"
