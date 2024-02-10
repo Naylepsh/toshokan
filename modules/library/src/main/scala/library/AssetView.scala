@@ -107,10 +107,12 @@ object AssetView:
               .map: asset =>
                 // TODO: Add the new config handling
                 div(
-                  id := configGroupId,
-                  // TODO: Use actual asset's configs
-                  List.empty[ExistingAssetScrapingConfig].map(config =>
-                    renderConfigRow(asset.id, config.some)
+                  div(
+                    id := configGroupId,
+                    // TODO: Use actual asset's configs
+                    List.empty[ExistingAssetScrapingConfig].map(config =>
+                      renderConfigRow(asset.id, config.some)
+                    )
                   ),
                   template(
                     id := configTemplateId,
