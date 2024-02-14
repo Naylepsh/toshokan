@@ -1,12 +1,13 @@
 import sbt._
 
 object Dependencies {
-  val catsCore   = "org.typelevel"     %% "cats-core"    % "2.10.0"
-  val catsEffect = "org.typelevel"     %% "cats-effect"  % "3.5.3"
-  val catsTime   = "org.typelevel"     %% "cats-time"    % "0.5.1"
-  val circeCore  = "io.circe"          %% "circe-core"   % "0.14.6"
-  val monocle    = "dev.optics"        %% "monocle-core" % "3.2.0"
-  val ducktape   = "io.github.arainko" %% "ducktape"     % "0.1.11"
+  val catsCore   = "org.typelevel"     %% "cats-core"         % "2.10.0"
+  val catsEffect = "org.typelevel"     %% "cats-effect"       % "3.5.3"
+  val catsTime   = "org.typelevel"     %% "cats-time"         % "0.5.1"
+  val circeCore  = "io.circe"          %% "circe-core"        % "0.14.6"
+  val monocle    = "dev.optics"        %% "monocle-core"      % "3.2.0"
+  val ducktape   = "io.github.arainko" %% "ducktape"          % "0.1.11"
+  val validator  = "commons-validator"  % "commons-validator" % "1.8.0"
 
   val http4sServer = "org.http4s"  %% "http4s-ember-server" % "0.23.25"
   val http4sDsl    = "org.http4s"  %% "http4s-dsl"          % http4sServer.revision

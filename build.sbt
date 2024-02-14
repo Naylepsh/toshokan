@@ -8,6 +8,7 @@ val commonDependencies = Seq(
   Dependencies.monocle,
   Dependencies.ducktape,
   Dependencies.doobieCore,
+  Dependencies.validator,
   Dependencies.munit % Test
 )
 

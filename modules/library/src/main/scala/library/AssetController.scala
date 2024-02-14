@@ -4,6 +4,7 @@ import cats.effect.{ Concurrent, IO, MonadCancelThrow }
 import cats.syntax.all.*
 import io.circe.*
 import io.circe.syntax.*
+import io.github.arainko.ducktape.*
 import library.domain.*
 import org.http4s.*
 import org.http4s.circe.*
@@ -58,13 +59,13 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     case DELETE -> Root / AssetIdVar(id) =>
       service.delete(id) *> Ok()
 
-    case req @ POST -> Root / AssetIdVar(_) / "scraping" / "configs" =>
-      withJsonErrorsHandled[NewAssetScrapingConfig](req): newConfig =>
-        service.add(newConfig).flatMap:
+    case req @ POST -> Root / AssetIdVar(assetId) / "scraping" / "configs" =>
+      withJsonErrorsHandled[NewAssetScrapingConfigDTO](req): newConfig =>
+        service.add(newConfig.toDomain(assetId)).flatMap:
           case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
             Conflict(s"${newConfig.uri} already exists")
           case Left(AddScrapingConfigError.AssetDoesNotExists) =>
-            BadRequest(s"Asset ${newConfig.assetId} does not exist")
+            BadRequest(s"Asset ${assetId} does not exist")
           case Right(config) =>
             Ok(config.id.value.toString)
 
@@ -74,9 +75,6 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
         / "configs"
         / AssetScrapingConfigIdVar(id) =>
       service.deleteScrapingConfig(id) *> Ok()
-
-    case POST -> Root / "test" => 
-      Ok("Very nice!")
 
   val routes = Router("assets" -> httpRoutes)
 
@@ -101,9 +99,39 @@ object AssetController:
     def unapply(str: String): Option[AssetScrapingConfigId] =
       str.toIntOption.map(AssetScrapingConfigId(_))
 
+  given Decoder[IsConfigEnabled] = new Decoder[IsConfigEnabled]:
+    private def makeErrorMessage(c: HCursor): String =
+      s"""${c.value.toString} is not one of [true, false, "true", "false", "on"]"""
+
+    final def apply(c: HCursor): Decoder.Result[IsConfigEnabled] =
+      /**
+       * HTML form sends checkbox value as either "on" or no value at all.
+       * Hence this scuffed handling.
+       */
+      c.as[Boolean] match
+        case Right(bool) => Right(IsConfigEnabled(bool))
+        case Left(_) => c.as[String] match
+            case Right("true" | "on") => Right(IsConfigEnabled(true))
+            case Right("false")       => Right(IsConfigEnabled(false))
+            case _                    => Left(DecodingFailure(makeErrorMessage(c), List.empty))
+
+  case class NewAssetScrapingConfigDTO(
+      uri: ScrapingConfigUri,
+      site: Site,
+      isEnabled: Option[IsConfigEnabled]
+  ) derives Decoder:
+    def toDomain(assetId: AssetId): NewAssetScrapingConfig =
+      this.into[NewAssetScrapingConfig]
+        .transform(
+          Field.const(_.assetId, assetId),
+          Field.const(_.isEnabled, isEnabled.getOrElse(IsConfigEnabled(false)))
+        )
+
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
   given [F[_]: Concurrent]: EntityDecoder[F, NewAssetScrapingConfig] =
     jsonOf[F, NewAssetScrapingConfig]
+  given [F[_]: Concurrent]: EntityDecoder[F, NewAssetScrapingConfigDTO] =
+    jsonOf[F, NewAssetScrapingConfigDTO]
 
   private def addRedirectHeaderIfHtmxRequest[F[_]](
       request: Request[F],
