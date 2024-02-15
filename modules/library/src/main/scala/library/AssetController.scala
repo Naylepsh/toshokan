@@ -76,6 +76,10 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
         / AssetScrapingConfigIdVar(id) =>
       service.deleteScrapingConfig(id) *> Ok()
 
+    case GET -> Root / "assets" / "entries-by-release-date" =>
+      service.findAllGroupedByReleaseDate.flatMap: results =>
+        ???
+
   val routes = Router("assets" -> httpRoutes)
 
   private type EntityDecoderF[A] = EntityDecoder[F, A]

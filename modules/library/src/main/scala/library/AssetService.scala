@@ -1,12 +1,14 @@
 package library
 
 import cats.Monad
-import cats.syntax.all.*
+import cats.implicits.*
 import io.circe.Decoder
 import library.domain.*
+import library.domain.Releases.given
 
 trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
+  def findAllGroupedByReleaseDate: F[List[Releases]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(config: NewAssetScrapingConfig): F[Either[
@@ -22,6 +24,18 @@ object AssetService:
     new:
       def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
         repository.findAll
+
+      def findAllGroupedByReleaseDate: F[List[Releases]] =
+        repository.findAll.map: all =>
+          all
+            .flatMap: (asset, entries) =>
+              entries.map(entry => asset -> entry)
+            .groupBy: (asset, entry) =>
+              entry.dateUploaded
+            .map: (key, assetsAndEntries) =>
+              key -> assetsAndEntries.sortBy(_._1.id)
+            .toList
+            .sorted(Ordering[Releases].reverse)
 
       def find(id: AssetId)
           : F[Option[(ExistingAsset, List[ExistingAssetEntry])]] =

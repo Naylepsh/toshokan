@@ -1,13 +1,10 @@
 package library
 
 import cats.syntax.all.*
-import library.domain.{ ExistingAsset, ExistingAssetEntry }
+import library.domain.*
 import org.http4s.dsl.Http4sDsl
 import org.http4s.{ EntityDecoder, * }
 import scalatags.Text.all.*
-import library.domain.ExistingAssetScrapingConfig
-import library.domain.AssetId
-import library.domain.Site
 
 trait AssetView[F[_], A](using EntityDecoder[F, A]):
   val mediaType: MediaType
@@ -16,6 +13,7 @@ trait AssetView[F[_], A](using EntityDecoder[F, A]):
       List[ExistingAssetEntry]
   )]): A
   def renderForm(asset: Option[ExistingAsset]): A
+  def renderReleases(releases: List[Releases]): A
 
 object AssetView:
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
@@ -206,6 +204,12 @@ object AssetView:
               i(cls := "fa-solid fa-trash")
             )
           )
+        )
+
+      def renderReleases(releases: List[Releases]): String =
+        layout(
+          "Releases".some,
+          ???
         )
 
       private def renderAccordion(assetsViewEntries: List[(

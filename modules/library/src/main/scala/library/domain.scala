@@ -11,6 +11,7 @@ import doobie.util.{ Read, Write }
 import io.circe.{ Codec, Decoder, Encoder }
 import io.github.arainko.ducktape.*
 import org.typelevel.cats.time.*
+import cats.kernel.Order
 
 object domain:
 
@@ -66,6 +67,14 @@ object domain:
       dateUploaded: DateUploaded,
       assetId: AssetId
   )
+
+  type Releases = (DateUploaded, List[(ExistingAsset, ExistingAssetEntry)])
+  object Releases:
+    given Order[Releases] with
+      def compare(x: Releases, y: Releases): Int =
+        if x._1 == y._1 then 0
+        else if x._1 < y._1 then -1
+        else 1
 
   enum AddEntryError:
     case EntryAlreadyExists
