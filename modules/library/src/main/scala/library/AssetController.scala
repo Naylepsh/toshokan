@@ -59,30 +59,11 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     case DELETE -> Root / AssetIdVar(id) =>
       service.delete(id) *> Ok()
 
-    case req @ POST -> Root / AssetIdVar(assetId) / "scraping" / "configs" =>
-      withJsonErrorsHandled[NewAssetScrapingConfigDTO](req): newConfig =>
-        service.add(newConfig.toDomain(assetId)).flatMap:
-          case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
-            Conflict(s"${newConfig.uri} already exists")
-          case Left(AddScrapingConfigError.AssetDoesNotExists) =>
-            BadRequest(s"Asset ${assetId} does not exist")
-          case Right(config) =>
-            Ok(config.id.value.toString)
-
-    case req @ DELETE -> Root
-        / AssetIdVar(_)
-        / "scraping"
-        / "configs"
-        / AssetScrapingConfigIdVar(id) =>
-      service.deleteScrapingConfig(id) *> Ok()
-
     case GET -> Root / "assets" / "entries-by-release-date" =>
       service.findAllGroupedByReleaseDate.flatMap: results =>
         ???
 
   val routes = Router("assets" -> httpRoutes)
-
-  private type EntityDecoderF[A] = EntityDecoder[F, A]
 
   private def withJsonErrorsHandled[A](request: Request[F])(using
   EntityDecoder[F, A]): (A => F[Response[F]]) => F[Response[F]] = f =>
@@ -99,43 +80,9 @@ object AssetController:
     def unapply(str: String): Option[AssetId] =
       str.toIntOption.map(AssetId(_))
 
-  object AssetScrapingConfigIdVar:
-    def unapply(str: String): Option[AssetScrapingConfigId] =
-      str.toIntOption.map(AssetScrapingConfigId(_))
-
-  given Decoder[IsConfigEnabled] = new Decoder[IsConfigEnabled]:
-    private def makeErrorMessage(c: HCursor): String =
-      s"""${c.value.toString} is not one of [true, false, "true", "false", "on"]"""
-
-    final def apply(c: HCursor): Decoder.Result[IsConfigEnabled] =
-      /**
-       * HTML form sends checkbox value as either "on" or no value at all.
-       * Hence this scuffed handling.
-       */
-      c.as[Boolean] match
-        case Right(bool) => Right(IsConfigEnabled(bool))
-        case Left(_) => c.as[String] match
-            case Right("true" | "on") => Right(IsConfigEnabled(true))
-            case Right("false")       => Right(IsConfigEnabled(false))
-            case _                    => Left(DecodingFailure(makeErrorMessage(c), List.empty))
-
-  case class NewAssetScrapingConfigDTO(
-      uri: ScrapingConfigUri,
-      site: Site,
-      isEnabled: Option[IsConfigEnabled]
-  ) derives Decoder:
-    def toDomain(assetId: AssetId): NewAssetScrapingConfig =
-      this.into[NewAssetScrapingConfig]
-        .transform(
-          Field.const(_.assetId, assetId),
-          Field.const(_.isEnabled, isEnabled.getOrElse(IsConfigEnabled(false)))
-        )
-
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
   given [F[_]: Concurrent]: EntityDecoder[F, NewAssetScrapingConfig] =
     jsonOf[F, NewAssetScrapingConfig]
-  given [F[_]: Concurrent]: EntityDecoder[F, NewAssetScrapingConfigDTO] =
-    jsonOf[F, NewAssetScrapingConfigDTO]
 
   private def addRedirectHeaderIfHtmxRequest[F[_]](
       request: Request[F],

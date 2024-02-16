@@ -11,13 +11,8 @@ trait AssetService[F[_]]:
   def findAllGroupedByReleaseDate: F[List[Releases]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
-  def add(config: NewAssetScrapingConfig): F[Either[
-    AddScrapingConfigError,
-    ExistingAssetScrapingConfig
-  ]]
   def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
-  def deleteScrapingConfig(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetService:
   def make[F[_]: Monad](repository: AssetRepository[F]): AssetService[F] =
@@ -47,10 +42,6 @@ object AssetService:
       def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
         repository.add(asset)
 
-      def add(config: NewAssetScrapingConfig)
-          : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
-        repository.add(config)
-
       def update(asset: ExistingAsset): F[Unit] =
         /**
          * TODO: This should probably check whether the asset exists first?
@@ -60,7 +51,3 @@ object AssetService:
 
       def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)
-
-      def deleteScrapingConfig(scrapingConfigId: AssetScrapingConfigId)
-          : F[Unit] =
-        repository.deleteScrapingConfig(scrapingConfigId)

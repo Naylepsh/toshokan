@@ -13,15 +13,11 @@ trait AssetRepository[F[_]]:
   def findById(assetId: AssetId): F[Option[(
       ExistingAsset,
       List[ExistingAssetEntry],
-      List[ExistingAssetScrapingConfig]
   )]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
-  def add(scrapingConfig: NewAssetScrapingConfig)
-      : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
   def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
-  def deleteScrapingConfig(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetRepository:
   object Assets extends TableDefinition("assets"):
@@ -40,16 +36,6 @@ object AssetRepository:
 
     val *           = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
     val allExceptId = Columns((no, uri, wasSeen, dateUploaded, assetId))
-
-  object AssetScrapingConfigs extends TableDefinition("asset_scraping_configs"):
-    val id        = Column[AssetScrapingConfigId]("id")
-    val uri       = Column[ScrapingConfigUri]("uri")
-    val isEnabled = Column[IsConfigEnabled]("is_enabled")
-    val site      = Column[Site]("site")
-    val assetId   = Column[AssetId]("asset_id")
-
-    val *           = Columns((id, uri, site, isEnabled, assetId))
-    val allExceptId = Columns((uri, site, isEnabled, assetId))
 
   private val A  = Assets as "a"
   private val AE = AssetEntries as "ae"
@@ -100,7 +86,6 @@ object AssetRepository:
     def findById(assetId: AssetId): F[Option[(
         ExistingAsset,
         List[ExistingAssetEntry],
-        List[ExistingAssetScrapingConfig]
     )]] =
       /**
        * Ideally this would be done in one query,
@@ -109,9 +94,8 @@ object AssetRepository:
       (
         findAsset(assetId),
         findEntries(assetId),
-        findScrapingConfigs(assetId)
-      ).tupled.map: (maybeAsset, entries, configs) =>
-        maybeAsset.map(asset => (asset, entries, configs))
+      ).tupled.map: (maybeAsset, entries) =>
+        maybeAsset.map(asset => (asset, entries))
 
     def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
       doesAssetExist(asset.title).flatMap:
@@ -126,18 +110,6 @@ object AssetRepository:
           else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
           else addWithoutChecking(entry).map(_.asRight)
 
-    def add(scrapingConfig: NewAssetScrapingConfig)
-        : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
-      (
-        doesAssetExist(scrapingConfig.assetId),
-        doesConfigExist(scrapingConfig.uri)
-      ).tupled.flatMap: (assetExists, configExists) =>
-        if configExists then
-          AddScrapingConfigError.ConfigAlreadyExists.asLeft.pure
-        else if !assetExists then
-          AddScrapingConfigError.AssetDoesNotExists.asLeft.pure
-        else addWithoutChecking(scrapingConfig).map(_.asRight)
-
     def update(asset: ExistingAsset): F[Unit] =
       sql"""
       UPDATE ${Assets}
@@ -148,12 +120,6 @@ object AssetRepository:
     def delete(assetId: AssetId): F[Unit] =
       sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}"
         .update.run.transact(xa).void
-
-    def deleteScrapingConfig(scrapingConfigId: AssetScrapingConfigId): F[Unit] =
-      sql"""
-        DELETE FROM ${AssetScrapingConfigs} 
-        WHERE ${AssetScrapingConfigs.id === scrapingConfigId}
-      """.update.run.transact(xa).void
 
     private def findAsset(assetId: AssetId): F[Option[ExistingAsset]] =
       sql"""
@@ -177,17 +143,6 @@ object AssetRepository:
         .map: rows =>
           rows.map(Tuples.from[ExistingAssetEntry](_))
 
-    private def findScrapingConfigs(assetId: AssetId)
-        : F[List[ExistingAssetScrapingConfig]] =
-      sql"""
-        SELECT ${AssetScrapingConfigs.*}
-        FROM ${AssetScrapingConfigs}
-        WHERE ${AssetScrapingConfigs.assetId === assetId}
-      """.queryOf(AssetScrapingConfigs.*)
-        .to[List]
-        .transact(xa)
-        .map: rows =>
-          rows.map(Tuples.from[ExistingAssetScrapingConfig](_))
 
     private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
       sql"INSERT INTO ${Assets}(${Assets.title}) VALUES (${asset.title}) RETURNING ${Assets.*}"
@@ -205,18 +160,6 @@ object AssetRepository:
         .unique
         .transact(xa)
         .map(Tuples.from[ExistingAssetEntry](_))
-
-    private def addWithoutChecking(scrapingConfig: NewAssetScrapingConfig)
-        : F[ExistingAssetScrapingConfig] =
-      val values = Tuples.to(scrapingConfig)
-      sql"""
-        INSERT INTO ${AssetScrapingConfigs}(${AssetScrapingConfigs.allExceptId}) 
-        VALUES ($values) 
-        RETURNING ${AssetScrapingConfigs.*}"""
-        .queryOf(AssetScrapingConfigs.*)
-        .unique
-        .transact(xa)
-        .map(Tuples.from[ExistingAssetScrapingConfig](_))
 
     private def doesAssetExist(title: AssetTitle): F[Boolean] =
       sql"""
@@ -237,11 +180,4 @@ object AssetRepository:
         SELECT 1
         FROM ${AssetEntries}
         WHERE ${AssetEntries.uri === entryUri}
-      """.query[Int].option.transact(xa).map(_.isDefined)
-
-    private def doesConfigExist(uri: ScrapingConfigUri): F[Boolean] =
-      sql"""
-        SELECT 1
-        FROM ${AssetScrapingConfigs}
-        WHERE ${AssetScrapingConfigs.uri === uri}
       """.query[Int].option.transact(xa).map(_.isDefined)
