@@ -26,6 +26,7 @@ object AssetScrapingView:
         assetId: AssetId,
         configs: List[ExistingAssetScrapingConfig]
     ): String =
+      // TODO: Display asset id
       val configTemplateId = "config-template"
       val configGroupId    = "configs"
       val titleId          = "title"

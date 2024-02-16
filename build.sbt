@@ -69,5 +69,5 @@ lazy val root = project
     fork    := true,
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
-  .aggregate(core, library, scraper, scrapeConfigs)
-  .dependsOn(core, library, scraper, scrapeConfigs)
+  .aggregate(core, library, scraper, scrapeConfigs, assetScraping)
+  .dependsOn(core, library, scraper, scrapeConfigs, assetScraping)

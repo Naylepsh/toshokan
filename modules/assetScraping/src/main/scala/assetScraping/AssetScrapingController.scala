@@ -17,9 +17,10 @@ import scraper.Scraper
 
 import domain.*
 
+// TODO: Rename to AssetScrapingConfigController?
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
     assetService: AssetService[F],
-    scraper: Scraper[F],
+    // scraper: Scraper[F],
     service: AssetScrapingService[F],
     view: AssetScrapingView[F, A]
 )(using EntityEncoder[F, A]) extends Http4sDsl[F]:
@@ -51,6 +52,8 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
 
     case req @ DELETE -> Root / AssetScrapingConfigIdVar(id) =>
       service.delete(id) *> Ok()
+
+  val routes = Router("asset-scraping" -> httpRoutes)
 
   // TODO: Move this to a Controller base class?
   private def withJsonErrorsHandled[A](request: Request[F])(using

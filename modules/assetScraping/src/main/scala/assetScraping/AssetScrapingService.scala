@@ -15,7 +15,7 @@ object AssetScrapingService:
   def make[F[_]: Monad](
       repository: AssetScrapingRepository[F],
       assetRepository: AssetRepository[F]
-  ): AssetScrapingRepository[F] = new:
+  ): AssetScrapingService[F] = new:
     def add(scrapingConfig: NewAssetScrapingConfig)
         : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
       assetRepository.findById(scrapingConfig.assetId).flatMap:

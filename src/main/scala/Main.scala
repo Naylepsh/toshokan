@@ -15,9 +15,23 @@ object Main extends IOApp.Simple:
       val assetView       = library.AssetView.makeHtmlView[IO]
       val assetController = library.AssetController(assetService, assetView)
 
+      val assetScrapingRepository =
+        assetScraping.AssetScrapingRepository.make[IO](xa)
+      val assetScrapingService = assetScraping.AssetScrapingService.make[IO](
+        assetScrapingRepository,
+        assetRepository
+      )
+      val assetScrapingView = assetScraping.AssetScrapingView.makeHtmlView[IO]
+      val assetScrapingController = assetScraping.AssetScrapingController(
+        assetService,
+        assetScrapingService,
+        assetScrapingView
+      )
+
       val publicController = PublicController[IO]()
 
-      val routes = assetController.routes <+> publicController.routes
+      val routes =
+        assetController.routes <+> assetScrapingController.routes <+> publicController.routes
 
       HttpServer[IO]
         .newEmber(serverConfig, routes.orNotFound)
