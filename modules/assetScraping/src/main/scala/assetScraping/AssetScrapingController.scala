@@ -33,9 +33,9 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
         case Left(FindScrapingConfigError.AssetDoesNotExists) =>
           // TODO: This should be an equivalent of 404
           ???
-        case Right(configs) =>
+        case Right(asset, configs) =>
           Ok(
-            view.renderForms(assetId, configs),
+            view.renderForms(asset, configs),
             `Content-Type`(view.mediaType)
           )
 

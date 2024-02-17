@@ -3,29 +3,37 @@ package assetScraping
 import cats.Monad
 import cats.syntax.all.*
 import library.AssetService
-import library.domain.AssetId
+import library.domain.*
+import scrapeConfigs.sites.SiteScrapeConfig
+import scraper.Scraper
+import scraper.domain.JobLabel
 
 import domain.*
+import scraper.domain.EntryFound
 
 trait AssetScrapingService[F[_]]:
-  def findByAssetId(assetId: AssetId)
-      : F[Either[FindScrapingConfigError, List[ExistingAssetScrapingConfig]]]
+  def findByAssetId(assetId: AssetId): F[Either[
+    FindScrapingConfigError,
+    (ExistingAsset, List[ExistingAssetScrapingConfig])
+  ]]
   def add(scrapingConfig: NewAssetScrapingConfig)
       : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(id: AssetScrapingConfigId): F[Unit]
+  def scrapeAllEnabled: F[Unit]
 
 object AssetScrapingService:
   def make[F[_]: Monad](
       repository: AssetScrapingRepository[F],
-      assetService: AssetService[F]
+      assetService: AssetService[F],
+      scraper: Scraper[F]
   ): AssetScrapingService[F] = new:
     def findByAssetId(assetId: AssetId): F[Either[
       FindScrapingConfigError,
-      List[ExistingAssetScrapingConfig]
+      (ExistingAsset, List[ExistingAssetScrapingConfig])
     ]] =
       assetService.find(assetId).flatMap:
-        case Some(_) => List.empty.asRight.pure // TODO
-        case None    => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
+        case Some(asset, _) => (asset, List.empty).asRight.pure
+        case None           => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
 
     def add(scrapingConfig: NewAssetScrapingConfig)
         : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
@@ -35,3 +43,34 @@ object AssetScrapingService:
 
     def delete(id: AssetScrapingConfigId): F[Unit] =
       repository.delete(id)
+
+    def scrapeAllEnabled: F[Unit] =
+      for
+        configs <- repository.findAllEnabled
+        instructons = configs.map(makeScrapingInstruction)
+        results <- scraper.scrape(instructons)
+        (errors, entries) = results
+        _ <- entries.traverse(saveResult)
+      // TODO: log errors
+      yield ()
+
+    private def makeScrapingInstruction(config: ExistingAssetScrapingConfig) =
+      (
+        JobLabel(config.assetId.value),
+        config.uri.value,
+        pickSiteScraper(config.site)
+      )
+
+    private val pickSiteScraper: Site => SiteScrapeConfig[F] =
+      case Site.Mangadex     => ???
+      case Site.Mangakakalot => ???
+
+    private def saveResult(result: (JobLabel, EntryFound)) =
+      val (label, entry) = result
+      val newEntry = NewAssetEntry.make(
+        EntryNo(entry.no.value),
+        EntryUri(entry.uri.value),
+        DateUploaded(entry.dateUploaded.value),
+        AssetId(label.value)
+      )
+      assetService.add(newEntry)

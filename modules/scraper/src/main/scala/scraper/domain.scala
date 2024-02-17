@@ -19,5 +19,8 @@ object domain:
 
   case class EntryFound(no: EntryNo, uri: EntryUri, dateUploaded: DateUploaded)
 
+  type JobLabel = JobLabel.Type
+  object JobLabel extends Newtype[Long]
+
   enum ScrapeError:
     case NoEntriesFound

@@ -7,11 +7,12 @@ import org.http4s.{ EntityDecoder, * }
 import scalatags.Text.all.*
 
 import domain.{ ExistingAssetScrapingConfig, Site }
+import library.domain.ExistingAsset
 
 trait AssetScrapingView[F[_], A]:
   val mediaType: MediaType
   def renderForms(
-      assetId: AssetId,
+      asset: ExistingAsset,
       configs: List[ExistingAssetScrapingConfig]
   ): A
 
@@ -23,7 +24,7 @@ object AssetScrapingView:
     val mediaType: MediaType = MediaType.text.html
 
     def renderForms(
-        assetId: AssetId,
+        asset: ExistingAsset,
         configs: List[ExistingAssetScrapingConfig]
     ): String =
       // TODO: Display asset id
@@ -31,7 +32,7 @@ object AssetScrapingView:
       val configGroupId    = "configs"
       val titleId          = "title"
       layout(
-        s"${assetId} configs".some,
+        s"${asset.id} configs".some,
         div(
           cls := "mt-5",
           // TODO: Add the new config handling
@@ -52,13 +53,13 @@ object AssetScrapingView:
                 cls := "div-striped",
                 // TODO: Use actual asset's configs
                 configs.map(config =>
-                  renderConfigRow(assetId, config.some)
+                  renderConfigRow(asset.id, config.some)
                 )
               )
             ),
             template(
               id := configTemplateId,
-              renderConfigRow(assetId, None)
+              renderConfigRow(asset.id, None)
             ),
             button(
               cls     := "btn btn-light",

@@ -55,10 +55,21 @@ object domain:
   case class NewAssetEntry(
       no: EntryNo,
       uri: EntryUri,
+      // TODO: It probably doesn't make sense for `wasSeen` to be a valid property of NewEntry
+      // Remove it?
       wasSeen: WasEntrySeen,
       dateUploaded: DateUploaded,
       assetId: AssetId
   )
+  object NewAssetEntry:
+    def make(
+        no: EntryNo,
+        uri: EntryUri,
+        dateUploaded: DateUploaded,
+        assetId: AssetId
+    ): NewAssetEntry =
+      NewAssetEntry(no, uri, WasEntrySeen(false), dateUploaded, assetId)
+
   case class ExistingAssetEntry(
       id: EntryId,
       no: EntryNo,
@@ -79,4 +90,3 @@ object domain:
   enum AddEntryError:
     case EntryAlreadyExists
     case AssetDoesNotExists
-

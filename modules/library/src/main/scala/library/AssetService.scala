@@ -11,6 +11,7 @@ trait AssetService[F[_]]:
   def findAllGroupedByReleaseDate: F[List[Releases]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
+  def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
   def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
 
@@ -41,6 +42,10 @@ object AssetService:
 
       def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
         repository.add(asset)
+
+      def add(entry: NewAssetEntry)
+          : F[Either[AddEntryError, ExistingAssetEntry]] =
+        repository.add(entry)
 
       def update(asset: ExistingAsset): F[Unit] =
         /**

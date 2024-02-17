@@ -11,6 +11,7 @@ import library.domain.AssetId
 import domain.*
 
 trait AssetScrapingRepository[F[_]]:
+  def findAllEnabled: F[List[ExistingAssetScrapingConfig]]
   def add(scrapingConfig: NewAssetScrapingConfig)
       : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
@@ -28,6 +29,16 @@ object AssetScrapingRepository:
 
   def make[F[_]: MonadCancelThrow](xa: Transactor[F])
       : AssetScrapingRepository[F] = new:
+    def findAllEnabled: F[List[ExistingAssetScrapingConfig]] =
+      sql"""
+        SELECT ${AssetScrapingConfigs.*}
+        FROM ${AssetScrapingConfigs}
+        WHERE ${AssetScrapingConfigs.isEnabled === IsConfigEnabled(true)}"""
+        .queryOf(AssetScrapingConfigs.*)
+        .to[List]
+        .transact(xa).map: rows =>
+          rows.map(Tuples.from[ExistingAssetScrapingConfig](_))
+
     def add(scrapingConfig: NewAssetScrapingConfig)
         : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
       exists(scrapingConfig.uri).flatMap: configExists =>

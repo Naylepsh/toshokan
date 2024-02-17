@@ -3,10 +3,8 @@ package scraper
 import java.net.URI
 
 import scrapeConfigs.sites.SiteScrapeConfig
-import scraper.domain.{ EntryFound, ScrapeError }
+import scraper.domain.{ EntryFound, JobLabel, ScrapeError }
 
 trait Scraper[F[_]]:
-  def scrape(
-      uri: URI,
-      config: SiteScrapeConfig[F]
-  ): F[Either[ScrapeError, List[EntryFound]]]
+  def scrape(instructions: List[(JobLabel, URI, SiteScrapeConfig[F])])
+      : F[(List[(JobLabel, ScrapeError)], List[(JobLabel, EntryFound)])]
