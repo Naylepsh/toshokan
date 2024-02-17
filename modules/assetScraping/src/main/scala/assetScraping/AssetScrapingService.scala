@@ -6,10 +6,9 @@ import library.AssetService
 import library.domain.*
 import scrapeConfigs.sites.SiteScrapeConfig
 import scraper.Scraper
-import scraper.domain.JobLabel
+import scraper.domain.{ EntryFound, JobLabel }
 
 import domain.*
-import scraper.domain.EntryFound
 
 trait AssetScrapingService[F[_]]:
   def findByAssetId(assetId: AssetId): F[Either[
