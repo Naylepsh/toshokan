@@ -19,11 +19,10 @@ object Main extends IOApp.Simple:
         assetScraping.AssetScrapingRepository.make[IO](xa)
       val assetScrapingService = assetScraping.AssetScrapingService.make[IO](
         assetScrapingRepository,
-        assetRepository
+        assetService
       )
       val assetScrapingView = assetScraping.AssetScrapingView.makeHtmlView[IO]
       val assetScrapingController = assetScraping.AssetScrapingController(
-        assetService,
         assetScrapingService,
         assetScrapingView
       )

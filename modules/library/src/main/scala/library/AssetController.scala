@@ -81,8 +81,6 @@ object AssetController:
       str.toIntOption.map(AssetId(_))
 
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
-  given [F[_]: Concurrent]: EntityDecoder[F, NewAssetScrapingConfig] =
-    jsonOf[F, NewAssetScrapingConfig]
 
   private def addRedirectHeaderIfHtmxRequest[F[_]](
       request: Request[F],

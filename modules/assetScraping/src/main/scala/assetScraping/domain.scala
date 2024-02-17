@@ -46,6 +46,9 @@ object domain:
       assetId: AssetId
   )
 
+  enum FindScrapingConfigError:
+    case AssetDoesNotExists
+
   enum AddScrapingConfigError:
     case ConfigAlreadyExists
     case AssetDoesNotExists

@@ -19,7 +19,6 @@ import domain.*
 
 // TODO: Rename to AssetScrapingConfigController?
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
-    assetService: AssetService[F],
     // scraper: Scraper[F],
     service: AssetScrapingService[F],
     view: AssetScrapingView[F, A]
@@ -30,13 +29,13 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
     case GET -> Root / "assets" / AssetIdVar(assetId) =>
       // TODO: assetService should be moved to AssetScrapingService as a dependency.
       // Add a `AssetScrapingService.findByAssetId(id: AssetId): F[List[Existing...]]` method
-      assetService.find(assetId).flatMap:
-        case None =>
+      service.findByAssetId(assetId).flatMap:
+        case Left(FindScrapingConfigError.AssetDoesNotExists) =>
           // TODO: This should be an equivalent of 404
           ???
-        case Some(_) =>
+        case Right(configs) =>
           Ok(
-            view.renderForms(assetId, List.empty),
+            view.renderForms(assetId, configs),
             `Content-Type`(view.mediaType)
           )
 
