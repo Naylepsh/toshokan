@@ -46,20 +46,19 @@ lazy val library = project
   )
   .dependsOn(core, doobiex, db)
 
-lazy val scrapeConfigs = project
-  .in(file("modules/scrapeConfigs"))
-  .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core, doobiex)
-
 lazy val scraper = project
   .in(file("modules/scraper"))
-  .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core, scrapeConfigs)
+  .settings(libraryDependencies ++= commonDependencies ++ Seq(
+    Dependencies.sttp,
+    Dependencies.sttpCats,
+    Dependencies.sttpCirce
+  ))
+  .dependsOn(core)
 
 lazy val assetScraping = project
   .in(file("modules/assetScraping"))
   .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core, library, scrapeConfigs, scraper)
+  .dependsOn(core, library, scraper)
 
 lazy val root = project
   .in(file("."))
@@ -69,5 +68,5 @@ lazy val root = project
     fork    := true,
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
-  .aggregate(core, library, scraper, scrapeConfigs, assetScraping)
-  .dependsOn(core, library, scraper, scrapeConfigs, assetScraping)
+  .aggregate(core, library, scraper, assetScraping)
+  .dependsOn(core, library, scraper, assetScraping)

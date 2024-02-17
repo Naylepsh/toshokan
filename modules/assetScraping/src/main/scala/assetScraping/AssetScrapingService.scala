@@ -4,9 +4,8 @@ import cats.Monad
 import cats.syntax.all.*
 import library.AssetService
 import library.domain.*
-import scrapeConfigs.sites.SiteScrapeConfig
 import scraper.Scraper
-import scraper.domain.{ EntryFound, JobLabel }
+import scraper.domain.{ EntryFound, JobLabel, SiteScraper }
 
 import domain.*
 
@@ -60,7 +59,7 @@ object AssetScrapingService:
         pickSiteScraper(config.site)
       )
 
-    private val pickSiteScraper: Site => SiteScrapeConfig[F] =
+    private val pickSiteScraper: Site => SiteScraper[F] =
       case Site.Mangadex     => ???
       case Site.Mangakakalot => ???
 
