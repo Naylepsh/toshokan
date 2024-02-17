@@ -78,7 +78,7 @@ object AssetView:
         )
 
       def renderForm(asset: Option[ExistingAsset]): String =
-        val titleId       = "title"
+        val titleId = "title"
         val (hxMethod, url) = asset
           .map(asset => (attr("hx-put"), s"/assets/${asset.id}"))
           .getOrElse((attr("hx-post"), "/assets"))
@@ -103,20 +103,10 @@ object AssetView:
             ),
             asset
               .map: asset =>
-                // TODO: Add the new config handling
-                div(
-                  div(
-                    cls := "container",
-                    div(
-                      cls := "row pb-2",
-                      div(cls := "col-1 fw-bold", "Enabled"),
-                      div(cls := "col-1 fw-bold", "Id"),
-                      div(cls := "col-2 fw-bold", "Site"),
-                      div(cls := "col fw-bold", "URI"),
-                      // Column for actions (add / update / delete / remove)
-                      div(cls := "col-1", "")
-                    ),
-                  )
+                a(
+                  href := s"/asset-scraping/assets/${asset.id}",
+                  cls  := "btn btn-light",
+                  "Scraping configs"
                 )
               .getOrElse(div())
           )
