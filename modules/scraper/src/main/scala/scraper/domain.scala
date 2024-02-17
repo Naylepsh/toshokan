@@ -4,7 +4,6 @@ import java.net.URI
 import java.time.LocalDate
 
 import core.{ Newtype, given }
-import doobie.implicits.legacy.localdate.*
 import org.typelevel.cats.time.*
 
 object domain:

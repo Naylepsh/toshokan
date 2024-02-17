@@ -32,7 +32,7 @@ object AssetScrapingView:
       val configGroupId    = "configs"
       val titleId          = "title"
       layout(
-        s"${asset.id} configs".some,
+        s"${asset.title}'s configs".some,
         div(
           cls := "mt-5",
           // TODO: Add the new config handling

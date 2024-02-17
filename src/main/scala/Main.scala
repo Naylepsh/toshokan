@@ -1,6 +1,7 @@
 import cats.effect.{ IO, IOApp }
 import cats.syntax.all.*
 import org.http4s.syntax.all.*
+import scraper.Scraper
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
@@ -15,11 +16,14 @@ object Main extends IOApp.Simple:
       val assetView       = library.AssetView.makeHtmlView[IO]
       val assetController = library.AssetController(assetService, assetView)
 
+      val scraper = Scraper.noop[IO]
+
       val assetScrapingRepository =
         assetScraping.AssetScrapingRepository.make[IO](xa)
       val assetScrapingService = assetScraping.AssetScrapingService.make[IO](
         assetScrapingRepository,
-        assetService
+        assetService,
+        scraper
       )
       val assetScrapingView = assetScraping.AssetScrapingView.makeHtmlView[IO]
       val assetScrapingController = assetScraping.AssetScrapingController(

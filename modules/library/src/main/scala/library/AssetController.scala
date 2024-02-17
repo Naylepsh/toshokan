@@ -59,12 +59,17 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     case DELETE -> Root / AssetIdVar(id) =>
       service.delete(id) *> Ok()
 
-    case GET -> Root / "assets" / "entries-by-release-date" =>
-      service.findAllGroupedByReleaseDate.flatMap: results =>
-        ???
+    case GET -> Root / "entries-by-release-date" =>
+      service.findAllGroupedByReleaseDate.attempt.flatMap:
+        case Left(reason) =>
+          println(reason)
+          InternalServerError("Something went wrong")
+        case Right(releases) =>
+          Ok(view.renderReleases(releases), `Content-Type`(view.mediaType))
 
   val routes = Router("assets" -> httpRoutes)
 
+  // TODO: Move this to a Controller base class?
   private def withJsonErrorsHandled[A](request: Request[F])(using
   EntityDecoder[F, A]): (A => F[Response[F]]) => F[Response[F]] = f =>
     request.as[A].attempt.flatMap:

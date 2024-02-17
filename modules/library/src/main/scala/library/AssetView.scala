@@ -113,26 +113,19 @@ object AssetView:
         )
 
       def renderReleases(releases: List[Releases]): String =
+        val accordionId = "releases"
         layout(
           "Releases".some,
-          ???
-        )
-
-      private def renderAccordion(assetsViewEntries: List[(
-          ExistingAsset,
-          List[ExistingAssetEntry]
-      )]): String =
-        /**
-         * TODO: This will be used for entries view ig?
-         */
-        val accordionId = "asset-list"
-        layout(
-          "Assets".some,
           div(
             id  := accordionId,
             cls := "accordion mt-5",
-            assetsViewEntries.map: (asset, _) =>
-              val accordionItemId = s"asset${asset.id.value}"
+            releases.map: (dateUploaded, results) =>
+              /**
+               * Can't use s"{dateUploaded.value}" as id,
+               * because a selector with a leading number is not a valid CSS selector,
+               * which causes issues with bootstrap
+               */
+              val accordionItemId = s"date-${dateUploaded.value}"
               div(
                 cls := "accordion-item",
                 h2(
@@ -142,15 +135,22 @@ object AssetView:
                     `type`                 := "button",
                     attr("data-bs-toggle") := "collapse",
                     attr("data-bs-target") := s"#${accordionItemId}",
-                    asset.title.value
+                    dateUploaded.value.toString
                   )
                 ),
                 div(
                   id                     := accordionItemId,
                   cls                    := "accordion-collapse collapse",
                   attr("data-bs-parent") := s"#${accordionId}",
-                  div(cls := "accordion-body", "Foo, bar, baz")
+                  div(
+                    cls := "accordion-body",
+                    results.map: (asset, entry) =>
+                      div(
+                        p(s"${asset.title} - ${entry.no}"),
+                        a(href := s"${entry.uri}", entry.uri.toString)
+                      )
+                  )
                 )
               )
           )
-        ).toString
+        )
