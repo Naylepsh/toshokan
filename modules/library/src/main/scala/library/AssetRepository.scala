@@ -10,9 +10,12 @@ import library.domain.*
 
 trait AssetRepository[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
+  def findById(assetId: AssetId): F[Option[(
+      ExistingAsset,
+      List[ExistingAssetEntry],
+  )]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
-  def addEntry(entry: NewAssetEntry)
-      : F[Either[AddEntryError, ExistingAssetEntry]]
+  def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
   def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
 
@@ -31,8 +34,8 @@ object AssetRepository:
     val dateUploaded = Column[DateUploaded]("date_uploaded")
     val assetId      = Column[AssetId]("asset_id")
 
-    val allExceptId = Columns((no, uri, wasSeen, dateUploaded, assetId))
     val *           = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
+    val allExceptId = Columns((no, uri, wasSeen, dateUploaded, assetId))
 
   private val A  = Assets as "a"
   private val AE = AssetEntries as "ae"
@@ -80,18 +83,32 @@ object AssetRepository:
             .toList
             .sortBy((asset, _) => asset.id)
 
+    def findById(assetId: AssetId): F[Option[(
+        ExistingAsset,
+        List[ExistingAssetEntry],
+    )]] =
+      /**
+       * Ideally this would be done in one query,
+       * but I cba to do the sql -> domain nested transformation
+       */
+      (
+        findAsset(assetId),
+        findEntries(assetId),
+      ).tupled.map: (maybeAsset, entries) =>
+        maybeAsset.map(asset => (asset, entries))
+
     def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
-      exists(asset.title).flatMap:
+      doesAssetExist(asset.title).flatMap:
         case true  => AddAssetError.AssetAlreadyExists.asLeft.pure
         case false => addWithoutChecking(asset).map(_.asRight)
 
-    def addEntry(entry: NewAssetEntry)
+    def add(entry: NewAssetEntry)
         : F[Either[AddEntryError, ExistingAssetEntry]] =
-      (exists(entry.assetId), exists(entry.assetId, entry.uri)).tupled.flatMap:
+      (doesAssetExist(entry.assetId), doesEntryExist(entry.uri)).tupled.flatMap:
         (assetExists, entryExists) =>
           if entryExists then AddEntryError.EntryAlreadyExists.asLeft.pure
           else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
-          else addEntryWithoutChecking(entry).map(_.asRight)
+          else addWithoutChecking(entry).map(_.asRight)
 
     def update(asset: ExistingAsset): F[Unit] =
       sql"""
@@ -104,6 +121,29 @@ object AssetRepository:
       sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}"
         .update.run.transact(xa).void
 
+    private def findAsset(assetId: AssetId): F[Option[ExistingAsset]] =
+      sql"""
+        SELECT ${Assets.*}
+        FROM ${Assets}
+        WHERE ${Assets.id === assetId}
+      """.queryOf(Assets.*)
+        .option
+        .transact(xa)
+        .map: row =>
+          row.map(Tuples.from[ExistingAsset](_))
+
+    private def findEntries(assetId: AssetId): F[List[ExistingAssetEntry]] =
+      sql"""
+        SELECT ${AssetEntries.*} 
+        FROM ${AssetEntries} 
+        WHERE ${AssetEntries.assetId === assetId}
+      """.queryOf(AssetEntries.*)
+        .to[List]
+        .transact(xa)
+        .map: rows =>
+          rows.map(Tuples.from[ExistingAssetEntry](_))
+
+
     private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
       sql"INSERT INTO ${Assets}(${Assets.title}) VALUES (${asset.title}) RETURNING ${Assets.*}"
         .queryOf(Assets.*)
@@ -112,7 +152,7 @@ object AssetRepository:
         .map: row =>
           Tuples.from[ExistingAsset](row)
 
-    private def addEntryWithoutChecking(entry: NewAssetEntry)
+    private def addWithoutChecking(entry: NewAssetEntry)
         : F[ExistingAssetEntry] =
       val values = Tuples.to(entry)
       sql"INSERT INTO ${AssetEntries}(${AssetEntries.allExceptId}) VALUES ($values) RETURNING ${AssetEntries.*}"
@@ -121,24 +161,23 @@ object AssetRepository:
         .transact(xa)
         .map(Tuples.from[ExistingAssetEntry](_))
 
-    private def exists(title: AssetTitle): F[Boolean] =
+    private def doesAssetExist(title: AssetTitle): F[Boolean] =
       sql"""
         SELECT 1
         FROM ${Assets}
         WHERE ${Assets.title} = ${title}
       """.query[Int].option.transact(xa).map(_.isDefined)
 
-    private def exists(id: AssetId): F[Boolean] =
+    private def doesAssetExist(id: AssetId): F[Boolean] =
       sql"""
         SELECT 1
         FROM ${Assets}
         WHERE ${Assets.id} = ${id}
       """.query[Int].option.transact(xa).map(_.isDefined)
 
-    private def exists(assetId: AssetId, entryUri: EntryUri): F[Boolean] =
+    private def doesEntryExist(entryUri: EntryUri): F[Boolean] =
       sql"""
         SELECT 1
         FROM ${AssetEntries}
-        WHERE ${AssetEntries.assetId} = ${assetId}
-        AND ${AssetEntries.uri} = ${entryUri}
+        WHERE ${AssetEntries.uri === entryUri}
       """.query[Int].option.transact(xa).map(_.isDefined)

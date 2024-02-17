@@ -8,6 +8,8 @@ val commonDependencies = Seq(
   Dependencies.monocle,
   Dependencies.ducktape,
   Dependencies.doobieCore,
+  Dependencies.scalaTags,
+  Dependencies.validator,
   Dependencies.munit % Test
 )
 
@@ -39,8 +41,7 @@ lazy val library = project
     libraryDependencies ++= commonDependencies ++ Seq(
       Dependencies.http4sCirce,
       Dependencies.http4sDsl,
-      Dependencies.http4sServer,
-      Dependencies.scalaTags
+      Dependencies.http4sServer
     )
   )
   .dependsOn(core, doobiex, db)
@@ -51,9 +52,14 @@ lazy val scrapeConfigs = project
   .dependsOn(core, doobiex)
 
 lazy val scraper = project
-  .in(file("modules/scaper"))
+  .in(file("modules/scraper"))
   .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core)
+  .dependsOn(core, scrapeConfigs)
+
+lazy val assetScraping = project
+  .in(file("modules/assetScraping"))
+  .settings(libraryDependencies ++= commonDependencies)
+  .dependsOn(core, library, scrapeConfigs, scraper)
 
 lazy val root = project
   .in(file("."))
@@ -63,5 +69,5 @@ lazy val root = project
     fork    := true,
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
-  .aggregate(core, library, scraper, scrapeConfigs)
-  .dependsOn(core, library, scraper, scrapeConfigs)
+  .aggregate(core, library, scraper, scrapeConfigs, assetScraping)
+  .dependsOn(core, library, scraper, scrapeConfigs, assetScraping)
