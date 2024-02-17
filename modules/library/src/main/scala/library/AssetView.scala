@@ -145,9 +145,13 @@ object AssetView:
                   div(
                     cls := "accordion-body",
                     results.map: (asset, entry) =>
-                      div(
-                        p(s"${asset.title} - ${entry.no}"),
-                        a(href := s"${entry.uri}", entry.uri.toString)
+                      val headerClasses =
+                        if entry.wasSeen then "" else "fw-bold"
+                      a(
+                        cls  := "btn text-start",
+                        href := s"${entry.uri}",
+                        h5(cls := headerClasses, asset.title.value),
+                        p(s"Ch. ${entry.no.value}")
                       )
                   )
                 )
