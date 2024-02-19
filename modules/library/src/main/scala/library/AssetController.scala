@@ -14,23 +14,24 @@ import org.http4s.server.Router
 import org.typelevel.ci.CIString
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
-    service: AssetService[F],
-    view: AssetView[F, A]
-)(using EntityEncoder[F, A]) extends Http4sDsl[F]:
+    service: AssetService[F]
+) extends Http4sDsl[F]:
   import AssetController.{ *, given }
+
+  private val htmlContentTypeHeader = `Content-Type`(MediaType.text.html)
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
       service.findAll.flatMap: assetsWithEntries =>
-        Ok(view.renderAssets(assetsWithEntries), `Content-Type`(view.mediaType))
+        Ok(AssetView.renderAssets(assetsWithEntries), htmlContentTypeHeader)
 
     case GET -> Root / "new" =>
-      Ok(view.renderForm(None), `Content-Type`(view.mediaType))
+      Ok(AssetView.renderForm(None), htmlContentTypeHeader)
 
     case GET -> Root / "edit" / AssetIdVar(id) =>
       service.find(id).flatMap:
         case Some(asset, _) =>
-          Ok(view.renderForm(asset.some), `Content-Type`(view.mediaType))
+          Ok(AssetView.renderForm(asset.some), htmlContentTypeHeader)
         case None =>
           NotFound(s"Asset ${id} not found")
 
@@ -65,7 +66,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
           println(reason)
           InternalServerError("Something went wrong")
         case Right(releases) =>
-          Ok(view.renderReleases(releases), `Content-Type`(view.mediaType))
+          Ok(AssetView.renderReleases(releases), htmlContentTypeHeader)
 
   val routes = Router("assets" -> httpRoutes)
 

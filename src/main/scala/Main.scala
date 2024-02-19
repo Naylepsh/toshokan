@@ -13,8 +13,7 @@ object Main extends IOApp.Simple:
     db.transactors.makeSqliteTransactorResource[IO](dbConfig).use: xa =>
       val assetRepository = library.AssetRepository.make[IO](xa)
       val assetService    = library.AssetService.make(assetRepository)
-      val assetView       = library.AssetView.makeHtmlView[IO]
-      val assetController = library.AssetController(assetService, assetView)
+      val assetController = library.AssetController(assetService)
 
       val scraper = Scraper.noop[IO]
 
