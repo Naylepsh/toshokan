@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import library.domain.*
 import org.http4s.dsl.Http4sDsl
 import scalatags.Text.all.*
-import core.view.layout
+import http.View.layout
 
 object AssetView:
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString

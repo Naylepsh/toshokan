@@ -1,8 +1,8 @@
-package core
+package http
 
 import scalatags.Text.all.*
 
-object view:
+object View:
   val template = tag("template")
   val title    = tag("title")
 

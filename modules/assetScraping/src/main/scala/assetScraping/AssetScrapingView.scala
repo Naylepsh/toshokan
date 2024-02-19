@@ -1,7 +1,7 @@
 package assetScraping
 
 import cats.syntax.all.*
-import core.view.{ layout, template }
+import http.View.{ layout, template }
 import library.domain.{ AssetId, ExistingAsset }
 import scalatags.Text.all.*
 
