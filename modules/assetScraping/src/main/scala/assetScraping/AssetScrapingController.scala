@@ -20,10 +20,11 @@ import domain.*
 // TODO: Rename to AssetScrapingConfigController?
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
     // scraper: Scraper[F],
-    service: AssetScrapingService[F],
-    view: AssetScrapingView[F, A]
-)(using EntityEncoder[F, A]) extends Http4sDsl[F]:
+    service: AssetScrapingService[F]
+) extends Http4sDsl[F]:
   import AssetScrapingController.*
+
+  private val htmlContentTypeHeader = `Content-Type`(MediaType.text.html)
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root / "assets" / AssetIdVar(assetId) =>
@@ -35,8 +36,8 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
           ???
         case Right(asset, configs) =>
           Ok(
-            view.renderForms(asset, configs),
-            `Content-Type`(view.mediaType)
+            AssetScrapingView.renderForms(asset, configs),
+            htmlContentTypeHeader
           )
 
     case req @ POST -> Root / "assets" / AssetIdVar(assetId) / "configs" =>

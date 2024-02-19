@@ -24,11 +24,8 @@ object Main extends IOApp.Simple:
         assetService,
         scraper
       )
-      val assetScrapingView = assetScraping.AssetScrapingView.makeHtmlView[IO]
-      val assetScrapingController = assetScraping.AssetScrapingController(
-        assetScrapingService,
-        assetScrapingView
-      )
+      val assetScrapingController =
+        assetScraping.AssetScrapingController(assetScrapingService)
 
       val publicController = PublicController[IO]()
 
