@@ -35,6 +35,17 @@ lazy val db = project
   )
   .dependsOn(core)
 
+lazy val http = project
+  .in(file("modules/http"))
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.http4sCirce,
+      Dependencies.http4sDsl,
+      Dependencies.http4sServer
+    )
+  )
+  .dependsOn(core)
+
 lazy val library = project
   .in(file("modules/library"))
   .settings(
@@ -44,7 +55,7 @@ lazy val library = project
       Dependencies.http4sServer
     )
   )
-  .dependsOn(core, doobiex, db)
+  .dependsOn(core, doobiex, db, http)
 
 lazy val scraper = project
   .in(file("modules/scraper"))

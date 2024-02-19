@@ -21,13 +21,11 @@ import domain.*
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
     // scraper: Scraper[F],
     service: AssetScrapingService[F]
-) extends Http4sDsl[F]:
+) extends http.Controller[F]:
   import AssetScrapingController.*
 
-  private val htmlContentTypeHeader = `Content-Type`(MediaType.text.html)
-
   private val httpRoutes = HttpRoutes.of[F]:
-    case GET -> Root / "assets" / AssetIdVar(assetId) =>
+    case GET -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
       // TODO: assetService should be moved to AssetScrapingService as a dependency.
       // Add a `AssetScrapingService.findByAssetId(id: AssetId): F[List[Existing...]]` method
       service.findByAssetId(assetId).flatMap:
@@ -37,7 +35,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
         case Right(asset, configs) =>
           Ok(
             AssetScrapingView.renderForms(asset, configs),
-            htmlContentTypeHeader
+            `Content-Type`(MediaType.text.html)
           )
 
     case req @ POST -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
@@ -54,17 +52,6 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
       service.delete(id) *> Ok()
 
   val routes = Router("asset-scraping" -> httpRoutes)
-
-  // TODO: Move this to a Controller base class?
-  private def withJsonErrorsHandled[A](request: Request[F])(using
-  EntityDecoder[F, A]): (A => F[Response[F]]) => F[Response[F]] = f =>
-    request.as[A].attempt.flatMap:
-      case Left(InvalidMessageBodyFailure(details, cause)) =>
-        BadRequest(cause.map(_.toString).getOrElse(details))
-      case Left(error) =>
-        println(s"[ERROR]: $error")
-        InternalServerError("Something went wrong")
-      case Right(a) => f(a)
 
 object AssetScrapingController:
   object AssetScrapingConfigIdVar:

@@ -15,23 +15,27 @@ import org.typelevel.ci.CIString
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     service: AssetService[F]
-) extends Http4sDsl[F]:
+) extends http.Controller[F]:
   import AssetController.{ *, given }
-
-  private val htmlContentTypeHeader = `Content-Type`(MediaType.text.html)
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
       service.findAll.flatMap: assetsWithEntries =>
-        Ok(AssetView.renderAssets(assetsWithEntries), htmlContentTypeHeader)
+        Ok(
+          AssetView.renderAssets(assetsWithEntries),
+          `Content-Type`(MediaType.text.html)
+        )
 
     case GET -> Root / "new" =>
-      Ok(AssetView.renderForm(None), htmlContentTypeHeader)
+      Ok(AssetView.renderForm(None), `Content-Type`(MediaType.text.html))
 
     case GET -> Root / "edit" / AssetIdVar(id) =>
       service.find(id).flatMap:
         case Some(asset, _) =>
-          Ok(AssetView.renderForm(asset.some), htmlContentTypeHeader)
+          Ok(
+            AssetView.renderForm(asset.some),
+            `Content-Type`(MediaType.text.html)
+          )
         case None =>
           NotFound(s"Asset ${id} not found")
 
@@ -66,20 +70,12 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
           println(reason)
           InternalServerError("Something went wrong")
         case Right(releases) =>
-          Ok(AssetView.renderReleases(releases), htmlContentTypeHeader)
+          Ok(
+            AssetView.renderReleases(releases),
+            `Content-Type`(MediaType.text.html)
+          )
 
   val routes = Router("assets" -> httpRoutes)
-
-  // TODO: Move this to a Controller base class?
-  private def withJsonErrorsHandled[A](request: Request[F])(using
-  EntityDecoder[F, A]): (A => F[Response[F]]) => F[Response[F]] = f =>
-    request.as[A].attempt.flatMap:
-      case Left(InvalidMessageBodyFailure(details, cause)) =>
-        BadRequest(cause.map(_.toString).getOrElse(details))
-      case Left(error) =>
-        println(s"[ERROR]: $error")
-        InternalServerError("Something went wrong")
-      case Right(a) => f(a)
 
 object AssetController:
   object AssetIdVar:
