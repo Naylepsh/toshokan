@@ -8,7 +8,6 @@ val commonDependencies = Seq(
   Dependencies.monocle,
   Dependencies.ducktape,
   Dependencies.doobieCore,
-  Dependencies.scalaTags,
   Dependencies.validator,
   Dependencies.munit % Test
 )
@@ -41,7 +40,7 @@ lazy val http = project
     libraryDependencies ++= commonDependencies ++ Seq(
       Dependencies.http4sCirce,
       Dependencies.http4sDsl,
-      Dependencies.http4sServer
+      Dependencies.scalaTags
     )
   )
   .dependsOn(core)
