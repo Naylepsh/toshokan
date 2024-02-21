@@ -15,7 +15,7 @@ object Main extends IOApp.Simple:
       val assetService    = library.AssetService.make(assetRepository)
       val assetController = library.AssetController(assetService)
 
-      val scraper = Scraper.noop[IO]
+      val scraper = Scraper.make[IO]
 
       val assetScrapingRepository =
         assetScraping.AssetScrapingRepository.make[IO](xa)

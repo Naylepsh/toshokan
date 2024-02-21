@@ -47,8 +47,9 @@ object AssetScrapingService:
         configs <- repository.findAllEnabled
         instructons = configs.map(makeScrapingInstruction)
         results <- scraper.scrape(instructons)
-        (errors, entries) = results
-        _ <- entries.traverse(saveResult)
+        (errors, successes) = results
+        _ <- successes.traverse: (label, entries) =>
+          entries.traverse(saveResult(label))
       // TODO: log errors
       yield ()
 
@@ -63,8 +64,7 @@ object AssetScrapingService:
       case Site.Mangadex     => ???
       case Site.Mangakakalot => ???
 
-    private def saveResult(result: (JobLabel, EntryFound)) =
-      val (label, entry) = result
+    private def saveResult(label: JobLabel)(entry: EntryFound) =
       val newEntry = NewAssetEntry.make(
         EntryNo(entry.no.value),
         EntryUri(entry.uri.value),
