@@ -23,6 +23,8 @@ object domain:
 
   enum ScrapeError:
     case NoEntriesFound
+    case InvalidResource(message: String)
+    case Other(message: String)
 
   trait SiteScraper[F[_]]:
     def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]]
