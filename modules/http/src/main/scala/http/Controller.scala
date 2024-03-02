@@ -3,9 +3,7 @@ package http
 import cats.MonadThrow
 import cats.syntax.all.*
 import org.http4s.*
-import org.http4s.circe.*
 import org.http4s.dsl.Http4sDsl
-import org.http4s.headers.*
 
 private type RouteHandler[F[_], A] = (A => F[Response[F]]) => F[Response[F]]
 

@@ -1,7 +1,6 @@
 package core
 
 import cats.kernel.Order
-import doobie.implicits.*
 import doobie.{ Put, Read }
 import io.circe.{ Decoder, Encoder }
 import monocle.Iso

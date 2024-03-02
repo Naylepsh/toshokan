@@ -5,9 +5,7 @@ import cats.effect.kernel.Resource
 import cats.implicits.*
 import sttp.capabilities.WebSockets
 import sttp.client3.circe.*
-import sttp.client3.httpclient.cats.HttpClientCatsBackend
 import sttp.client3.{ SttpBackend, UriContext, basicRequest }
-import sttp.model.Uri
 
 trait MangadexApi[F[_]]:
   def getMangaFeed(mangaId: String): F[Either[Throwable, GetMangaFeedResponse]]

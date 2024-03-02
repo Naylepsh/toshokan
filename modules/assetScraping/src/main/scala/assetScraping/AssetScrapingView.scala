@@ -17,7 +17,6 @@ object AssetScrapingView:
     // TODO: Display asset id
     val configTemplateId = "config-template"
     val configGroupId    = "configs"
-    val titleId          = "title"
     layout(
       s"${asset.title}'s configs".some,
       div(

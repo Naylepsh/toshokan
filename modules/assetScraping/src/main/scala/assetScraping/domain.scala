@@ -4,7 +4,7 @@ import java.net.URI
 import cats.syntax.all.*
 import core.{ Newtype, given }
 import doobie.util.{ Read, Write }
-import io.circe.{ Codec, Decoder, Encoder }
+import io.circe.{ Decoder, Encoder }
 import library.domain.AssetId
 
 object domain:

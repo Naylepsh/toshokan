@@ -5,7 +5,6 @@ import doobie.implicits.*
 import doobie.syntax.SqlInterpolator.SingleFragment
 
 import scala.util.NotGiven
-import scala.annotation.{ targetName, unused }
 
 case class Column[A: Read: Write](
     rawName: String,

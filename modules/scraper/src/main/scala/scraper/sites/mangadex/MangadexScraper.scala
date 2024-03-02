@@ -31,7 +31,7 @@ class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
                       DateUploaded(date)
                     )
                 .asRight
-    ???
+    result.as(???)
 
 object MangadexScraper:
   def extractMangaId(uri: URI): Either[ScrapeError, String] = ???

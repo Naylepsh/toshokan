@@ -2,7 +2,6 @@ package library
 
 import cats.syntax.all.*
 import library.domain.*
-import org.http4s.dsl.Http4sDsl
 import scalatags.Text.all.*
 import http.View.layout
 
