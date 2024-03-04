@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "3.4.0"
+ThisBuild / scalaVersion      := "3.4.0"
 
 val commonDependencies = Seq(
   Dependencies.catsCore,
@@ -52,7 +52,7 @@ lazy val library = project
       Dependencies.http4sCirce,
       Dependencies.http4sDsl,
       Dependencies.http4sServer
-    ),
+    )
   )
   .dependsOn(core, doobiex, db, http)
 

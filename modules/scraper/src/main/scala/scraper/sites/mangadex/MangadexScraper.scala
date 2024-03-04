@@ -2,17 +2,13 @@ package scraper.sites.mangadex
 
 import java.net.URI
 
-import scraper.domain.{ EntryFound, ScrapeError, SiteScraper }
 import cats.Monad
 import cats.syntax.all.*
-import scraper.domain.EntryNo
-import scraper.domain.EntryUri
-import scraper.domain.DateUploaded
-import java.time.LocalDate
+import scraper.domain.*
 
 class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
   def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
-    val result = MangadexScraper.extractMangaId(uri) match
+    MangadexScraper.extractMangaId(uri) match
       case Left(error) => error.asLeft.pure
       case Right(mangaId) =>
         api
@@ -23,15 +19,20 @@ class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
               feed
                 .data
                 .map: chapter =>
-                  chapter.attributes.externalUrl.map: url =>
-                    val date = LocalDate.parse(chapter.attributes.createdAt)
-                    EntryFound(
-                      EntryNo(chapter.attributes.chapter),
-                      EntryUri(URI(url)),
-                      DateUploaded(date)
-                    )
+                  EntryFound(
+                    EntryNo(chapter.attributes.chapter),
+                    EntryUri(chapter.url),
+                    DateUploaded(chapter.attributes.createdAt.value)
+                  )
                 .asRight
-    result.as(???)
 
 object MangadexScraper:
-  def extractMangaId(uri: URI): Either[ScrapeError, String] = ???
+  private val mangaIdFromUriPattern = "^https://mangadex.org/title/(.+)$".r
+
+  def extractMangaId(uri: URI): Either[ScrapeError, String] =
+    uri.toString match
+      case mangaIdFromUriPattern(mangaId) => mangaId.asRight
+      case _ =>
+        ScrapeError
+          .InvalidResource(s"Could not extract manga id from uri:$uri")
+          .asLeft
