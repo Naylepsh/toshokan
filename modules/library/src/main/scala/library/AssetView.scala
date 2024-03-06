@@ -89,7 +89,7 @@ object AssetView:
         asset
           .map: asset =>
             a(
-              href := s"/asset-scraping/assets/${asset.id}",
+              href := s"/asset-scraping/assets/${asset.id}/configs",
               cls  := "btn btn-light",
               "Scraping configs"
             )

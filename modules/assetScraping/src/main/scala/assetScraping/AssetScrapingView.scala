@@ -56,6 +56,19 @@ object AssetScrapingView:
       )
     )
 
+  def renderScrapingManagement: String =
+    layout(
+      "Asset Scraping".some,
+      div(
+        cls := "mt-5",
+        a(
+          cls             := "btn btn-light w-100",
+          attr("hx-post") := "/",
+          "Scrape all enabled"
+        )
+      )
+    )
+
   private def renderConfigRow(
       assetId: AssetId,
       config: Option[ExistingAssetScrapingConfig]

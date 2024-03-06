@@ -20,9 +20,16 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
   import AssetScrapingController.*
 
   private val httpRoutes = HttpRoutes.of[F]:
+    case GET -> Root =>
+      Ok(
+        AssetScrapingView.renderScrapingManagement,
+        `Content-Type`(MediaType.text.html)
+      )
+
+    case POST -> Root =>
+      service.scrapeAllEnabled *> Ok("Done")
+
     case GET -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
-      // TODO: assetService should be moved to AssetScrapingService as a dependency.
-      // Add a `AssetScrapingService.findByAssetId(id: AssetId): F[List[Existing...]]` method
       service.findByAssetId(assetId).flatMap:
         case Left(FindScrapingConfigError.AssetDoesNotExists) =>
           // TODO: This should be an equivalent of 404
@@ -61,6 +68,15 @@ object AssetScrapingController:
       /**
        * HTML form sends checkbox value as either "on" or no value at all.
        * Hence this scuffed handling.
+       *
+       * This could be simplified to just:
+       * {{{
+       * c.as[String].flatMap:
+       *   case "on" => Right(IsConfigEnabled(true))
+       *   case other => Left(DecodingFailure(s"$other is not a valid value"))
+       * }}}
+       * if we were to allow only the HTML form payload,
+       * but I'm keeping it more complex for the lulz
        */
       c.as[Boolean] match
         case Right(bool) => Right(IsConfigEnabled(bool))
