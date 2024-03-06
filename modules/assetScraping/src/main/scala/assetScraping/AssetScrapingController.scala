@@ -10,13 +10,11 @@ import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.headers.*
 import org.http4s.server.Router
-// import scraper.Scraper
 
 import domain.*
 
 // TODO: Rename to AssetScrapingConfigController?
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
-    // scraper: Scraper[F],
     service: AssetScrapingService[F]
 ) extends http.Controller[F]:
   import AssetScrapingController.*

@@ -7,9 +7,7 @@ import scraper.Scraper
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
     val serverConfig = ServerConfig.default
-    val dbConfig = db.Config.forSqlite(
-      db.Path("sqlite:///home/naylepsh/dev/toshokan/db.sqlite")
-    )
+    val dbConfig     = db.Config.forSqlite(db.Path(sys.env("DATABASE_URL")))
 
     db.transactors.makeSqliteTransactorResource[IO](dbConfig).use: xa =>
       val assetRepository = library.AssetRepository.make[IO](xa)
@@ -18,9 +16,8 @@ object Main extends IOApp.Simple:
 
       val scraper = Scraper.make[IO]
 
-      val httpClient = HttpClientCatsBackend.resource[IO]()
+      val httpClient      = HttpClientCatsBackend.resource[IO]()
       val pickSiteScraper = SiteScrapers.makeScraperPicker(httpClient)
-
 
       val assetScrapingRepository =
         assetScraping.AssetScrapingRepository.make[IO](xa)
