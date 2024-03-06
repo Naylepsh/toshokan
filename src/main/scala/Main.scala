@@ -1,6 +1,7 @@
 import cats.effect.{ IO, IOApp }
 import cats.syntax.all.*
 import org.http4s.syntax.all.*
+import sttp.client3.httpclient.cats.HttpClientCatsBackend
 import scraper.Scraper
 
 object Main extends IOApp.Simple:
@@ -17,15 +18,20 @@ object Main extends IOApp.Simple:
 
       val scraper = Scraper.make[IO]
 
+      val httpClient = HttpClientCatsBackend.resource[IO]()
+      val pickSiteScraper = SiteScrapers.makeScraperPicker(httpClient)
+
+
       val assetScrapingRepository =
         assetScraping.AssetScrapingRepository.make[IO](xa)
       val assetScrapingService = assetScraping.AssetScrapingService.make[IO](
         assetScrapingRepository,
         assetService,
-        scraper
+        scraper,
+        pickSiteScraper
       )
       val assetScrapingController =
-        assetScraping.AssetScrapingController(assetScrapingService)
+        assetScraping.AssetScrapingController[IO](assetScrapingService)
 
       val publicController = PublicController[IO]()
 

@@ -44,7 +44,7 @@ object SchemasSuite:
   val expectedMangaFeedResponse = GetMangaFeedResponse(
     Chapter(
       id = "a61ca907-11b4-4b11-842f-6c8406f90cec",
-      attributes = ChapterMetadata(
+      attributes = ChapterAttributes(
         chapter = "7",
         externalUrl = None,
         CreatedAt(LocalDate.parse("2024-02-13"))

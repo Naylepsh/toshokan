@@ -23,7 +23,8 @@ object AssetScrapingService:
   def make[F[_]: Monad](
       repository: AssetScrapingRepository[F],
       assetService: AssetService[F],
-      scraper: Scraper[F]
+      scraper: Scraper[F],
+      pickSiteScraper: Site => SiteScraper[F]
   ): AssetScrapingService[F] = new:
     def findByAssetId(assetId: AssetId): F[Either[
       FindScrapingConfigError,
@@ -50,7 +51,8 @@ object AssetScrapingService:
         (errors, successes) = results
         _ <- successes.traverse: (label, entries) =>
           entries.traverse(saveResult(label))
-      // TODO: log errors
+        _ = errors.foreach(println)
+      // TODO: log errors with proper logger
       yield ()
 
     private def makeScrapingInstruction(config: ExistingAssetScrapingConfig) =
@@ -59,10 +61,6 @@ object AssetScrapingService:
         config.uri.value,
         pickSiteScraper(config.site)
       )
-
-    private val pickSiteScraper: Site => SiteScraper[F] =
-      case Site.Mangadex     => ???
-      case Site.Mangakakalot => ???
 
     private def saveResult(label: JobLabel)(entry: EntryFound) =
       val newEntry = NewAssetEntry.make(
