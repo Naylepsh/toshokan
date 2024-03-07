@@ -2,7 +2,6 @@ package library
 
 import cats.Monad
 import cats.implicits.*
-import io.circe.Decoder
 import library.domain.*
 import library.domain.Releases.given
 
@@ -26,7 +25,7 @@ object AssetService:
           all
             .flatMap: (asset, entries) =>
               entries.map(entry => asset -> entry)
-            .groupBy: (asset, entry) =>
+            .groupBy: (_, entry) =>
               entry.dateUploaded
             .map: (key, assetsAndEntries) =>
               key -> assetsAndEntries.sortBy(_._1.id)

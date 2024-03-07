@@ -12,12 +12,14 @@ import domain.*
 
 trait AssetScrapingRepository[F[_]]:
   def findAllEnabled: F[List[ExistingAssetScrapingConfig]]
+  def findByAssetId(assetId: AssetId): F[List[ExistingAssetScrapingConfig]]
   def add(scrapingConfig: NewAssetScrapingConfig)
       : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetScrapingRepository:
-  object AssetScrapingConfigs extends TableDefinition("asset_scraping_configs"):
+  private object AssetScrapingConfigs
+      extends TableDefinition("asset_scraping_configs"):
     val id        = Column[AssetScrapingConfigId]("id")
     val uri       = Column[ScrapingConfigUri]("uri")
     val isEnabled = Column[IsConfigEnabled]("is_enabled")
@@ -36,8 +38,18 @@ object AssetScrapingRepository:
         WHERE ${AssetScrapingConfigs.isEnabled === IsConfigEnabled(true)}"""
         .queryOf(AssetScrapingConfigs.*)
         .to[List]
-        .transact(xa).map: rows =>
-          rows.map(Tuples.from[ExistingAssetScrapingConfig](_))
+        .transact(xa)
+        .map(_.map(Tuples.from[ExistingAssetScrapingConfig](_)))
+
+    def findByAssetId(assetId: AssetId): F[List[ExistingAssetScrapingConfig]] =
+      sql"""
+        SELECT ${AssetScrapingConfigs.*}
+        FROM ${AssetScrapingConfigs}
+        WHERE ${AssetScrapingConfigs.assetId === assetId}"""
+        .queryOf(AssetScrapingConfigs.*)
+        .to[List]
+        .transact(xa)
+        .map(_.map(Tuples.from[ExistingAssetScrapingConfig](_)))
 
     def add(scrapingConfig: NewAssetScrapingConfig)
         : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =

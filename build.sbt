@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "3.3.1"
+ThisBuild / scalaVersion      := "3.4.0"
 
 val commonDependencies = Seq(
   Dependencies.catsCore,
@@ -8,7 +8,6 @@ val commonDependencies = Seq(
   Dependencies.monocle,
   Dependencies.ducktape,
   Dependencies.doobieCore,
-  Dependencies.scalaTags,
   Dependencies.validator,
   Dependencies.munit % Test
 )
@@ -35,6 +34,17 @@ lazy val db = project
   )
   .dependsOn(core)
 
+lazy val http = project
+  .in(file("modules/http"))
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.http4sCirce,
+      Dependencies.http4sDsl,
+      Dependencies.scalaTags
+    )
+  )
+  .dependsOn(core)
+
 lazy val library = project
   .in(file("modules/library"))
   .settings(
@@ -44,22 +54,21 @@ lazy val library = project
       Dependencies.http4sServer
     )
   )
-  .dependsOn(core, doobiex, db)
-
-lazy val scrapeConfigs = project
-  .in(file("modules/scrapeConfigs"))
-  .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core, doobiex)
+  .dependsOn(core, doobiex, db, http)
 
 lazy val scraper = project
   .in(file("modules/scraper"))
-  .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core, scrapeConfigs)
+  .settings(libraryDependencies ++= commonDependencies ++ Seq(
+    Dependencies.sttp,
+    Dependencies.sttpCats,
+    Dependencies.sttpCirce
+  ))
+  .dependsOn(core)
 
 lazy val assetScraping = project
   .in(file("modules/assetScraping"))
   .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core, library, scrapeConfigs, scraper)
+  .dependsOn(core, library, scraper)
 
 lazy val root = project
   .in(file("."))
@@ -69,5 +78,5 @@ lazy val root = project
     fork    := true,
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
-  .aggregate(core, library, scraper, scrapeConfigs, assetScraping)
-  .dependsOn(core, library, scraper, scrapeConfigs, assetScraping)
+  .aggregate(core, library, scraper, assetScraping)
+  .dependsOn(core, library, scraper, assetScraping)

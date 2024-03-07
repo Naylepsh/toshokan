@@ -37,8 +37,8 @@ object AssetRepository:
     val *           = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
     val allExceptId = Columns((no, uri, wasSeen, dateUploaded, assetId))
 
-  private val A  = Assets as "a"
-  private val AE = AssetEntries as "ae"
+  private val A  = Assets `as` "a"
+  private val AE = AssetEntries `as` "ae"
   private val findAllColumns =
     Columns(
       A(_.id),

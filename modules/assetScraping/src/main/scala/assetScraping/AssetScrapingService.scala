@@ -4,9 +4,8 @@ import cats.Monad
 import cats.syntax.all.*
 import library.AssetService
 import library.domain.*
-import scrapeConfigs.sites.SiteScrapeConfig
 import scraper.Scraper
-import scraper.domain.{ EntryFound, JobLabel }
+import scraper.domain.{ EntryFound, JobLabel, SiteScraper }
 
 import domain.*
 
@@ -24,15 +23,20 @@ object AssetScrapingService:
   def make[F[_]: Monad](
       repository: AssetScrapingRepository[F],
       assetService: AssetService[F],
-      scraper: Scraper[F]
+      scraper: Scraper[F],
+      pickSiteScraper: Site => SiteScraper[F]
   ): AssetScrapingService[F] = new:
     def findByAssetId(assetId: AssetId): F[Either[
       FindScrapingConfigError,
       (ExistingAsset, List[ExistingAssetScrapingConfig])
     ]] =
       assetService.find(assetId).flatMap:
-        case Some(asset, _) => (asset, List.empty).asRight.pure
-        case None           => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
+        case Some(asset, _) =>
+          repository
+            .findByAssetId(assetId)
+            .map: configs =>
+              (asset, configs).asRight
+        case None => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
 
     def add(scrapingConfig: NewAssetScrapingConfig)
         : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
@@ -48,9 +52,11 @@ object AssetScrapingService:
         configs <- repository.findAllEnabled
         instructons = configs.map(makeScrapingInstruction)
         results <- scraper.scrape(instructons)
-        (errors, entries) = results
-        _ <- entries.traverse(saveResult)
-      // TODO: log errors
+        (errors, successes) = results
+        _ <- successes.traverse: (label, entries) =>
+          entries.traverse(saveResult(label))
+        _ = errors.foreach(println)
+      // TODO: log errors with proper logger
       yield ()
 
     private def makeScrapingInstruction(config: ExistingAssetScrapingConfig) =
@@ -60,12 +66,7 @@ object AssetScrapingService:
         pickSiteScraper(config.site)
       )
 
-    private val pickSiteScraper: Site => SiteScrapeConfig[F] =
-      case Site.Mangadex     => ???
-      case Site.Mangakakalot => ???
-
-    private def saveResult(result: (JobLabel, EntryFound)) =
-      val (label, entry) = result
+    private def saveResult(label: JobLabel)(entry: EntryFound) =
       val newEntry = NewAssetEntry.make(
         EntryNo(entry.no.value),
         EntryUri(entry.uri.value),

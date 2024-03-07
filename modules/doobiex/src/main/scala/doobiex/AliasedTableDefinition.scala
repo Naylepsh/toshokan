@@ -1,7 +1,6 @@
 package doobiex
 
 import doobie.*
-import doobie.implicits.*
 import doobie.syntax.SqlInterpolator.SingleFragment
 import cats.syntax.all.*
 

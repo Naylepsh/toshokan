@@ -6,8 +6,8 @@ import java.time.LocalDate
 import cats.syntax.all.*
 import core.Newtype
 import core.given
-import doobie.util.{ Read, Write }
-import io.circe.{ Codec, Decoder, Encoder }
+import doobie.util.Read
+import io.circe.{ Decoder, Encoder }
 import io.github.arainko.ducktape.*
 import org.typelevel.cats.time.*
 import cats.kernel.Order

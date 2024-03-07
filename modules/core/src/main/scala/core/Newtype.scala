@@ -1,10 +1,21 @@
 package core
 
 import cats.kernel.Order
-import doobie.implicits.*
 import doobie.{ Put, Read }
 import io.circe.{ Decoder, Encoder }
 import monocle.Iso
+
+// this can be used for simple newtypes without pre-defined typeclass derivations
+abstract class Newt[A]:
+  /**
+   * Shamelessly copy-pasted from:
+   * https://github.com/gvolpe/trading/blob/main/modules/domain/shared/src/main/scala/trading/Newtype.scala
+   */
+  opaque type Type = A
+  inline def apply(a: A): Type            = a
+  extension (t: Type) inline def value: A = t
+
+  protected inline final def derive[F[_]](using ev: F[A]): F[Type] = ev
 
 abstract class Newtype[A](
     using ord: Order[A],

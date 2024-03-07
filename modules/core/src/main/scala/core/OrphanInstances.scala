@@ -5,9 +5,8 @@ import java.net.URI
 import cats.kernel.Order
 import cats.syntax.all.*
 import doobie.util.{ Get, Put }
-import doobie.implicits.*
 import io.circe.Decoder
-import org.apache.commons.validator.UrlValidator
+import org.apache.commons.validator.routines.UrlValidator
 import java.time.LocalDate
 
 private val urlValidator = new UrlValidator(Array("http", "https"))

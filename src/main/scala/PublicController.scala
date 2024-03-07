@@ -1,9 +1,7 @@
 import cats.syntax.all.*
 import org.http4s.*
 import org.http4s.dsl.Http4sDsl
-import org.http4s.headers.*
 import org.http4s.server.Router
-import org.http4s.syntax.all.*
 import cats.MonadThrow
 import fs2.io.file.Files
 

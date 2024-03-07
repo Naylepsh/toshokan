@@ -1,36 +1,37 @@
 package library
 
-import cats.effect.{ Concurrent, IO, MonadCancelThrow }
+import cats.effect.{ Concurrent, MonadCancelThrow }
 import cats.syntax.all.*
-import io.circe.*
-import io.circe.syntax.*
-import io.github.arainko.ducktape.*
 import library.domain.*
 import org.http4s.*
 import org.http4s.circe.*
-import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
-    service: AssetService[F],
-    view: AssetView[F, A]
-)(using EntityEncoder[F, A]) extends Http4sDsl[F]:
+    service: AssetService[F]
+) extends http.Controller[F]:
   import AssetController.{ *, given }
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
       service.findAll.flatMap: assetsWithEntries =>
-        Ok(view.renderAssets(assetsWithEntries), `Content-Type`(view.mediaType))
+        Ok(
+          AssetView.renderAssets(assetsWithEntries),
+          `Content-Type`(MediaType.text.html)
+        )
 
     case GET -> Root / "new" =>
-      Ok(view.renderForm(None), `Content-Type`(view.mediaType))
+      Ok(AssetView.renderForm(None), `Content-Type`(MediaType.text.html))
 
     case GET -> Root / "edit" / AssetIdVar(id) =>
       service.find(id).flatMap:
         case Some(asset, _) =>
-          Ok(view.renderForm(asset.some), `Content-Type`(view.mediaType))
+          Ok(
+            AssetView.renderForm(asset.some),
+            `Content-Type`(MediaType.text.html)
+          )
         case None =>
           NotFound(s"Asset ${id} not found")
 
@@ -65,20 +66,12 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
           println(reason)
           InternalServerError("Something went wrong")
         case Right(releases) =>
-          Ok(view.renderReleases(releases), `Content-Type`(view.mediaType))
+          Ok(
+            AssetView.renderReleases(releases),
+            `Content-Type`(MediaType.text.html)
+          )
 
   val routes = Router("assets" -> httpRoutes)
-
-  // TODO: Move this to a Controller base class?
-  private def withJsonErrorsHandled[A](request: Request[F])(using
-  EntityDecoder[F, A]): (A => F[Response[F]]) => F[Response[F]] = f =>
-    request.as[A].attempt.flatMap:
-      case Left(InvalidMessageBodyFailure(details, cause)) =>
-        BadRequest(cause.map(_.toString).getOrElse(details))
-      case Left(error) =>
-        println(s"[ERROR]: $error")
-        InternalServerError("Something went wrong")
-      case Right(a) => f(a)
 
 object AssetController:
   object AssetIdVar:

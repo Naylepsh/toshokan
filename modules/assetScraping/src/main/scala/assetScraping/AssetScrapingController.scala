@@ -1,42 +1,42 @@
 package assetScraping
 
-import cats.effect.{ Concurrent, IO, MonadCancelThrow }
+import cats.effect.{ Concurrent, MonadCancelThrow }
 import cats.syntax.all.*
 import io.circe.*
-import io.circe.syntax.*
 import io.github.arainko.ducktape.*
 import library.AssetController.AssetIdVar
-import library.AssetService
 import library.domain.AssetId
 import org.http4s.*
 import org.http4s.circe.*
-import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.*
 import org.http4s.server.Router
-import scraper.Scraper
 
 import domain.*
 
 // TODO: Rename to AssetScrapingConfigController?
-class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
-    // scraper: Scraper[F],
-    service: AssetScrapingService[F],
-    view: AssetScrapingView[F, A]
-)(using EntityEncoder[F, A]) extends Http4sDsl[F]:
+class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
+    service: AssetScrapingService[F]
+) extends http.Controller[F]:
   import AssetScrapingController.*
 
   private val httpRoutes = HttpRoutes.of[F]:
-    case GET -> Root / "assets" / AssetIdVar(assetId) =>
-      // TODO: assetService should be moved to AssetScrapingService as a dependency.
-      // Add a `AssetScrapingService.findByAssetId(id: AssetId): F[List[Existing...]]` method
+    case GET -> Root =>
+      Ok(
+        AssetScrapingView.renderScrapingManagement,
+        `Content-Type`(MediaType.text.html)
+      )
+
+    case POST -> Root =>
+      service.scrapeAllEnabled *> Ok("Done")
+
+    case GET -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
       service.findByAssetId(assetId).flatMap:
         case Left(FindScrapingConfigError.AssetDoesNotExists) =>
-          // TODO: This should be an equivalent of 404
-          ???
+          NotFound(s"Asset with id:$assetId could not be found")
         case Right(asset, configs) =>
           Ok(
-            view.renderForms(asset, configs),
-            `Content-Type`(view.mediaType)
+            AssetScrapingView.renderForms(asset, configs),
+            `Content-Type`(MediaType.text.html)
           )
 
     case req @ POST -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
@@ -54,17 +54,6 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent, A](
 
   val routes = Router("asset-scraping" -> httpRoutes)
 
-  // TODO: Move this to a Controller base class?
-  private def withJsonErrorsHandled[A](request: Request[F])(using
-  EntityDecoder[F, A]): (A => F[Response[F]]) => F[Response[F]] = f =>
-    request.as[A].attempt.flatMap:
-      case Left(InvalidMessageBodyFailure(details, cause)) =>
-        BadRequest(cause.map(_.toString).getOrElse(details))
-      case Left(error) =>
-        println(s"[ERROR]: $error")
-        InternalServerError("Something went wrong")
-      case Right(a) => f(a)
-
 object AssetScrapingController:
   object AssetScrapingConfigIdVar:
     def unapply(str: String): Option[AssetScrapingConfigId] =
@@ -78,6 +67,15 @@ object AssetScrapingController:
       /**
        * HTML form sends checkbox value as either "on" or no value at all.
        * Hence this scuffed handling.
+       *
+       * This could be simplified to just:
+       * {{{
+       * c.as[String].flatMap:
+       *   case "on" => Right(IsConfigEnabled(true))
+       *   case other => Left(DecodingFailure(s"$other is not a valid value"))
+       * }}}
+       * if we were to allow only the HTML form payload,
+       * but I'm keeping it more complex for the lulz
        */
       c.as[Boolean] match
         case Right(bool) => Right(IsConfigEnabled(bool))
