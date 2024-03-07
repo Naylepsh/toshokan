@@ -21,7 +21,6 @@ object AssetScrapingView:
       s"${asset.title}'s configs".some,
       div(
         cls := "mt-5",
-        // TODO: Add the new config handling
         div(
           div(
             cls := "container",
@@ -37,7 +36,6 @@ object AssetScrapingView:
             div(
               id  := configGroupId,
               cls := "div-striped",
-              // TODO: Use actual asset's configs
               configs.map(config =>
                 renderConfigRow(asset.id, config.some)
               )
@@ -85,7 +83,7 @@ object AssetScrapingView:
     var hxMethod     = attr("hx-post")
     var url          = s"/asset-scraping/assets/${assetId}/configs"
     config.foreach: cfg =>
-      idField = input(name := "id", value := cfg.id.value.toString)
+      idField = span(cfg.id.value.toString)
       isEnabledModifiers =
         (value              := cfg.isEnabled.value.toString) :: isEnabledModifiers
       uriModifiers = (value := cfg.uri.value.toString) :: uriModifiers
@@ -111,7 +109,12 @@ object AssetScrapingView:
           name := "site",
           cls  := "form-select",
           Site.values.map: site =>
-            option(value := site.toString, site.toString)
+            var modifiers = (value := site.toString) :: Nil
+            config.map(_.site).foreach:
+              case s if s == site => 
+                modifiers = (selected := "") :: modifiers
+              case _ =>
+            option(modifiers, site.toString)
         )
       ),
       div(

@@ -32,8 +32,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
     case GET -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
       service.findByAssetId(assetId).flatMap:
         case Left(FindScrapingConfigError.AssetDoesNotExists) =>
-          // TODO: This should be an equivalent of 404
-          ???
+          NotFound(s"Asset with id:$assetId could not be found")
         case Right(asset, configs) =>
           Ok(
             AssetScrapingView.renderForms(asset, configs),

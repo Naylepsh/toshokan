@@ -31,8 +31,12 @@ object AssetScrapingService:
       (ExistingAsset, List[ExistingAssetScrapingConfig])
     ]] =
       assetService.find(assetId).flatMap:
-        case Some(asset, _) => (asset, List.empty).asRight.pure
-        case None           => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
+        case Some(asset, _) =>
+          repository
+            .findByAssetId(assetId)
+            .map: configs =>
+              (asset, configs).asRight
+        case None => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
 
     def add(scrapingConfig: NewAssetScrapingConfig)
         : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
