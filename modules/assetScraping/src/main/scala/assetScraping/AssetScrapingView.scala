@@ -63,7 +63,7 @@ object AssetScrapingView:
         cls := "mt-5",
         a(
           cls             := "btn btn-light w-100",
-          attr("hx-post") := "/",
+          attr("hx-post") := "/asset-scraping",
           "Scrape all enabled"
         )
       )
@@ -83,14 +83,14 @@ object AssetScrapingView:
       )
     var uriModifiers = List(name := "uri", cls := "w-100")
     var hxMethod     = attr("hx-post")
-    var url          = s"/assets/${assetId}/scraping/configs"
+    var url          = s"/asset-scraping/assets/${assetId}/configs"
     config.foreach: cfg =>
       idField = input(name := "id", value := cfg.id.value.toString)
       isEnabledModifiers =
         (value              := cfg.isEnabled.value.toString) :: isEnabledModifiers
       uriModifiers = (value := cfg.uri.value.toString) :: uriModifiers
       hxMethod = attr("hx-put")
-      url = s"/assets/${assetId}/scraping/configs/${cfg.id}"
+      url = s"/asset-scraping/assets/${assetId}/configs/${cfg.id}"
 
     form(
       cls               := "config-form row mb-0 py-2",
