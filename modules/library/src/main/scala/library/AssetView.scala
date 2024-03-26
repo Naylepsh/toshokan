@@ -17,12 +17,12 @@ object AssetView:
       div(
         cls := "mt-5",
         a(
-          cls  := "btn btn-light float-end",
+          cls  := "btn btn-primary float-end",
           href := "/assets/new",
           "New Asset"
         ),
         table(
-          cls := "table table-striped",
+          cls := "table table-zebra",
           thead(
             tr(
               th("Id"),
@@ -39,7 +39,7 @@ object AssetView:
                 td(asset.title.value),
                 td(
                   div(
-                    cls := "d-flex gap-2",
+                    cls := "d-flex space-x-2",
                     a(
                       cls  := "text-light",
                       href := s"/assets/edit/${asset.id}",
@@ -69,77 +69,85 @@ object AssetView:
       .getOrElse((attr("hx-post"), "/assets"))
     layout(
       asset.map(_.title.value).getOrElse("New Asset").some,
-      div(
-        cls := "mt-5",
-        form(
-          hxMethod       := url,
-          attr("hx-ext") := "json-enc",
-          div(
-            cls := "mb-3",
-            label(`for` := titleId, cls := "form-label", "Title"),
-            input(
-              cls   := "form-control",
-              id    := titleId,
-              name  := "title",
-              value := asset.map(_.title.value).getOrElse("")
+        div(
+          cls := "mt-5 flex flex-col justify-center w-1/2 mx-auto",
+          form(
+            hxMethod       := url,
+            attr("hx-ext") := "json-enc",
+            div(
+              cls := "mb-3",
+              label(
+                `for` := titleId,
+                cls   := "input input-bordered flex items-center gap-2 w-full",
+                input(
+                  cls   := "grow",
+                  id    := titleId,
+                  name  := "title",
+                  value := asset.map(_.title.value).getOrElse("")
+                ),
+                "Title"
+              )
+            ),
+            button(
+              `type` := "submit",
+              cls    := "btn btn-primary w-full",
+              "Submit"
             )
           ),
-          button(`type` := "submit", cls := "btn btn-light w-100", "Submit")
-        ),
-        asset
-          .map: asset =>
-            a(
-              href := s"/asset-scraping/assets/${asset.id}/configs",
-              cls  := "btn btn-light",
-              "Scraping configs"
-            )
-          .getOrElse(div())
-      )
+          asset
+            .map: asset =>
+              a(
+                href := s"/asset-scraping/assets/${asset.id}/configs",
+                cls  := "btn btn-secondary",
+                "Scraping configs"
+              )
+            .getOrElse(div())
+        )
     )
 
   def renderReleases(releases: List[Releases]): String =
-    val accordionId = "releases"
-    layout(
-      "Releases".some,
+    val accordionItems = releases.map: (dateUploaded, results) =>
       div(
-        id  := accordionId,
-        cls := "accordion mt-5",
-        releases.map: (dateUploaded, results) =>
-          /**
-           * Can't use s"{dateUploaded.value}" as id,
-           * because a selector with a leading number is not a valid CSS selector,
-           * which causes issues with bootstrap
-           */
-          val accordionItemId = s"date-${dateUploaded.value}"
+        cls := "collapse bg-base-200 my-2",
+        input(
+          `type` := "radio",
+          name   := "entry"
+        ),
+        div(
+          cls := "collapse-title text-xl font-medium",
+          dateUploaded.value.toString
+        ),
+        div(
+          cls := "collapse-content",
           div(
-            cls := "accordion-item",
-            h2(
-              cls := "accordion-header",
-              button(
-                cls                    := "accordion-button",
-                `type`                 := "button",
-                attr("data-bs-toggle") := "collapse",
-                attr("data-bs-target") := s"#${accordionItemId}",
-                dateUploaded.value.toString
-              )
-            ),
-            div(
-              id                     := accordionItemId,
-              cls                    := "accordion-collapse collapse",
-              attr("data-bs-parent") := s"#${accordionId}",
-              div(
-                cls := "accordion-body",
-                results.map: (asset, entry) =>
-                  val headerClasses =
-                    if entry.wasSeen then "" else "fw-bold"
+            results
+              .flatMap: (asset, entry) =>
+                val headerClasses =
+                  if entry.wasSeen then "" else "font-bold"
+                Seq[Frag](
+                  div(cls := "divider"),
                   a(
-                    cls  := "btn text-start",
+                    cls  := "justify-start w-full",
                     href := s"${entry.uri}",
                     h5(cls := headerClasses, asset.title.value),
                     p(s"Ch. ${entry.no.value}")
                   )
-              )
-            )
+                )
+              .tail
           )
+        )
+      )
+    layout(
+      "Releases".some,
+      div(
+        cls := "mt-5 collapse",
+        accordionItems match
+          /*
+           * I don't get why, but it looks like daisyUI's second accordion item gets eaten.
+           * Thus the additional div is added,
+           * to make the accordion eat garbage instead of something crucial
+           */
+          case head :: tail => head :: div() :: tail
+          case other        => other
       )
     )
