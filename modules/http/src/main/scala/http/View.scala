@@ -6,14 +6,12 @@ object View:
   val template = tag("template")
   val title    = tag("title")
 
-  /**
-   * <link href="https://cdn.jsdelivr.net/npm/daisyui@4.9.0/dist/full.min.css" rel="stylesheet" type="text/css" />
-   * <script src="https://cdn.tailwindcss.com"></script>
-   */
+  case class NavBarItem(label: String, ref: String)
 
   def layout(
       subTitle: Option[String],
-      bodyContent: scalatags.Text.Modifier*
+      bodyContent: scalatags.Text.Modifier,
+      navBarItems: List[NavBarItem] = Nil
   ) =
     val titleContent = subTitle match
       case Some(sub) => s"$sub | Toshokan"
@@ -42,7 +40,26 @@ object View:
         script(src    := "https://cdn.tailwindcss.com")
       ),
       body(
-        cls := "container mx-auto",
-        bodyContent
+        navBar(navBarItems),
+        div(cls := "container mx-auto", bodyContent)
+      )
+    )
+
+  /**
+   * This navbar does not support small resolutions
+   */
+  def navBar(items: List[NavBarItem]) =
+    div(
+      cls := "navbar bg-accent sticky top-0 z-10",
+      div(
+        cls := "navbar-start",
+        a(cls := "btn btn-ghost text-xl", "Toshokan"),
+        ul(
+          cls := "menu menu-horizontal",
+          items.map: item =>
+            li(
+              a(href := item.ref, item.label)
+            )
+        )
       )
     )

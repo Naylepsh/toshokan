@@ -4,8 +4,9 @@ import cats.syntax.all.*
 import library.domain.*
 import scalatags.Text.all.*
 import http.View.layout
+import http.View.NavBarItem
 
-object AssetView:
+class AssetView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
 
   def renderAssets(assetsViewEntries: List[(
@@ -59,7 +60,8 @@ object AssetView:
               )
           )
         )
-      )
+      ),
+      navBarItems
     )
 
   def renderForm(asset: Option[ExistingAsset]): String =
@@ -69,40 +71,41 @@ object AssetView:
       .getOrElse((attr("hx-post"), "/assets"))
     layout(
       asset.map(_.title.value).getOrElse("New Asset").some,
-        div(
-          cls := "mt-5 flex flex-col justify-center w-1/2 mx-auto",
-          form(
-            hxMethod       := url,
-            attr("hx-ext") := "json-enc",
-            div(
-              cls := "mb-3",
-              label(
-                `for` := titleId,
-                cls   := "input input-bordered flex items-center gap-2 w-full",
-                input(
-                  cls   := "grow",
-                  id    := titleId,
-                  name  := "title",
-                  value := asset.map(_.title.value).getOrElse("")
-                ),
-                "Title"
-              )
-            ),
-            button(
-              `type` := "submit",
-              cls    := "btn btn-primary w-full",
-              "Submit"
+      div(
+        cls := "mt-5 flex flex-col justify-center w-1/2 mx-auto",
+        form(
+          hxMethod       := url,
+          attr("hx-ext") := "json-enc",
+          div(
+            cls := "mb-3",
+            label(
+              `for` := titleId,
+              cls   := "input input-bordered flex items-center gap-2 w-full",
+              input(
+                cls   := "grow",
+                id    := titleId,
+                name  := "title",
+                value := asset.map(_.title.value).getOrElse("")
+              ),
+              "Title"
             )
           ),
-          asset
-            .map: asset =>
-              a(
-                href := s"/asset-scraping/assets/${asset.id}/configs",
-                cls  := "btn btn-secondary",
-                "Scraping configs"
-              )
-            .getOrElse(div())
-        )
+          button(
+            `type` := "submit",
+            cls    := "btn btn-primary w-full",
+            "Submit"
+          )
+        ),
+        asset
+          .map: asset =>
+            a(
+              href := s"/asset-scraping/assets/${asset.id}/configs",
+              cls  := "btn btn-secondary",
+              "Scraping configs"
+            )
+          .getOrElse(div())
+      ),
+      navBarItems
     )
 
   def renderReleases(releases: List[Releases]): String =
@@ -149,5 +152,6 @@ object AssetView:
            */
           case head :: tail => head :: div() :: tail
           case other        => other
-      )
+      ),
+      navBarItems
     )

@@ -4,15 +4,25 @@ import org.http4s.syntax.all.*
 import sttp.client3.httpclient.cats.HttpClientCatsBackend
 import scraper.Scraper
 
+import http.View.NavBarItem
+import assetScraping.AssetScrapingView
+
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
     val serverConfig = ServerConfig.default
     val dbConfig     = db.Config.forSqlite(db.Path(sys.env("DATABASE_URL")))
 
+    val navBarItems = List(
+      NavBarItem("Assets", "/assets"),
+      NavBarItem("New releases", "/assets/entries-by-release-date"),
+      NavBarItem("Scraping", "/asset-scraping")
+    )
+
     db.transactors.makeSqliteTransactorResource[IO](dbConfig).use: xa =>
       val assetRepository = library.AssetRepository.make[IO](xa)
       val assetService    = library.AssetService.make(assetRepository)
-      val assetController = library.AssetController(assetService)
+      val assetView       = library.AssetView(navBarItems)
+      val assetController = library.AssetController(assetService, assetView)
 
       val scraper = Scraper.make[IO]
 
@@ -27,8 +37,12 @@ object Main extends IOApp.Simple:
         scraper,
         pickSiteScraper
       )
+      val assetScrapingView = AssetScrapingView(navBarItems = navBarItems)
       val assetScrapingController =
-        assetScraping.AssetScrapingController[IO](assetScrapingService)
+        assetScraping.AssetScrapingController[IO](
+          assetScrapingService,
+          assetScrapingView
+        )
 
       val publicController = PublicController[IO]()
 

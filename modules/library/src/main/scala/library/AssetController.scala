@@ -10,7 +10,8 @@ import org.http4s.server.Router
 import org.typelevel.ci.CIString
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
-    service: AssetService[F]
+    service: AssetService[F],
+    view: AssetView
 ) extends http.Controller[F]:
   import AssetController.{ *, given }
 
@@ -18,18 +19,18 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     case GET -> Root =>
       service.findAll.flatMap: assetsWithEntries =>
         Ok(
-          AssetView.renderAssets(assetsWithEntries),
+          view.renderAssets(assetsWithEntries),
           `Content-Type`(MediaType.text.html)
         )
 
     case GET -> Root / "new" =>
-      Ok(AssetView.renderForm(None), `Content-Type`(MediaType.text.html))
+      Ok(view.renderForm(None), `Content-Type`(MediaType.text.html))
 
     case GET -> Root / "edit" / AssetIdVar(id) =>
       service.find(id).flatMap:
         case Some(asset, _) =>
           Ok(
-            AssetView.renderForm(asset.some),
+            view.renderForm(asset.some),
             `Content-Type`(MediaType.text.html)
           )
         case None =>
@@ -67,7 +68,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
           InternalServerError("Something went wrong")
         case Right(releases) =>
           Ok(
-            AssetView.renderReleases(releases),
+            view.renderReleases(releases),
             `Content-Type`(MediaType.text.html)
           )
 

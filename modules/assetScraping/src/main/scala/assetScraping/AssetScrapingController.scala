@@ -15,14 +15,15 @@ import domain.*
 
 // TODO: Rename to AssetScrapingConfigController?
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
-    service: AssetScrapingService[F]
+    service: AssetScrapingService[F],
+    view: AssetScrapingView
 ) extends http.Controller[F]:
   import AssetScrapingController.*
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
       Ok(
-        AssetScrapingView.renderScrapingManagement,
+        view.renderScrapingManagement,
         `Content-Type`(MediaType.text.html)
       )
 
@@ -35,7 +36,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
           NotFound(s"Asset with id:$assetId could not be found")
         case Right(asset, configs) =>
           Ok(
-            AssetScrapingView.renderForms(asset, configs),
+            view.renderForms(asset, configs),
             `Content-Type`(MediaType.text.html)
           )
 

@@ -6,8 +6,9 @@ import library.domain.{ AssetId, ExistingAsset }
 import scalatags.Text.all.*
 
 import domain.{ ExistingAssetScrapingConfig, Site }
+import http.View.NavBarItem
 
-object AssetScrapingView:
+class AssetScrapingView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
 
   def renderForms(
@@ -52,7 +53,8 @@ object AssetScrapingView:
             "Add new scraping config"
           )
         )
-      )
+      ),
+      navBarItems
     )
 
   def renderScrapingManagement: String =
@@ -61,11 +63,12 @@ object AssetScrapingView:
       div(
         cls := "mt-5",
         a(
-          cls             := "btn btn-light w-100",
+          cls             := "btn btn-primary w-full",
           attr("hx-post") := "/asset-scraping",
           "Scrape all enabled"
         )
-      )
+      ),
+      navBarItems
     )
 
   private def renderConfigRow(
@@ -75,7 +78,7 @@ object AssetScrapingView:
     var idField = span("-")
     var isEnabledModifiers =
       List(
-        cls := "ml-5",
+        cls     := "ml-5",
         name    := "isEnabled",
         `type`  := "checkbox",
         checked := "1",
