@@ -10,7 +10,7 @@ import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
 
-class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
+class AssetController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetService[F],
     view: AssetView
 ) extends http.Controller[F]:
