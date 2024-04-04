@@ -12,11 +12,12 @@ trait AssetRepository[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
   def findById(assetId: AssetId): F[Option[(
       ExistingAsset,
-      List[ExistingAssetEntry],
+      List[ExistingAssetEntry]
   )]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
   def update(asset: ExistingAsset): F[Unit]
+  def update(entry: ExistingAssetEntry): F[Unit]
   def delete(assetId: AssetId): F[Unit]
 
 object AssetRepository:
@@ -51,6 +52,7 @@ object AssetRepository:
     )
 
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
+
     def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
       sql"""
           SELECT ${findAllColumns} 
@@ -85,7 +87,7 @@ object AssetRepository:
 
     def findById(assetId: AssetId): F[Option[(
         ExistingAsset,
-        List[ExistingAssetEntry],
+        List[ExistingAssetEntry]
     )]] =
       /**
        * Ideally this would be done in one query,
@@ -93,7 +95,7 @@ object AssetRepository:
        */
       (
         findAsset(assetId),
-        findEntries(assetId),
+        findEntries(assetId)
       ).tupled.map: (maybeAsset, entries) =>
         maybeAsset.map(asset => (asset, entries))
 
@@ -115,6 +117,16 @@ object AssetRepository:
       UPDATE ${Assets}
       SET ${Assets.title === asset.title}
       WHERE ${Assets.id === asset.id}
+      """.update.run.transact(xa).void
+
+    def update(entry: ExistingAssetEntry): F[Unit] =
+      sql"""
+      UPDATE ${AssetEntries}
+      SET ${AssetEntries.no === entry.no},
+        ${AssetEntries.uri === entry.uri},
+        ${AssetEntries.wasSeen === entry.wasSeen},
+        ${AssetEntries.dateUploaded === entry.dateUploaded}
+      WHERE ${AssetEntries.id === entry.id}
       """.update.run.transact(xa).void
 
     def delete(assetId: AssetId): F[Unit] =
@@ -142,7 +154,6 @@ object AssetRepository:
         .transact(xa)
         .map: rows =>
           rows.map(Tuples.from[ExistingAssetEntry](_))
-
 
     private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
       sql"INSERT INTO ${Assets}(${Assets.title}) VALUES (${asset.title}) RETURNING ${Assets.*}"

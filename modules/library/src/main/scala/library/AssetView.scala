@@ -7,12 +7,10 @@ import http.View.layout
 import http.View.NavBarItem
 
 class AssetView(navBarItems: List[NavBarItem]):
-  given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
-
   def renderAssets(assetsViewEntries: List[(
       ExistingAsset,
       List[ExistingAssetEntry]
-  )]): String =
+  )]) =
     layout(
       "Assets".some,
       div(
@@ -64,7 +62,7 @@ class AssetView(navBarItems: List[NavBarItem]):
       navBarItems
     )
 
-  def renderForm(asset: Option[ExistingAsset]): String =
+  def renderForm(asset: Option[ExistingAsset]) =
     val titleId = "title"
     val (hxMethod, url) = asset
       .map(asset => (attr("hx-put"), s"/assets/${asset.id}"))
@@ -108,7 +106,7 @@ class AssetView(navBarItems: List[NavBarItem]):
       navBarItems
     )
 
-  def renderReleases(releases: List[Releases]): String =
+  def renderReleases(releases: List[Releases]) =
     val accordionItems = releases.map: (dateUploaded, results) =>
       div(
         cls := "collapse bg-base-200 my-2",
@@ -125,16 +123,9 @@ class AssetView(navBarItems: List[NavBarItem]):
           div(
             results
               .flatMap: (asset, entry) =>
-                val headerClasses =
-                  if entry.wasSeen then "" else "font-bold"
                 Seq[Frag](
                   div(cls := "divider"),
-                  a(
-                    cls  := "justify-start w-full",
-                    href := s"${entry.uri}",
-                    h5(cls := headerClasses, asset.title.value),
-                    p(s"Ch. ${entry.no.value}")
-                  )
+                  entryPartial(asset, entry)
                 )
               .tail
           )
@@ -154,4 +145,26 @@ class AssetView(navBarItems: List[NavBarItem]):
           case other        => other
       ),
       navBarItems
+    )
+
+  def entryPartial(asset: ExistingAsset, entry: ExistingAssetEntry) =
+    val linkToEntry = a(
+      href := s"${entry.uri}",
+      p(s"Ch. ${entry.no.value}")
+    )
+    val (headerClass, icon, newState) =
+      if entry.wasSeen
+      then ("", i(cls := "fa-solid fa-xmark"), false)
+      else ("font-bold", i(cls := "fa-solid fa-check"), true)
+    val markingAction = button(
+      attr("hx-patch")  := s"/assets/${asset.id}/entries/${entry.id}",
+      attr("hx-vals")   := s"{\"wasSeen\": ${newState}}",
+      attr("hx-ext")    := "json-enc",
+      attr("hx-target") := "closest .entry",
+      icon
+    )
+    div(
+      cls := "entry justify-start w-full",
+      h5(cls  := headerClass, asset.title.value),
+      div(cls := "flex gap-2 items-center", markingAction, linkToEntry)
     )

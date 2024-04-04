@@ -12,6 +12,11 @@ trait AssetService[F[_]]:
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
   def update(asset: ExistingAsset): F[Unit]
+  def setSeen(
+      assetId: AssetId,
+      entryId: EntryId,
+      seen: WasEntrySeen
+  ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]]
   def delete(assetId: AssetId): F[Unit]
 
 object AssetService:
@@ -34,10 +39,7 @@ object AssetService:
 
       def find(id: AssetId)
           : F[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
-        // TODO: Add a way to find only 1 asset to AssetRepository
-        findAll.map: all =>
-          all.find: (asset, _) =>
-            asset.id == id
+        repository.findById(id)
 
       def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
         repository.add(asset)
@@ -52,6 +54,19 @@ object AssetService:
          * But it's not like it's needed for the UI for now
          */
         repository.update(asset)
+
+      def setSeen(
+          assetId: AssetId,
+          entryId: EntryId,
+          seen: WasEntrySeen
+      ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]] =
+        repository.findById(assetId).flatMap:
+          case None => UpdateEntryError.AssetDoesNotExists.asLeft.pure
+          case Some(asset, entries) => entries.find(_.id == entryId) match
+              case None => UpdateEntryError.EntryDoesNotExist.asLeft.pure
+              case Some(entry) =>
+                val e = entry.copy(wasSeen = seen)
+                repository.update(e).as((asset, e).asRight)
 
       def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)

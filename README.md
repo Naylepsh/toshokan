@@ -9,7 +9,6 @@ For more information on the sbt-dotty plugin, see the
 
 ## TODO
 
-- [ ] Make it possible to mark entry as seen (and unmark it as well)
 - [ ] Clean up scraping configs form (the column widths, the URI input is too short)
 - [ ] Add mangakakalot support
 - [ ] Add more concurrent handling of scraping jobs

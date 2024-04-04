@@ -89,3 +89,7 @@ object domain:
   enum AddEntryError:
     case EntryAlreadyExists
     case AssetDoesNotExists
+
+  enum UpdateEntryError:
+    case AssetDoesNotExists
+    case EntryDoesNotExist

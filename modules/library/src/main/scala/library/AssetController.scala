@@ -2,6 +2,7 @@ package library
 
 import cats.effect.{ Concurrent, MonadCancelThrow }
 import cats.syntax.all.*
+import io.circe.Decoder
 import library.domain.*
 import org.http4s.*
 import org.http4s.circe.*
@@ -61,10 +62,22 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent, A](
     case DELETE -> Root / AssetIdVar(id) =>
       service.delete(id) *> Ok()
 
+    case req @ PATCH -> Root
+        / AssetIdVar(assetId)
+        / "entries"
+        / EntryIdVar(entryId) =>
+      withJsonErrorsHandled[PartialAssetEntry](req): assetEntry =>
+        assetEntry
+          .wasSeen
+          .map: wasSeen =>
+            service.setSeen(assetId, entryId, wasSeen).flatMap:
+              case Left(reason)        => BadRequest("Oops")
+              case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
+          .getOrElse(Ok(""))
+
     case GET -> Root / "entries-by-release-date" =>
       service.findAllGroupedByReleaseDate.attempt.flatMap:
         case Left(reason) =>
-          println(reason)
           InternalServerError("Something went wrong")
         case Right(releases) =>
           Ok(
@@ -79,7 +92,22 @@ object AssetController:
     def unapply(str: String): Option[AssetId] =
       str.toIntOption.map(AssetId(_))
 
+  object EntryIdVar:
+    def unapply(str: String): Option[EntryId] =
+      str.toIntOption.map(EntryId(_))
+
+  case class PartialAssetEntry(
+      wasSeen: Option[WasEntrySeen]
+  ) derives Decoder
+  object PartialAssetEntry:
+    given [F[_]: Concurrent]: EntityDecoder[F, PartialAssetEntry] =
+      jsonOf[F, PartialAssetEntry]
+
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
+  given [F[_]]: EntityEncoder[F, scalatags.Text.TypedTag[String]] =
+    EntityEncoder
+      .stringEncoder[F]
+      .contramap[scalatags.Text.TypedTag[String]](_.render)
 
   private def addRedirectHeaderIfHtmxRequest[F[_]](
       request: Request[F],
