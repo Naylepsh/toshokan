@@ -9,7 +9,7 @@ For more information on the sbt-dotty plugin, see the
 
 ## TODO
 
-- [ ] Clean up scraping configs form (the column widths, the URI input is too short)
+- [ ] Add save/delete/remove action impls for configs
 - [ ] Add mangakakalot support
 - [ ] Add more concurrent handling of scraping jobs
 - [ ] Add support for other sites

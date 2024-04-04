@@ -25,11 +25,11 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         div(
           cls := "w-3/4 container mx-auto",
           div(
-            cls := "grid grid-cols-8 pb-2",
+            cls := "grid grid-cols-12 pb-2",
             div(cls := "font-bold col-span-1", "Enabled"),
             div(cls := "font-bold col-span-1", "Id"),
             div(cls := "font-bold col-span-2", "Site"),
-            div(cls := "font-bold col-span-1", "URI"),
+            div(cls := "font-bold col-span-6", "URI"),
             // Column for actions (add / update / delete / remove)
             div(cls := "col-span-2", "")
           ),
@@ -46,7 +46,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
           renderConfigRow(asset.id, None)
         ),
         div(
-          cls := "w-3/4 container mx-auto",
+          cls := "w-3/4 container mx-auto mt-4",
           button(
             cls     := "btn btn-primary",
             onclick := s"loadTemplate('#${configTemplateId}', '#${configGroupId}')",
@@ -84,7 +84,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         checked := "1",
         value   := "true"
       )
-    var uriModifiers = List(name := "uri", cls := "input w-full max-w-xs")
+    var uriModifiers = List(name := "uri", cls := "input w-full mr-4")
     var hxMethod     = attr("hx-post")
     var url          = s"/asset-scraping/assets/${assetId}/configs"
     config.foreach: cfg =>
@@ -96,23 +96,23 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
       url = s"/asset-scraping/assets/${assetId}/configs/${cfg.id}"
 
     form(
-      cls               := "config-form grid grid-cols-8 mb-0 py-2",
+      cls               := "config-form grid grid-cols-12 mb-0 py-2",
       hxMethod          := url,
       attr("hx-ext")    := "json-enc",
       attr("hx-target") := ".config-form",
       div(
-        cls := "flex",
+        cls := "flex col-span-1",
         input(isEnabledModifiers)
       ),
       div(
-        cls := "flex my-auto",
+        cls := "flex col-span-1 my-auto",
         idField
       ),
       div(
         cls := "flex col-span-2",
         select(
           name := "site",
-          cls  := "select",
+          cls  := "select bg-transparent",
           Site.values.map: site =>
             var modifiers = (value := site.toString) :: Nil
             config.map(_.site).foreach:
@@ -123,11 +123,11 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         )
       ),
       div(
-        cls := "flex col-span-2",
+        cls := "flex col-span-6",
         input(uriModifiers)
       ),
       div(
-        cls := "flex space-x-2",
+        cls := "flex col-span-2 space-x-2",
         button(
           `type` := "submit",
           cls    := "btn",
