@@ -84,16 +84,25 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         checked := "1",
         value   := "true"
       )
-    var uriModifiers = List(name := "uri", cls := "input w-full mr-4")
-    var hxMethod     = attr("hx-post")
-    var url          = s"/asset-scraping/assets/${assetId}/configs"
-    config.foreach: cfg =>
-      idField = span(cfg.id.value.toString)
-      isEnabledModifiers =
-        (value              := cfg.isEnabled.value.toString) :: isEnabledModifiers
-      uriModifiers = (value := cfg.uri.value.toString) :: uriModifiers
-      hxMethod = attr("hx-put")
-      url = s"/asset-scraping/assets/${assetId}/configs/${cfg.id}"
+    var uriModifiers    = List(name := "uri", cls := "input w-full mr-4")
+    var hxMethod        = attr("hx-post")
+    var url             = s"/asset-scraping/assets/${assetId}/configs"
+    var deleteModifiers = List(`type` := "button", cls := "btn")
+    config match
+      case Some(cfg) =>
+        idField = span(cfg.id.value.toString)
+        isEnabledModifiers =
+          (value              := cfg.isEnabled.value.toString) :: isEnabledModifiers
+        uriModifiers = (value := cfg.uri.value.toString) :: uriModifiers
+        hxMethod = attr("hx-put")
+        url = s"/asset-scraping/assets/${assetId}/configs/${cfg.id}"
+        deleteModifiers =
+          (attr("hx-delete")      := url)
+            :: (attr("hx-target") := "closest .config-form")
+            :: deleteModifiers
+      case None =>
+        deleteModifiers =
+          (onclick := "removeClosest(this, '.config-form')") :: deleteModifiers
 
     form(
       cls               := "config-form grid grid-cols-12 mb-0 py-2",
@@ -136,8 +145,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         // If config exists, this should delete it from db AND table rows
         // If config does not exist, this should remove it from table rows
         button(
-          `type` := "button",
-          cls    := "btn",
+          deleteModifiers,
           i(cls := "fa-solid fa-trash")
         )
       )

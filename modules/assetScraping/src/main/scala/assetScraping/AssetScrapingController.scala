@@ -50,7 +50,11 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
           case Right(config) =>
             Ok(config.id.value.toString)
 
-    case req @ DELETE -> Root / AssetScrapingConfigIdVar(id) =>
+    case req @ DELETE -> Root
+        / "assets"
+        / AssetIdVar(assetId)
+        / "configs"
+        / AssetScrapingConfigIdVar(id) =>
       service.delete(id) *> Ok()
 
   val routes = Router("asset-scraping" -> httpRoutes)
