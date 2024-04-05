@@ -9,7 +9,6 @@ For more information on the sbt-dotty plugin, see the
 
 ## TODO
 
-- [ ] Add save/delete/remove action impls for configs
 - [ ] Add mangakakalot support
 - [ ] Add more concurrent handling of scraping jobs
 - [ ] Add support for other sites

@@ -14,6 +14,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetService[F],
     view: AssetView
 ) extends http.Controller[F]:
+  import http.Controller.given
   import AssetController.{ *, given }
 
   private val httpRoutes = HttpRoutes.of[F]:
@@ -104,10 +105,6 @@ object AssetController:
       jsonOf[F, PartialAssetEntry]
 
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
-  given [F[_]]: EntityEncoder[F, scalatags.Text.TypedTag[String]] =
-    EntityEncoder
-      .stringEncoder[F]
-      .contramap[scalatags.Text.TypedTag[String]](_.render)
 
   private def addRedirectHeaderIfHtmxRequest[F[_]](
       request: Request[F],

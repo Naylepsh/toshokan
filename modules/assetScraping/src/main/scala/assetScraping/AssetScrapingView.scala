@@ -71,7 +71,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
       navBarItems
     )
 
-  private def renderConfigRow(
+  def renderConfigRow(
       assetId: AssetId,
       config: Option[ExistingAssetScrapingConfig]
   ) =
@@ -109,6 +109,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
       hxMethod          := url,
       attr("hx-ext")    := "json-enc",
       attr("hx-target") := ".config-form",
+      attr("hx-swap")   := "outerHTML",
       div(
         cls := "flex col-span-1",
         input(isEnabledModifiers)

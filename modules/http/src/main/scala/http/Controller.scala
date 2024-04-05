@@ -17,3 +17,9 @@ abstract class Controller[F[_]: MonadThrow] extends Http4sDsl[F]:
         println(s"[ERROR]: $error")
         InternalServerError("Something went wrong")
       case Right(a) => f(a)
+
+object Controller:
+  given [F[_]]: EntityEncoder[F, scalatags.Text.TypedTag[String]] =
+    EntityEncoder
+      .stringEncoder[F]
+      .contramap[scalatags.Text.TypedTag[String]](_.render)

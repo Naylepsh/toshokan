@@ -18,7 +18,8 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetScrapingService[F],
     view: AssetScrapingView
 ) extends http.Controller[F]:
-  import AssetScrapingController.*
+  import http.Controller.given
+  import AssetScrapingController.{ *, given }
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
@@ -48,7 +49,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
           case Left(AddScrapingConfigError.AssetDoesNotExists) =>
             BadRequest(s"Asset ${assetId} does not exist")
           case Right(config) =>
-            Ok(config.id.value.toString)
+            Ok(view.renderConfigRow(assetId, config.some))
 
     case req @ DELETE -> Root
         / "assets"
