@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion      := "3.4.0"
+ThisBuild / scalaVersion := "3.4.0"
 
 val commonDependencies = Seq(
   Dependencies.catsCore,
@@ -61,7 +61,8 @@ lazy val scraper = project
   .settings(libraryDependencies ++= commonDependencies ++ Seq(
     Dependencies.sttp,
     Dependencies.sttpCats,
-    Dependencies.sttpCirce
+    Dependencies.sttpCirce,
+    Dependencies.scalaScraper
   ))
   .dependsOn(core)
 

@@ -1,11 +1,11 @@
+import assetScraping.AssetScrapingView
 import cats.effect.{ IO, IOApp }
 import cats.syntax.all.*
-import org.http4s.syntax.all.*
-import sttp.client3.httpclient.cats.HttpClientCatsBackend
-import scraper.Scraper
-
 import http.View.NavBarItem
-import assetScraping.AssetScrapingView
+import middleware.logErrors
+import org.http4s.syntax.all.*
+import scraper.Scraper
+import sttp.client3.httpclient.cats.HttpClientCatsBackend
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
@@ -50,5 +50,5 @@ object Main extends IOApp.Simple:
         assetController.routes <+> assetScrapingController.routes <+> publicController.routes
 
       HttpServer[IO]
-        .newEmber(serverConfig, routes.orNotFound)
+        .newEmber(serverConfig, logErrors(routes).orNotFound)
         .useForever

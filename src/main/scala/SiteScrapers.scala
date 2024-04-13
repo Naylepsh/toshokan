@@ -1,21 +1,22 @@
 import assetScraping.domain.Site
-import cats.effect.MonadCancelThrow
-import cats.effect.kernel.Resource
+import cats.effect.kernel.{ Resource, Sync }
 import scraper.domain.SiteScraper
 import scraper.sites.mangadex.{ MangadexApi, MangadexScraper }
+import scraper.sites.mangakakalot.MangakakalotScraper
 import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
 
 object SiteScrapers:
-  def makeScraperPicker[F[_]: MonadCancelThrow](httpClient: Resource[
+  def makeScraperPicker[F[_]: Sync](httpClient: Resource[
     F,
     SttpBackend[F, WebSockets]
   ]) =
-    val mangadexApi     = MangadexApi.make(httpClient)
-    val mangadexScraper = MangadexScraper[F](mangadexApi)
+    val mangadexApi         = MangadexApi.make(httpClient)
+    val mangadexScraper     = MangadexScraper[F](mangadexApi)
+    val mangakakalotScraper = MangakakalotScraper[F]()
 
     val pickSiteScraper: Site => SiteScraper[F] =
       case Site.Mangadex     => mangadexScraper
-      case Site.Mangakakalot => ???
+      case Site.Mangakakalot => mangakakalotScraper
 
     pickSiteScraper
