@@ -19,7 +19,7 @@ class QuerySuite extends munit.FunSuite:
     assertEquals(normalize(actual), expected)
 
   test("select column from aliased table"):
-    val P        = Person as "p"
+    val P        = Person `as` "p"
     val expected = "SELECT p.id FROM people AS p"
     val actual   = sql"SELECT ${P(_.id)} FROM ${P}".queryOf(P(_.id)).sql
 

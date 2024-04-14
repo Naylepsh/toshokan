@@ -3,7 +3,6 @@ package assetScraping
 import cats.effect.{ Concurrent, MonadCancelThrow }
 import cats.syntax.all.*
 import io.circe.*
-import io.github.arainko.ducktape.*
 import library.AssetController.AssetIdVar
 import library.domain.AssetId
 import org.http4s.*
@@ -43,13 +42,17 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
 
     case req @ POST -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
       withJsonErrorsHandled[NewAssetScrapingConfigDTO](req): newConfig =>
-        service.add(newConfig.toDomain(assetId)).flatMap:
-          case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
-            Conflict(s"${newConfig.uri} already exists")
-          case Left(AddScrapingConfigError.AssetDoesNotExists) =>
-            BadRequest(s"Asset ${assetId} does not exist")
-          case Right(config) =>
-            Ok(view.renderConfigRow(assetId, config.some))
+        newConfig.toDomain(assetId) match
+          case Left(error) =>
+            BadRequest(s"Invalid config: ${error}")
+          case Right(newConfig) =>
+            service.add(newConfig).flatMap:
+              case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
+                Conflict(s"${newConfig.uri} already exists")
+              case Left(AddScrapingConfigError.AssetDoesNotExists) =>
+                BadRequest(s"Asset ${assetId} does not exist")
+              case Right(config) =>
+                Ok(view.renderConfigRow(assetId, config.some))
 
     case req @ DELETE -> Root
         / "assets"
@@ -95,12 +98,13 @@ object AssetScrapingController:
       site: Site,
       isEnabled: Option[IsConfigEnabled]
   ) derives Decoder:
-    def toDomain(assetId: AssetId): NewAssetScrapingConfig =
-      this.into[NewAssetScrapingConfig]
-        .transform(
-          Field.const(_.assetId, assetId),
-          Field.const(_.isEnabled, isEnabled.getOrElse(IsConfigEnabled(false)))
-        )
+    def toDomain(assetId: AssetId): Either[String, NewAssetScrapingConfig] =
+      NewAssetScrapingConfig(
+        uri,
+        site,
+        isEnabled.getOrElse(IsConfigEnabled(false)),
+        assetId
+      )
 
   given [F[_]: Concurrent]: EntityDecoder[F, NewAssetScrapingConfigDTO] =
     jsonOf[F, NewAssetScrapingConfigDTO]
