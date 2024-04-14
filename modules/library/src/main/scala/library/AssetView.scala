@@ -7,6 +7,8 @@ import http.View.layout
 import http.View.NavBarItem
 
 class AssetView(navBarItems: List[NavBarItem]):
+  import AssetView.*
+
   def renderAssets(assetsViewEntries: List[(
       ExistingAsset,
       List[ExistingAssetEntry]
@@ -106,8 +108,19 @@ class AssetView(navBarItems: List[NavBarItem]):
       navBarItems
     )
 
-  def renderReleases(releases: List[Releases]) =
-    val accordionItems = releases.map: (dateUploaded, results) =>
+  def renderReleases(releases: List[Releases], pagination: Pagination) =
+    layout(
+      "Releases".some,
+      div(
+        id  := "releases",
+        cls := "mt-5",
+        releasesPartial(releases, pagination)
+      ),
+      navBarItems
+    )
+
+  def releasesPartial(releases: List[Releases], pagination: Pagination) =
+    val releaseElems = releases.map: (dateUploaded, results) =>
       div(
         cls := "collapse bg-base-200 my-2",
         input(
@@ -131,20 +144,19 @@ class AssetView(navBarItems: List[NavBarItem]):
           )
         )
       )
-    layout(
-      "Releases".some,
-      div(
-        cls := "mt-5 collapse",
-        accordionItems match
-          /*
-           * I don't get why, but it looks like daisyUI's second accordion item gets eaten.
-           * Thus the additional div is added,
-           * to make the accordion eat garbage instead of something crucial
-           */
-          case head :: tail => head :: div() :: tail
-          case other        => other
-      ),
-      navBarItems
+    val paginationElem = div(
+      cls := "join",
+      pagination.pages.map: page =>
+        val (className, modifiers) =
+          if page == pagination.current.toString then
+            ("btn-active", paginationButtonModifiers(page))
+          else if page == Pagination.skipped then ("btn-disabled", Nil)
+          else ("", paginationButtonModifiers(page))
+        button(cls := s"join-item btn $className", modifiers, page)
+    )
+    div(
+      releaseElems,
+      paginationElem
     )
 
   def entryPartial(asset: ExistingAsset, entry: ExistingAssetEntry) =
@@ -167,4 +179,11 @@ class AssetView(navBarItems: List[NavBarItem]):
       cls := "entry justify-start w-full",
       h5(cls  := headerClass, asset.title.value),
       div(cls := "flex gap-2 items-center", markingAction, linkToEntry)
+    )
+
+object AssetView:
+  private def paginationButtonModifiers(page: String) =
+    List(
+      attr("hx-get")    := s"/assets/partials/entries-by-release-date?page=$page",
+      attr("hx-target") := "#releases"
     )

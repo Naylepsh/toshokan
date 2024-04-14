@@ -9,6 +9,7 @@ import org.http4s.circe.*
 import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
+import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetService[F],
@@ -81,8 +82,23 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
         case Left(reason) =>
           InternalServerError("Something went wrong")
         case Right(releases) =>
+          val (items, pagination) = Pagination.paginate(releases, page = 1)
           Ok(
-            view.renderReleases(releases),
+            view.renderReleases(items, pagination),
+            `Content-Type`(MediaType.text.html)
+          )
+
+    case GET -> Root / "partials" / "entries-by-release-date" :? OptionalPageQueryParam(
+          page
+        ) =>
+      service.findAllGroupedByReleaseDate.attempt.flatMap:
+        case Left(reason) =>
+          InternalServerError("Something went wrong")
+        case Right(releases) =>
+          val (items, pagination) =
+            Pagination.paginate(releases, page.getOrElse(1))
+          Ok(
+            view.releasesPartial(items, pagination).toString,
             `Content-Type`(MediaType.text.html)
           )
 
@@ -96,6 +112,9 @@ object AssetController:
   object EntryIdVar:
     def unapply(str: String): Option[EntryId] =
       str.toIntOption.map(EntryId(_))
+
+  object OptionalPageQueryParam
+      extends OptionalQueryParamDecoderMatcher[Int]("page")
 
   case class PartialAssetEntry(
       wasSeen: Option[WasEntrySeen]

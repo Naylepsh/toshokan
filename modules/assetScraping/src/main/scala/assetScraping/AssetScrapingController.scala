@@ -12,7 +12,6 @@ import org.http4s.server.Router
 
 import domain.*
 
-// TODO: Rename to AssetScrapingConfigController?
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetScrapingService[F],
     view: AssetScrapingView
