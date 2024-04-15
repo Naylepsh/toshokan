@@ -36,17 +36,20 @@ object MangakakalotScraper:
       document: Document,
       selectors: Selectors
   ): Either[ScrapeError, List[EntryFound]] =
-    (document >> elementList(selectors.chapters)).traverse: chapterElem =>
-      chapterElem >?> element(selectors.chapterName) match
-        case None =>
-          ScrapeError
-            .Other(s"Invalid chapter selector ${selectors.chapterName}")
-            .asLeft
-        case Some(nameElem) =>
-          val no           = extractNo(nameElem)
-          val uri          = extractUri(nameElem)
-          val dateUploaded = extractDateUploaded(chapterElem, selectors)
-          (no, uri, dateUploaded).tupled.map(EntryFound(_, _, _))
+    val chapterElems = (document >> elementList(selectors.chapters))
+    if chapterElems.isEmpty then ScrapeError.NoEntriesFound.asLeft
+    else
+      chapterElems.traverse: chapterElem =>
+        chapterElem >?> element(selectors.chapterName) match
+          case None =>
+            ScrapeError
+              .Other(s"Invalid chapter selector ${selectors.chapterName}")
+              .asLeft
+          case Some(nameElem) =>
+            val no           = extractNo(nameElem)
+            val uri          = extractUri(nameElem)
+            val dateUploaded = extractDateUploaded(chapterElem, selectors)
+            (no, uri, dateUploaded).tupled.map(EntryFound(_, _, _))
 
   private val chapterNoPattern = ".*chapter[-_]([0-9]+[.]?[0-9]?).*".r
   private def extractNo(nameElem: Element) =

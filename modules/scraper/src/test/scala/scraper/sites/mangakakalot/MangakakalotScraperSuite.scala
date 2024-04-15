@@ -20,6 +20,14 @@ class MangakakalotScraperSuite extends munit.FunSuite:
 
     assertEquals(actual, Right(expectedMangakakalotEntries))
 
+  test("Parse mangakakalot moved content"):
+    val actual = MangakakalotScraper.parseContent(
+      movedMangakakalotHtml,
+      Selectors.mangakakalot
+    )
+
+    assertEquals(actual, Left(ScrapeError.NoEntriesFound))
+
   test("Parse manganato html"):
     val actual =
       MangakakalotScraper.parseContent(manganatoHtml, Selectors.manganato)
@@ -137,3 +145,13 @@ object MangakakalotScraperSuite:
       DateUploaded(LocalDate.of(2024, 1, 19))
     )
   )
+
+  val movedMangakakalotHtml: Document = browser.parseString("""
+    | <div class="login" style="min-height: 70px; color: black; padding-top: 20px; background: white">
+    |   <br /><br /><br />
+    |   <div style="margin-left: 20px">
+    |      Sorry, the page you have requested cannot be found. Click
+    |      <a style="color: blue" href="https://mangakakalot.com/">here</a> go visit
+    |      our homepage
+    |    </div>
+    |  </div>""".stripMargin)
