@@ -41,7 +41,7 @@ object View:
       ),
       body(
         navBar(navBarItems),
-        div(cls := "container mx-auto", bodyContent)
+        div(cls := "container mx-auto mb-4", bodyContent)
       )
     )
 

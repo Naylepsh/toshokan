@@ -145,7 +145,7 @@ class AssetView(navBarItems: List[NavBarItem]):
         )
       )
     val paginationElem = div(
-      cls := "join",
+      cls := "join mx-auto",
       pagination.pages.map: page =>
         val (className, modifiers) =
           if page == pagination.current.toString then
@@ -156,7 +156,10 @@ class AssetView(navBarItems: List[NavBarItem]):
     )
     div(
       releaseElems,
-      paginationElem
+      div(
+        cls := "flex",
+        paginationElem
+      )
     )
 
   def entryPartial(asset: ExistingAsset, entry: ExistingAssetEntry) =
