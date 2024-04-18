@@ -4,6 +4,7 @@ import java.net.URI
 
 import cats.syntax.all.*
 import cats.{ Applicative, Monad }
+import cats.effect.Clock
 import scraper.domain.*
 
 type ScrapeJobError   = (JobLabel, ScrapeError)
@@ -22,17 +23,34 @@ object Scraper:
         : F[ScrapeResults] =
       (List.empty, List.empty).pure
 
-  def make[F[_]: Monad]: Scraper[F] = new:
+  def make[F[_]: Monad](using clock: Clock[F]): Scraper[F] = new:
     def scrape(instructions: List[(JobLabel, URI, SiteScraper[F])])
         : F[ScrapeResults] =
-      instructions
-        .traverse: (label, uri, siteScraper) =>
-          siteScraper.findEntries(uri).map:
-            case Left(reason)   => (label -> reason).asLeft
-            case Right(entries) => (label -> entries).asRight
-        .map: results =>
-          results.foldLeft(ScrapeResults.empty):
-            case ((errors, successes), result) =>
-              result match
-                case Left(error)    => (error :: errors) -> successes
-                case Right(success) => errors            -> (success :: successes)
+      for
+        startTime <- clock.monotonic
+        results   <- instructions.traverse(findEntries.tupled).map(combineResults)
+        endTime   <- clock.monotonic
+        _ = scribe
+          .info(
+            s"Scraping took ${(endTime - startTime).toSeconds} seconds"
+          )
+      yield results
+
+    private def findEntries(
+        label: JobLabel,
+        uri: URI,
+        siteScraper: SiteScraper[F]
+    ) =
+      siteScraper.findEntries(uri).map:
+        case Left(reason)   => (label -> reason).asLeft
+        case Right(entries) => (label -> entries).asRight
+
+    private def combineResults(results: List[Either[
+      ScrapeJobError,
+      ScrapeJobSuccess
+    ]]) =
+      results.foldLeft(ScrapeResults.empty):
+        case ((errors, successes), result) =>
+          result match
+            case Left(error)    => (error :: errors) -> successes
+            case Right(success) => errors            -> (success :: successes)

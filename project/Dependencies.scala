@@ -27,7 +27,10 @@ object Dependencies {
   val hikariCp     = "com.zaxxer"    % "HikariCP"      % "5.0.1"
   val sqliteJDBC   = "org.xerial"    % "sqlite-jdbc"   % "3.44.0.0"
 
-  val slf4j = "org.slf4j" % "slf4j-simple" % "2.0.7"
+  // Logging
+  val slf4j      = "org.slf4j" % "slf4j-simple" % "2.0.7" // Only for http4s
+  val scribe     = "com.outr" %% "scribe"       % "3.13.2"
+  val scribeCats = "com.outr" %% "scribe-cats"  % scribe.revision
 
   // Tests
   val munit = "org.scalameta" %% "munit" % "0.7.29"

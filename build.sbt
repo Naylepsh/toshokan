@@ -9,6 +9,8 @@ val commonDependencies = Seq(
   Dependencies.ducktape,
   Dependencies.doobieCore,
   Dependencies.validator,
+  Dependencies.scribe,
+  Dependencies.scribeCats,
   Dependencies.munit % Test
 )
 

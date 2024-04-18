@@ -14,7 +14,7 @@ abstract class Controller[F[_]: MonadThrow] extends Http4sDsl[F]:
       case Left(InvalidMessageBodyFailure(details, cause)) =>
         BadRequest(cause.map(_.toString).getOrElse(details))
       case Left(error) =>
-        println(s"[ERROR]: $error")
+        scribe.error(error.toString)
         InternalServerError("Something went wrong")
       case Right(a) => f(a)
 

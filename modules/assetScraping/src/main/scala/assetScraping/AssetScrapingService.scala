@@ -1,6 +1,5 @@
 package assetScraping
 
-import cats.Monad
 import cats.syntax.all.*
 import library.AssetService
 import library.domain.*
@@ -8,6 +7,7 @@ import scraper.Scraper
 import scraper.domain.{ EntryFound, JobLabel, SiteScraper }
 
 import domain.*
+import cats.effect.kernel.Sync
 
 trait AssetScrapingService[F[_]]:
   def findByAssetId(assetId: AssetId): F[Either[
@@ -20,7 +20,7 @@ trait AssetScrapingService[F[_]]:
   def scrapeAllEnabled: F[Unit]
 
 object AssetScrapingService:
-  def make[F[_]: Monad](
+  def make[F[_]: Sync](
       repository: AssetScrapingRepository[F],
       assetService: AssetService[F],
       scraper: Scraper[F],
@@ -49,14 +49,15 @@ object AssetScrapingService:
 
     def scrapeAllEnabled: F[Unit] =
       for
+        _       <- scribe.cats[F].info("Starting the asset scraping...")
         configs <- repository.findAllEnabled
         instructons = configs.map(makeScrapingInstruction)
         results <- scraper.scrape(instructons)
         (errors, successes) = results
         _ <- successes.traverse: (label, entries) =>
           entries.traverse(saveResult(label))
-        _ = errors.foreach(println)
-      // TODO: log errors with proper logger
+        _ = scribe.info("Done with the asset scrape")
+        _ = errors.foreach(error => scribe.error(error.toString))
       yield ()
 
     private def makeScrapingInstruction(config: ExistingAssetScrapingConfig) =

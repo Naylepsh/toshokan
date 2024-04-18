@@ -1,9 +1,11 @@
 package middleware
 
-import cats.MonadThrow
-import cats.effect.std.Console
+import cats.effect.kernel.Sync
 import org.http4s.server.middleware.ErrorAction
 import org.http4s.{ HttpRoutes, * }
 
-def logErrors[F[_]: MonadThrow: Console](service: HttpRoutes[F]) =
-  ErrorAction.httpRoutes[F](service, (req, error) => Console[F].println(error.getMessage))
+def logErrors[F[_]: Sync](service: HttpRoutes[F]) =
+  ErrorAction.httpRoutes[F](
+    service,
+    (req, error) => scribe.cats[F].error(error.getMessage)
+  )
