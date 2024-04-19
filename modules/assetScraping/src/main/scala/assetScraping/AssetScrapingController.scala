@@ -27,7 +27,11 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
       )
 
     case POST -> Root =>
-      service.scrapeAllEnabled *> Ok("Done")
+      service.scrapeAllEnabled.flatMap: summary =>
+        Ok(
+          view.scrapingSummaryPartial(summary),
+          `Content-Type`(MediaType.text.html)
+        )
 
     case GET -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
       service.findByAssetId(assetId).flatMap:

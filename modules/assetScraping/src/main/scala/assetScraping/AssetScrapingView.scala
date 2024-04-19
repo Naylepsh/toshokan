@@ -7,6 +7,7 @@ import scalatags.Text.all.*
 
 import domain.{ ExistingAssetScrapingConfig, Site }
 import http.View.NavBarItem
+import assetScraping.domain.ScrapingSummary
 
 class AssetScrapingView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
@@ -65,6 +66,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         a(
           cls             := "btn btn-primary w-full",
           attr("hx-post") := "/asset-scraping",
+          attr("hx-swap") := "outerHTML",
           "Scrape all enabled"
         )
       ),
@@ -148,6 +150,34 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         button(
           deleteModifiers,
           i(cls := "fa-solid fa-trash")
+        )
+      )
+    )
+
+  def scrapingSummaryPartial(scrapingSummary: ScrapingSummary) =
+    div(
+      cls := "mx-auto max-w-96",
+      table(
+        cls := "table table-zebra",
+        thead(
+          tr(
+            th("Metric"),
+            th("Value")
+          )
+        ),
+        tbody(
+          tr(
+            th("New entries count"),
+            td(scrapingSummary.newEntriesCount)
+          ),
+          tr(
+            th("Errors count"),
+            td(scrapingSummary.errorsCount)
+          ),
+          tr(
+            th("Scraping time"),
+            td(s"${scrapingSummary.scrapingTimeSeconds}s")
+          )
         )
       )
     )

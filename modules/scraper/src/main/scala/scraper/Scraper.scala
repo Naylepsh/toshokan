@@ -4,7 +4,6 @@ import java.net.URI
 
 import cats.syntax.all.*
 import cats.{ Applicative, Monad }
-import cats.effect.Clock
 import scraper.domain.*
 
 type ScrapeJobError   = (JobLabel, ScrapeError)
@@ -23,18 +22,10 @@ object Scraper:
         : F[ScrapeResults] =
       (List.empty, List.empty).pure
 
-  def make[F[_]: Monad](using clock: Clock[F]): Scraper[F] = new:
+  def make[F[_]: Monad]: Scraper[F] = new:
     def scrape(instructions: List[(JobLabel, URI, SiteScraper[F])])
         : F[ScrapeResults] =
-      for
-        startTime <- clock.monotonic
-        results   <- instructions.traverse(findEntries.tupled).map(combineResults)
-        endTime   <- clock.monotonic
-        _ = scribe
-          .info(
-            s"Scraping took ${(endTime - startTime).toSeconds} seconds"
-          )
-      yield results
+      instructions.traverse(findEntries.tupled).map(combineResults)
 
     private def findEntries(
         label: JobLabel,

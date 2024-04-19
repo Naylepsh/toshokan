@@ -8,6 +8,7 @@ import scraper.domain.*
 
 class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
   def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
+    // TODO: Add retries
     MangadexScraper.extractMangaId(uri) match
       case Left(error) => error.asLeft.pure
       case Right(mangaId) =>

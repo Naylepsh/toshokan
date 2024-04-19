@@ -94,3 +94,9 @@ enum FindScrapingConfigError:
 enum AddScrapingConfigError:
   case ConfigAlreadyExists
   case AssetDoesNotExists
+
+case class ScrapingSummary(
+    newEntriesCount: Int,
+    errorsCount: Int,
+    scrapingTimeSeconds: Long
+)

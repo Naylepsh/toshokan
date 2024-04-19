@@ -1,13 +1,14 @@
 package assetScraping
 
+import cats.effect.kernel.{ Clock, Sync }
 import cats.syntax.all.*
+import core.Measure.*
 import library.AssetService
 import library.domain.*
 import scraper.Scraper
 import scraper.domain.{ EntryFound, JobLabel, SiteScraper }
 
 import domain.*
-import cats.effect.kernel.Sync
 
 trait AssetScrapingService[F[_]]:
   def findByAssetId(assetId: AssetId): F[Either[
@@ -17,10 +18,10 @@ trait AssetScrapingService[F[_]]:
   def add(scrapingConfig: NewAssetScrapingConfig)
       : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(id: AssetScrapingConfigId): F[Unit]
-  def scrapeAllEnabled: F[Unit]
+  def scrapeAllEnabled: F[ScrapingSummary]
 
 object AssetScrapingService:
-  def make[F[_]: Sync](
+  def make[F[_]: Sync: Clock](
       repository: AssetScrapingRepository[F],
       assetService: AssetService[F],
       scraper: Scraper[F],
@@ -47,18 +48,27 @@ object AssetScrapingService:
     def delete(id: AssetScrapingConfigId): F[Unit] =
       repository.delete(id)
 
-    def scrapeAllEnabled: F[Unit] =
+    def scrapeAllEnabled: F[ScrapingSummary] =
       for
         _       <- scribe.cats[F].info("Starting the asset scraping...")
         configs <- repository.findAllEnabled
         instructons = configs.map(makeScrapingInstruction)
-        results <- scraper.scrape(instructons)
-        (errors, successes) = results
-        _ <- successes.traverse: (label, entries) =>
-          entries.traverse(saveResult(label))
-        _ = scribe.info("Done with the asset scrape")
+        ((errors, successes), scrapingTime) <-
+          scraper.scrape(instructons).measure
+        newEntriesCount <- successes
+          .traverse: (label, entries) =>
+            entries.traverse(saveResult(label))
+          .map: res =>
+            res.flatten.foldLeft(0):
+              case (newEntriesCount, Left(_))  => newEntriesCount
+              case (newEntriesCount, Right(_)) => newEntriesCount + 1
+        _ = scribe.info("Done with the scrape")
         _ = errors.foreach(error => scribe.error(error.toString))
-      yield ()
+      yield ScrapingSummary(
+        newEntriesCount,
+        errors.length,
+        scrapingTime.toSeconds
+      )
 
     private def makeScrapingInstruction(config: ExistingAssetScrapingConfig) =
       (

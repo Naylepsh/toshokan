@@ -29,6 +29,7 @@ class MangakakalotScraper[F[_]: Sync] extends SiteScraper[F]:
 
   private def getContent(uri: URI): F[Either[Throwable, Document]] =
     val browser = JsoupBrowser()
+    // TODO: Use sttp for requests?
     Sync[F].blocking(browser.get(uri.toString)).attempt
 
 object MangakakalotScraper:
