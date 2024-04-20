@@ -83,3 +83,6 @@ lazy val root = project
   )
   .aggregate(core, library, scraper, assetScraping)
   .dependsOn(core, library, scraper, assetScraping)
+
+// SBT native packager
+enablePlugins(JavaAppPackaging)
