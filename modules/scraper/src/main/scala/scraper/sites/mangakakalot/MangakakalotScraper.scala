@@ -1,11 +1,10 @@
 package scraper.sites.mangakakalot
 
 import java.net.URI
-import java.time.LocalDate
+import java.time.{ LocalDate, LocalDateTime }
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import com.github.nscala_time.time.Imports.*
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
@@ -29,7 +28,6 @@ class MangakakalotScraper[F[_]: Sync] extends SiteScraper[F]:
 
   private def getContent(uri: URI): F[Either[Throwable, Document]] =
     val browser = JsoupBrowser()
-    // TODO: Use sttp for requests?
     Sync[F].blocking(browser.get(uri.toString)).attempt
 
 object MangakakalotScraper:
@@ -100,13 +98,13 @@ object MangakakalotScraper:
       : Option[LocalDate] =
     timeUploaded match
       case minutesAgoPattern(minutes) =>
-        Some((DateTime.now() - minutes.toInt.minutes).toJavaLocalDate)
+        Some(LocalDateTime.now().minusMinutes(minutes.toInt).toLocalDate)
 
       case hoursAgoPattern(hours) =>
-        Some((DateTime.now() - hours.toInt.hours).toJavaLocalDate)
+        Some(LocalDateTime.now().minusHours(hours.toInt).toLocalDate)
 
       case daysAgoPattern(days) =>
-        Some((DateTime.now() - days.toInt.days).toJavaLocalDate)
+        Some(LocalDateTime.now().minusDays(days.toInt).toLocalDate)
 
       case mangakakalotDatePattern(month, day, year) =>
         composeDate(year, month, day)
@@ -125,11 +123,7 @@ object MangakakalotScraper:
       m <- monthWordToInt(month)
       d <- day.toIntOption
       y <- year.toIntOption.map(_ + 2000)
-    yield (new DateTime())
-      .withYear(y)
-      .withMonthOfYear(m)
-      .withDayOfMonth(d)
-      .toJavaLocalDate
+    yield LocalDate.of(y, m, d)
 
   private val months = List(
     "jan",
@@ -149,7 +143,3 @@ object MangakakalotScraper:
     months.indexOf(monthWord.toLowerCase) match
       case -1 => None
       case i  => Some(i + 1)
-
-  extension (dt: DateTime)
-    def toJavaLocalDate: LocalDate =
-      LocalDate.of(dt.getYear, dt.getMonthOfYear, dt.getDayOfMonth)

@@ -1,15 +1,11 @@
 package scraper.sites.mangakakalot
 
 import java.net.URI
-import java.time.LocalDate
+import java.time.{ LocalDate, LocalDateTime }
 
-import com.github.nscala_time.time.Imports.*
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.model.Document
-import org.joda.time.DateTime
 import scraper.domain.*
-
-import MangakakalotScraper.toJavaLocalDate
 
 class MangakakalotScraperSuite extends munit.FunSuite:
   import MangakakalotScraperSuite.*
@@ -62,7 +58,7 @@ object MangakakalotScraperSuite:
       EntryUri(
         URI("https://mangakakalot.com/chapter/ot927321/chapter_28")
       ),
-      DateUploaded((DateTime.now() - 1.hour).toJavaLocalDate)
+      DateUploaded(LocalDateTime.now().minusHours(1).toLocalDate)
     ),
     EntryFound(
       EntryNo("27"),
