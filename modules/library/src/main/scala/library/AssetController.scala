@@ -49,7 +49,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
               asset.id.value.toString,
               addRedirectHeaderIfHtmxRequest(
                 req,
-                s"assets/edit/${asset.id}"
+                s"/assets/edit/${asset.id}"
               )
             )
 
