@@ -21,6 +21,9 @@ class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
     else
       feed
         .data
+        .filter: chapter =>
+          // viz.com results are not viewable in PL
+          chapter.url.getHost != "viz.com"
         .map: chapter =>
           EntryFound(
             EntryNo(chapter.attributes.chapter),
