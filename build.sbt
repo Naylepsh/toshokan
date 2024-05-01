@@ -73,6 +73,11 @@ lazy val assetScraping = project
   .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core, library, scraper)
 
+lazy val snapshot = project
+  .in(file("modules/snapshot"))
+  .settings(libraryDependencies ++= commonDependencies)
+  .dependsOn(core)
+
 lazy val root = project
   .in(file("."))
   .settings(
