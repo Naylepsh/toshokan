@@ -76,7 +76,7 @@ lazy val assetScraping = project
 lazy val snapshot = project
   .in(file("modules/snapshot"))
   .settings(libraryDependencies ++= commonDependencies)
-  .dependsOn(core)
+  .dependsOn(core, db)
 
 lazy val root = project
   .in(file("."))
@@ -86,8 +86,8 @@ lazy val root = project
     // fork    := true,
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
-  .aggregate(core, library, scraper, assetScraping)
-  .dependsOn(core, library, scraper, assetScraping)
+  .aggregate(core, library, scraper, assetScraping, snapshot)
+  .dependsOn(core, library, scraper, assetScraping, snapshot)
 
 // SBT native packager
 enablePlugins(JavaAppPackaging)
