@@ -3,7 +3,7 @@ package scraper
 import java.net.URI
 
 import cats.syntax.all.*
-import cats.{ Applicative, Monad }
+import cats.{ Applicative, Parallel }
 import scraper.domain.*
 
 type ScrapeJobError   = (JobLabel, ScrapeError)
@@ -22,10 +22,16 @@ object Scraper:
         : F[ScrapeResults] =
       (List.empty, List.empty).pure
 
-  def make[F[_]: Monad]: Scraper[F] = new:
+  def make[F[_]: Applicative: Parallel]: Scraper[F] = new:
     def scrape(instructions: List[(JobLabel, URI, SiteScraper[F])])
         : F[ScrapeResults] =
-      instructions.traverse(findEntries.tupled).map(combineResults)
+      instructions
+        .groupBy(_._3)
+        .toList
+        .parTraverse: (_, instructions) =>
+          instructions.traverse(findEntries.tupled)
+        .map: results =>
+          combineResults(results.flatten)
 
     private def findEntries(
         label: JobLabel,

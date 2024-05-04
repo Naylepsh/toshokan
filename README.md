@@ -11,6 +11,4 @@ For more information on the sbt-dotty plugin, see the
 
 - [ ] Add more concurrent handling of scraping jobs
 - [ ] Add support for other sites
-- [ ] Faulty config pages should be reported somewhere?:
-  - Once scraping is done it should display a summary?
 - [ ] Add integration with anilist
