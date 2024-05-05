@@ -83,7 +83,7 @@ lazy val root = project
   .settings(
     name    := "toshokan",
     version := "0.1.0",
-    // fork    := true,
+    fork    := true,
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
   .aggregate(core, library, scraper, assetScraping, snapshot)
