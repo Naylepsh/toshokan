@@ -15,6 +15,8 @@ trait AssetScrapingRepository[F[_]]:
   def findByAssetId(assetId: AssetId): F[List[ExistingAssetScrapingConfig]]
   def add(scrapingConfig: NewAssetScrapingConfig)
       : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
+  def update(scrapingConfig: ExistingAssetScrapingConfig)
+      : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetScrapingRepository:
@@ -58,6 +60,13 @@ object AssetScrapingRepository:
           AddScrapingConfigError.ConfigAlreadyExists.asLeft.pure
         else addWithoutChecking(scrapingConfig).map(_.asRight)
 
+    def update(scrapingConfig: ExistingAssetScrapingConfig)
+        : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
+      exists(scrapingConfig.uri).flatMap: configExists =>
+        if configExists then
+          updateWithoutChecking(scrapingConfig).map(_.asRight)
+        else UpdateScrapingConfigError.ConfigDoesNotExist.asLeft.pure
+
     def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit] =
       sql"""
         DELETE FROM ${AssetScrapingConfigs} 
@@ -82,3 +91,14 @@ object AssetScrapingRepository:
         .unique
         .transact(xa)
         .map(Tuples.from[ExistingAssetScrapingConfig](_))
+
+    private def updateWithoutChecking(
+        scrapingConfig: ExistingAssetScrapingConfig
+    ): F[ExistingAssetScrapingConfig] =
+      sql"""
+      UPDATE ${AssetScrapingConfigs}
+      SET ${AssetScrapingConfigs.isEnabled === scrapingConfig.isEnabled},
+        ${AssetScrapingConfigs.uri === scrapingConfig.uri},
+        ${AssetScrapingConfigs.site === scrapingConfig.site}
+      WHERE ${AssetScrapingConfigs.id === scrapingConfig.id}
+      """.update.run.transact(xa).as(scrapingConfig)

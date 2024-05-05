@@ -44,7 +44,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
           )
 
     case req @ POST -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
-      withJsonErrorsHandled[NewAssetScrapingConfigDTO](req): newConfig =>
+      withJsonErrorsHandled[AssetScrapingConfigDTO](req): newConfig =>
         newConfig.toDomain(assetId) match
           case Left(error) =>
             BadRequest(s"Invalid config: ${error}")
@@ -53,6 +53,22 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
               case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
                 Conflict(s"${newConfig.uri} already exists")
               case Left(AddScrapingConfigError.AssetDoesNotExists) =>
+                BadRequest(s"Asset ${assetId} does not exist")
+              case Right(config) =>
+                Ok(view.renderConfigRow(assetId, config.some))
+
+    case req @ PUT -> Root / "assets" / AssetIdVar(
+          assetId
+        ) / "configs" / AssetScrapingConfigIdVar(configId) =>
+      withJsonErrorsHandled[AssetScrapingConfigDTO](req): newConfig =>
+        newConfig.toDomain(assetId, configId) match
+          case Left(error) =>
+            BadRequest(s"Invalid config: ${error}")
+          case Right(newConfig) =>
+            service.update(newConfig).flatMap:
+              case Left(UpdateScrapingConfigError.ConfigDoesNotExist) =>
+                BadRequest(s"Config ${configId} does not exist")
+              case Left(UpdateScrapingConfigError.AssetDoesNotExists) =>
                 BadRequest(s"Asset ${assetId} does not exist")
               case Right(config) =>
                 Ok(view.renderConfigRow(assetId, config.some))
@@ -96,7 +112,7 @@ object AssetScrapingController:
             case Right("false")       => Right(IsConfigEnabled(false))
             case _                    => Left(DecodingFailure(makeErrorMessage(c), List.empty))
 
-  case class NewAssetScrapingConfigDTO(
+  case class AssetScrapingConfigDTO(
       uri: ScrapingConfigUri,
       site: Site,
       isEnabled: Option[IsConfigEnabled]
@@ -109,5 +125,17 @@ object AssetScrapingController:
         assetId
       )
 
-  given [F[_]: Concurrent]: EntityDecoder[F, NewAssetScrapingConfigDTO] =
-    jsonOf[F, NewAssetScrapingConfigDTO]
+    def toDomain(
+        assetId: AssetId,
+        configId: AssetScrapingConfigId
+    ): Either[String, ExistingAssetScrapingConfig] =
+      ExistingAssetScrapingConfig(
+        configId,
+        uri,
+        site,
+        isEnabled.getOrElse(IsConfigEnabled(false)),
+        assetId
+      )
+
+  given [F[_]: Concurrent]: EntityDecoder[F, AssetScrapingConfigDTO] =
+    jsonOf[F, AssetScrapingConfigDTO]

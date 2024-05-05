@@ -17,6 +17,8 @@ trait AssetScrapingService[F[_]]:
   ]]
   def add(scrapingConfig: NewAssetScrapingConfig)
       : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
+  def update(scrapingConfig: ExistingAssetScrapingConfig)
+      : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(id: AssetScrapingConfigId): F[Unit]
   def scrapeAllEnabled: F[ScrapingSummary]
 
@@ -44,6 +46,12 @@ object AssetScrapingService:
       assetService.find(scrapingConfig.assetId).flatMap:
         case Some(_) => repository.add(scrapingConfig)
         case None    => AddScrapingConfigError.AssetDoesNotExists.asLeft.pure
+
+    def update(scrapingConfig: ExistingAssetScrapingConfig)
+        : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
+      assetService.find(scrapingConfig.assetId).flatMap:
+        case Some(_) => repository.update(scrapingConfig)
+        case None    => UpdateScrapingConfigError.AssetDoesNotExists.asLeft.pure
 
     def delete(id: AssetScrapingConfigId): F[Unit] =
       repository.delete(id)

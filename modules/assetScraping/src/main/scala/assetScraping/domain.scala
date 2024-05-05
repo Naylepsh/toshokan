@@ -59,6 +59,16 @@ object NewAssetScrapingConfig:
       isEnabled: IsConfigEnabled,
       assetId: AssetId
   ): Either[String, NewAssetScrapingConfig] =
+    normalize(uri, site, isEnabled, assetId).map:
+      (uri, site, isEnabled, assetId) =>
+        new NewAssetScrapingConfig(uri, site, isEnabled, assetId)
+
+  def normalize(
+      uri: ScrapingConfigUri,
+      site: Site,
+      isEnabled: IsConfigEnabled,
+      assetId: AssetId
+  ) =
     val normalizedUri = site match
       case Site.Mangadex =>
         uri.value.toString match
@@ -78,7 +88,7 @@ object NewAssetScrapingConfig:
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
     normalizedUri.map: uri =>
-      new NewAssetScrapingConfig(uri, site, isEnabled, assetId)
+      (uri, site, isEnabled, assetId)
 
 case class ExistingAssetScrapingConfig(
     id: AssetScrapingConfigId,
@@ -87,6 +97,23 @@ case class ExistingAssetScrapingConfig(
     isEnabled: IsConfigEnabled,
     assetId: AssetId
 )
+object ExistingAssetScrapingConfig:
+  def apply(
+      id: AssetScrapingConfigId,
+      uri: ScrapingConfigUri,
+      site: Site,
+      isEnabled: IsConfigEnabled,
+      assetId: AssetId
+  ): Either[String, ExistingAssetScrapingConfig] =
+    NewAssetScrapingConfig.normalize(uri, site, isEnabled, assetId).map:
+      (uri, site, isEnabled, assetId) =>
+        new ExistingAssetScrapingConfig(
+          id,
+          uri,
+          site,
+          isEnabled,
+          assetId
+        )
 
 enum FindScrapingConfigError:
   case AssetDoesNotExists
@@ -94,6 +121,10 @@ enum FindScrapingConfigError:
 enum AddScrapingConfigError:
   case ConfigAlreadyExists
   case AssetDoesNotExists
+
+enum UpdateScrapingConfigError:
+  case AssetDoesNotExists
+  case ConfigDoesNotExist
 
 case class ScrapingSummary(
     newEntriesCount: Int,
