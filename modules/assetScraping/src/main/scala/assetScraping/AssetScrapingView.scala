@@ -83,7 +83,6 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         cls     := "ml-5",
         name    := "isEnabled",
         `type`  := "checkbox",
-        checked := "1",
         value   := "true"
       )
     var uriModifiers    = List(name := "uri", cls := "input w-full mr-4")
@@ -93,8 +92,8 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
     config match
       case Some(cfg) =>
         idField = span(cfg.id.value.toString)
-        isEnabledModifiers =
-          (value              := cfg.isEnabled.value.toString) :: isEnabledModifiers
+        if cfg.isEnabled then
+          isEnabledModifiers = (checked := "1") :: isEnabledModifiers
         uriModifiers = (value := cfg.uri.value.toString) :: uriModifiers
         hxMethod = attr("hx-put")
         url = s"/asset-scraping/assets/${assetId}/configs/${cfg.id}"
@@ -103,6 +102,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
             :: (attr("hx-target") := "closest .config-form")
             :: deleteModifiers
       case None =>
+        isEnabledModifiers = (checked := "1") :: isEnabledModifiers
         deleteModifiers =
           (onclick := "removeClosest(this, '.config-form')") :: deleteModifiers
 
