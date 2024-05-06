@@ -27,7 +27,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
       )
 
     case POST -> Root =>
-      service.scrapeAllEnabled.flatMap: summary =>
+      service.getNewReleases.flatMap: summary =>
         Ok(
           view.scrapingSummaryPartial(summary),
           `Content-Type`(MediaType.text.html)

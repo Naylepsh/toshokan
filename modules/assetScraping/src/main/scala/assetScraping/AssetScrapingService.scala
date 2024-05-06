@@ -20,7 +20,7 @@ trait AssetScrapingService[F[_]]:
   def update(scrapingConfig: ExistingAssetScrapingConfig)
       : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(id: AssetScrapingConfigId): F[Unit]
-  def scrapeAllEnabled: F[ScrapingSummary]
+  def getNewReleases: F[ScrapingSummary]
 
 object AssetScrapingService:
   def make[F[_]: Sync: Clock](
@@ -56,7 +56,7 @@ object AssetScrapingService:
     def delete(id: AssetScrapingConfigId): F[Unit] =
       repository.delete(id)
 
-    def scrapeAllEnabled: F[ScrapingSummary] =
+    def getNewReleases: F[ScrapingSummary] =
       for
         _       <- scribe.cats[F].info("Starting the asset scraping...")
         configs <- repository.findAllEnabled
