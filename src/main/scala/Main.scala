@@ -9,7 +9,10 @@ import sttp.client3.httpclient.cats.HttpClientCatsBackend
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
     load[IO].flatMap: (serverConfig, dbConfig, snapshotConfig, navBarItems) =>
-      db.transactors.makeSqliteTransactorResource[IO](dbConfig).use: xa =>
+      (
+        db.transactors.makeSqliteTransactorResource[IO](dbConfig),
+        HttpClientCatsBackend.resource[IO]()
+      ).tupled.use: (xa, httpBackend) =>
         val assetRepository = library.AssetRepository.make[IO](xa)
         val assetService    = library.AssetService.make(assetRepository)
         val assetView       = library.AssetView(navBarItems)
@@ -17,8 +20,7 @@ object Main extends IOApp.Simple:
 
         val scraper = Scraper.make[IO]
 
-        val httpClient      = HttpClientCatsBackend.resource[IO]()
-        val pickSiteScraper = SiteScrapers.makeScraperPicker(httpClient)
+        val pickSiteScraper = SiteScrapers.makeScraperPicker(httpBackend)
 
         val assetScrapingRepository =
           assetScraping.AssetScrapingRepository.make[IO](xa)

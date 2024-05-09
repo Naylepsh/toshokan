@@ -1,5 +1,5 @@
 import assetScraping.domain.Site
-import cats.effect.kernel.{ Resource, Sync }
+import cats.effect.kernel.Sync
 import scraper.domain.SiteScraper
 import scraper.sites.mangadex.{ MangadexApi, MangadexScraper }
 import scraper.sites.mangakakalot.MangakakalotScraper
@@ -7,11 +7,8 @@ import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
 
 object SiteScrapers:
-  def makeScraperPicker[F[_]: Sync](httpClient: Resource[
-    F,
-    SttpBackend[F, WebSockets]
-  ]) =
-    val mangadexApi         = MangadexApi.make(httpClient)
+  def makeScraperPicker[F[_]: Sync](backend: SttpBackend[F, WebSockets]) =
+    val mangadexApi         = MangadexApi.make(backend)
     val mangadexScraper     = MangadexScraper[F](mangadexApi)
     val mangakakalotScraper = MangakakalotScraper[F]()
 
