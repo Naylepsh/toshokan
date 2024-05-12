@@ -20,6 +20,10 @@ object View:
       attr("data-theme") := "cupcake",
       head(
         title(titleContent),
+        meta(
+          httpEquiv := "Content-Type",
+          content   := "text/html; charset=utf-8"
+        ),
         link(
           href := "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css",
           rel := "stylesheet"
