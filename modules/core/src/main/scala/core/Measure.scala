@@ -2,12 +2,13 @@ package core
 
 import scala.concurrent.duration.FiniteDuration
 
-import cats.effect.{ Clock, Sync }
+import cats.effect.{Clock, Sync}
 import cats.syntax.all.*
 
 object Measure:
-  def of[F[_]: Sync, A](fa: F[A])(using
-  clock: Clock[F]): F[(A, FiniteDuration)] =
+  def of[F[_]: Sync, A](
+      fa: F[A]
+  )(using clock: Clock[F]): F[(A, FiniteDuration)] =
     for
       start  <- clock.monotonic
       result <- fa

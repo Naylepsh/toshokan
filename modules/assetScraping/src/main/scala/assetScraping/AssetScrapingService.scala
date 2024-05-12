@@ -1,12 +1,12 @@
 package assetScraping
 
-import cats.effect.kernel.{ Clock, Sync }
+import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.all.*
 import core.Measure.*
 import library.AssetService
 import library.domain.*
 import scraper.Scraper
-import scraper.domain.{ EntryFound, JobLabel, SiteScraper }
+import scraper.domain.{EntryFound, JobLabel, SiteScraper}
 
 import domain.*
 
@@ -15,10 +15,12 @@ trait AssetScrapingService[F[_]]:
     FindScrapingConfigError,
     (ExistingAsset, List[ExistingAssetScrapingConfig])
   ]]
-  def add(scrapingConfig: NewAssetScrapingConfig)
-      : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
-  def update(scrapingConfig: ExistingAssetScrapingConfig)
-      : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
+  def add(
+      scrapingConfig: NewAssetScrapingConfig
+  ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
+  def update(
+      scrapingConfig: ExistingAssetScrapingConfig
+  ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(id: AssetScrapingConfigId): F[Unit]
   def getNewReleases: F[ScrapingSummary]
 
@@ -33,25 +35,33 @@ object AssetScrapingService:
       FindScrapingConfigError,
       (ExistingAsset, List[ExistingAssetScrapingConfig])
     ]] =
-      assetService.find(assetId).flatMap:
-        case Some(asset, _) =>
-          repository
-            .findByAssetId(assetId)
-            .map: configs =>
-              (asset, configs).asRight
-        case None => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
+      assetService
+        .find(assetId)
+        .flatMap:
+          case Some(asset, _) =>
+            repository
+              .findByAssetId(assetId)
+              .map: configs =>
+                (asset, configs).asRight
+          case None => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
 
-    def add(scrapingConfig: NewAssetScrapingConfig)
-        : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
-      assetService.find(scrapingConfig.assetId).flatMap:
-        case Some(_) => repository.add(scrapingConfig)
-        case None    => AddScrapingConfigError.AssetDoesNotExists.asLeft.pure
+    def add(
+        scrapingConfig: NewAssetScrapingConfig
+    ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
+      assetService
+        .find(scrapingConfig.assetId)
+        .flatMap:
+          case Some(_) => repository.add(scrapingConfig)
+          case None    => AddScrapingConfigError.AssetDoesNotExists.asLeft.pure
 
-    def update(scrapingConfig: ExistingAssetScrapingConfig)
-        : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
-      assetService.find(scrapingConfig.assetId).flatMap:
-        case Some(_) => repository.update(scrapingConfig)
-        case None    => UpdateScrapingConfigError.AssetDoesNotExists.asLeft.pure
+    def update(
+        scrapingConfig: ExistingAssetScrapingConfig
+    ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
+      assetService
+        .find(scrapingConfig.assetId)
+        .flatMap:
+          case Some(_) => repository.update(scrapingConfig)
+          case None => UpdateScrapingConfigError.AssetDoesNotExists.asLeft.pure
 
     def delete(id: AssetScrapingConfigId): F[Unit] =
       repository.delete(id)
@@ -68,8 +78,10 @@ object AssetScrapingService:
             entries.traverse(saveResult(label))
           .map: res =>
             res.flatten.foldLeft(0):
-              case (newEntriesCount, Left(_))  => newEntriesCount
-              case (newEntriesCount, Right(_)) => newEntriesCount + 1
+              case (newEntriesCount, Left(_)) =>
+                newEntriesCount
+              case (newEntriesCount, Right(_)) =>
+                newEntriesCount + 1
         _ = scribe.info("Done with the scrape")
         _ = errors.foreach(error => scribe.error(error.toString))
       yield ScrapingSummary(

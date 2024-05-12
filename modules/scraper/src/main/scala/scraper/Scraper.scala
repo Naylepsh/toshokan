@@ -3,7 +3,7 @@ package scraper
 import java.net.URI
 
 import cats.syntax.all.*
-import cats.{ Applicative, Parallel }
+import cats.{Applicative, Parallel}
 import scraper.domain.*
 
 type ScrapeJobError   = (JobLabel, ScrapeError)
@@ -13,18 +13,21 @@ object ScrapeResults:
   val empty: ScrapeResults = (List.empty, List.empty)
 
 trait Scraper[F[_]]:
-  def scrape(instructions: List[(JobLabel, URI, SiteScraper[F])])
-      : F[ScrapeResults]
+  def scrape(
+      instructions: List[(JobLabel, URI, SiteScraper[F])]
+  ): F[ScrapeResults]
 
 object Scraper:
   def noop[F[_]: Applicative]: Scraper[F] = new:
-    def scrape(instructions: List[(JobLabel, URI, SiteScraper[F])])
-        : F[ScrapeResults] =
+    def scrape(
+        instructions: List[(JobLabel, URI, SiteScraper[F])]
+    ): F[ScrapeResults] =
       (List.empty, List.empty).pure
 
   def make[F[_]: Applicative: Parallel]: Scraper[F] = new:
-    def scrape(instructions: List[(JobLabel, URI, SiteScraper[F])])
-        : F[ScrapeResults] =
+    def scrape(
+        instructions: List[(JobLabel, URI, SiteScraper[F])]
+    ): F[ScrapeResults] =
       instructions
         .groupBy(_._3)
         .toList
@@ -38,14 +41,18 @@ object Scraper:
         uri: URI,
         siteScraper: SiteScraper[F]
     ) =
-      siteScraper.findEntries(uri).map:
-        case Left(reason)   => (label -> reason).asLeft
-        case Right(entries) => (label -> entries).asRight
+      siteScraper
+        .findEntries(uri)
+        .map:
+          case Left(reason)   => (label -> reason).asLeft
+          case Right(entries) => (label -> entries).asRight
 
-    private def combineResults(results: List[Either[
-      ScrapeJobError,
-      ScrapeJobSuccess
-    ]]) =
+    private def combineResults(
+        results: List[Either[
+          ScrapeJobError,
+          ScrapeJobSuccess
+        ]]
+    ) =
       results.foldLeft(ScrapeResults.empty):
         case ((errors, successes), result) =>
           result match

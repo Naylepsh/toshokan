@@ -8,7 +8,7 @@ class QuerySuite extends munit.FunSuite:
 
   test("select particular column"):
     val expected = "SELECT id FROM people"
-    val actual   = sql"SELECT ${Person.id} FROM ${Person}".queryOf(Person.id).sql
+    val actual = sql"SELECT ${Person.id} FROM ${Person}".queryOf(Person.id).sql
 
     assertEquals(normalize(actual), expected)
 

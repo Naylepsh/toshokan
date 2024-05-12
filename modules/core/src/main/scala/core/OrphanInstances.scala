@@ -5,7 +5,7 @@ import java.time.LocalDate
 
 import cats.kernel.Order
 import cats.syntax.all.*
-import doobie.util.{ Get, Put }
+import doobie.util.{Get, Put}
 import io.circe.Decoder
 
 given Order[URI]   = Order[String].contramap(_.toString)

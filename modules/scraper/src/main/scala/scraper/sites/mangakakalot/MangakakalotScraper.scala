@@ -1,14 +1,14 @@
 package scraper.sites.mangakakalot
 
 import java.net.URI
-import java.time.{ LocalDate, LocalDateTime }
+import java.time.{LocalDate, LocalDateTime}
 
 import cats.effect.Sync
 import cats.syntax.all.*
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
-import net.ruippeixotog.scalascraper.model.{ Document, Element }
+import net.ruippeixotog.scalascraper.model.{Document, Element}
 import scraper.domain.*
 
 class MangakakalotScraper[F[_]: Sync] extends SiteScraper[F]:
@@ -94,8 +94,9 @@ object MangakakalotScraper:
     ".*([A-Za-z]{3})-([0-9]{2})-([0-9]{2}).*".r
   private val manganatoDatePattern =
     ".*([A-Za-z]{3}) ([0-9]{2}),([0-9]{2}).*".r
-  private def parseDateReleasedFromTimeUploaded(timeUploaded: String)
-      : Option[LocalDate] =
+  private def parseDateReleasedFromTimeUploaded(
+      timeUploaded: String
+  ): Option[LocalDate] =
     timeUploaded match
       case minutesAgoPattern(minutes) =>
         Some(LocalDateTime.now().minusMinutes(minutes.toInt).toLocalDate)

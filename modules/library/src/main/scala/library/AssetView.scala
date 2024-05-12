@@ -9,10 +9,14 @@ import http.View.NavBarItem
 class AssetView(navBarItems: List[NavBarItem]):
   import AssetView.*
 
-  def renderAssets(assetsViewEntries: List[(
-      ExistingAsset,
-      List[ExistingAssetEntry]
-  )]) =
+  def renderAssets(
+      assetsViewEntries: List[
+        (
+            ExistingAsset,
+            List[ExistingAssetEntry]
+        )
+      ]
+  ) =
     layout(
       "Assets".some,
       div(
@@ -187,6 +191,6 @@ class AssetView(navBarItems: List[NavBarItem]):
 object AssetView:
   private def paginationButtonModifiers(page: String) =
     List(
-      attr("hx-get")    := s"/assets/partials/entries-by-release-date?page=$page",
+      attr("hx-get") := s"/assets/partials/entries-by-release-date?page=$page",
       attr("hx-target") := "#releases"
     )

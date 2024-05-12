@@ -1,6 +1,6 @@
 package library
 
-import cats.effect.{ Concurrent, MonadCancelThrow }
+import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
 import io.circe.Decoder
 import library.domain.*
@@ -16,7 +16,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
     view: AssetView
 ) extends http.Controller[F]:
   import http.Controller.given
-  import AssetController.{ *, given }
+  import AssetController.{*, given}
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
@@ -30,28 +30,32 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
       Ok(view.renderForm(None), `Content-Type`(MediaType.text.html))
 
     case GET -> Root / "edit" / AssetIdVar(id) =>
-      service.find(id).flatMap:
-        case Some(asset, _) =>
-          Ok(
-            view.renderForm(asset.some),
-            `Content-Type`(MediaType.text.html)
-          )
-        case None =>
-          NotFound(s"Asset ${id} not found")
+      service
+        .find(id)
+        .flatMap:
+          case Some(asset, _) =>
+            Ok(
+              view.renderForm(asset.some),
+              `Content-Type`(MediaType.text.html)
+            )
+          case None =>
+            NotFound(s"Asset ${id} not found")
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[NewAsset](req): newAsset =>
-        service.add(newAsset).flatMap:
-          case Left(AddAssetError.AssetAlreadyExists) =>
-            Conflict(s"${newAsset.title} already exists")
-          case Right(asset) =>
-            Ok(
-              asset.id.value.toString,
-              addRedirectHeaderIfHtmxRequest(
-                req,
-                s"/assets/edit/${asset.id}"
+        service
+          .add(newAsset)
+          .flatMap:
+            case Left(AddAssetError.AssetAlreadyExists) =>
+              Conflict(s"${newAsset.title} already exists")
+            case Right(asset) =>
+              Ok(
+                asset.id.value.toString,
+                addRedirectHeaderIfHtmxRequest(
+                  req,
+                  s"/assets/edit/${asset.id}"
+                )
               )
-            )
 
     case req @ PUT -> Root / AssetIdVar(id) =>
       withJsonErrorsHandled[NewAsset](req): newAsset =>
@@ -69,12 +73,13 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
         / "entries"
         / EntryIdVar(entryId) =>
       withJsonErrorsHandled[PartialAssetEntry](req): assetEntry =>
-        assetEntry
-          .wasSeen
+        assetEntry.wasSeen
           .map: wasSeen =>
-            service.setSeen(assetId, entryId, wasSeen).flatMap:
-              case Left(reason)        => BadRequest("Oops")
-              case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
+            service
+              .setSeen(assetId, entryId, wasSeen)
+              .flatMap:
+                case Left(reason)        => BadRequest("Oops")
+                case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
           .getOrElse(Ok(""))
 
     case GET -> Root / "entries-by-release-date" =>

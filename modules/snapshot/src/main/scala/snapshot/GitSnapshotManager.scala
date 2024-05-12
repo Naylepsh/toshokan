@@ -3,13 +3,13 @@ package git
 
 import java.io.File
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
-import java.nio.file.{ Files, Path, Paths }
-import java.time.{ LocalDate, ZoneId }
+import java.nio.file.{Files, Path, Paths}
+import java.time.{LocalDate, ZoneId}
 
 import scala.sys.process.*
 
 import cats.data.EitherT
-import cats.effect.kernel.{ Clock, Sync }
+import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.all.*
 import core.Newtype
 
@@ -40,12 +40,15 @@ class GitSnapshotManager[F[_]: Sync](config: Config)(using clock: Clock[F])
       case true =>
         scribe.cats[F].info("Snapshot taken recently. Not taking another one")
       case false =>
-        scribe.cats[F].info("Taking a snapshot").flatMap: _ =>
-          save().flatMap:
-            case Left(error) =>
-              scribe.cats[F].error(error.toString)
-            case Right(_) =>
-              scribe.cats[F].info("Saved the snapshot")
+        scribe
+          .cats[F]
+          .info("Taking a snapshot")
+          .flatMap: _ =>
+            save().flatMap:
+              case Left(error) =>
+                scribe.cats[F].error(error.toString)
+              case Right(_) =>
+                scribe.cats[F].info("Saved the snapshot")
 
   def save(): F[Either[Throwable, Unit]] =
     (copyDbToRepo *> addFile *> commit *> publish).value
@@ -56,9 +59,13 @@ class GitSnapshotManager[F[_]: Sync](config: Config)(using clock: Clock[F])
       ls  <- lastSaved
       daysDifference = ls.map: time =>
         val lastSavedDay =
-          LocalDate.ofInstant(time.toInstant, ZoneId.systemDefault).toEpochDay
+          LocalDate
+            .ofInstant(time.toInstant, ZoneId.systemDefault)
+            .toEpochDay
         val currentDay =
-          LocalDate.ofInstant(now, ZoneId.systemDefault).toEpochDay
+          LocalDate
+            .ofInstant(now, ZoneId.systemDefault)
+            .toEpochDay
         currentDay - lastSavedDay
     yield daysDifference.map(_ < config.recencyThreshold).getOrElse(false)
 

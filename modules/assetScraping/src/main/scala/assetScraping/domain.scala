@@ -4,9 +4,9 @@ package domain
 import java.net.URI
 
 import cats.syntax.all.*
-import core.{ Newtype, given }
-import doobie.util.{ Read, Write }
-import io.circe.{ Decoder, Encoder }
+import core.{Newtype, given}
+import doobie.util.{Read, Write}
+import io.circe.{Decoder, Encoder}
 import library.domain.AssetId
 
 type AssetScrapingConfigId = AssetScrapingConfigId.Type
@@ -105,8 +105,9 @@ object ExistingAssetScrapingConfig:
       isEnabled: IsConfigEnabled,
       assetId: AssetId
   ): Either[String, ExistingAssetScrapingConfig] =
-    NewAssetScrapingConfig.normalize(uri, site, isEnabled, assetId).map:
-      (uri, site, isEnabled, assetId) =>
+    NewAssetScrapingConfig
+      .normalize(uri, site, isEnabled, assetId)
+      .map: (uri, site, isEnabled, assetId) =>
         new ExistingAssetScrapingConfig(
           id,
           uri,

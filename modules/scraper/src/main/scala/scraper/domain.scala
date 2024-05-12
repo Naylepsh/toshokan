@@ -4,7 +4,7 @@ package domain
 import java.net.URI
 import java.time.LocalDate
 
-import core.{ Newtype, given }
+import core.{Newtype, given}
 import org.typelevel.cats.time.*
 
 type EntryNo = EntryNo.Type

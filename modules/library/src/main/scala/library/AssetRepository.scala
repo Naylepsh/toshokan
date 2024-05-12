@@ -10,10 +10,12 @@ import library.domain.*
 
 trait AssetRepository[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
-  def findById(assetId: AssetId): F[Option[(
-      ExistingAsset,
-      List[ExistingAssetEntry]
-  )]]
+  def findById(assetId: AssetId): F[Option[
+    (
+        ExistingAsset,
+        List[ExistingAssetEntry]
+    )
+  ]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
   def update(asset: ExistingAsset): F[Unit]
@@ -59,7 +61,8 @@ object AssetRepository:
           FROM ${A}
           LEFT JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
           ORDER BY ${A(_.id)}
-      """.queryOf(findAllColumns)
+      """
+        .queryOf(findAllColumns)
         .to[List]
         .transact(xa)
         .map: rows =>
@@ -76,8 +79,7 @@ object AssetRepository:
                     record._6,
                     record._7,
                     assetId.some
-                  )
-                    .tupled
+                  ).tupled
                     .map(Tuples.from[ExistingAssetEntry](_))
                 .collect:
                   case Some(entry) => entry
@@ -85,14 +87,15 @@ object AssetRepository:
             .toList
             .sortBy((asset, _) => asset.id)
 
-    def findById(assetId: AssetId): F[Option[(
-        ExistingAsset,
-        List[ExistingAssetEntry]
-    )]] =
-      /**
-       * Ideally this would be done in one query,
-       * but I cba to do the sql -> domain nested transformation
-       */
+    def findById(assetId: AssetId): F[Option[
+      (
+          ExistingAsset,
+          List[ExistingAssetEntry]
+      )
+    ]] =
+      /** Ideally this would be done in one query, but I cba to do the sql ->
+        * domain nested transformation
+        */
       (
         findAsset(assetId),
         findEntries(assetId)
@@ -104,8 +107,9 @@ object AssetRepository:
         case true  => AddAssetError.AssetAlreadyExists.asLeft.pure
         case false => addWithoutChecking(asset).map(_.asRight)
 
-    def add(entry: NewAssetEntry)
-        : F[Either[AddEntryError, ExistingAssetEntry]] =
+    def add(
+        entry: NewAssetEntry
+    ): F[Either[AddEntryError, ExistingAssetEntry]] =
       (doesAssetExist(entry.assetId), doesEntryExist(entry.uri)).tupled.flatMap:
         (assetExists, entryExists) =>
           if entryExists then AddEntryError.EntryAlreadyExists.asLeft.pure
@@ -130,15 +134,17 @@ object AssetRepository:
       """.update.run.transact(xa).void
 
     def delete(assetId: AssetId): F[Unit] =
-      sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}"
-        .update.run.transact(xa).void
+      sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}".update.run
+        .transact(xa)
+        .void
 
     private def findAsset(assetId: AssetId): F[Option[ExistingAsset]] =
       sql"""
         SELECT ${Assets.*}
         FROM ${Assets}
         WHERE ${Assets.id === assetId}
-      """.queryOf(Assets.*)
+      """
+        .queryOf(Assets.*)
         .option
         .transact(xa)
         .map: row =>
@@ -149,7 +155,8 @@ object AssetRepository:
         SELECT ${AssetEntries.*} 
         FROM ${AssetEntries} 
         WHERE ${AssetEntries.assetId === assetId}
-      """.queryOf(AssetEntries.*)
+      """
+        .queryOf(AssetEntries.*)
         .to[List]
         .transact(xa)
         .map: rows =>
@@ -163,8 +170,9 @@ object AssetRepository:
         .map: row =>
           Tuples.from[ExistingAsset](row)
 
-    private def addWithoutChecking(entry: NewAssetEntry)
-        : F[ExistingAssetEntry] =
+    private def addWithoutChecking(
+        entry: NewAssetEntry
+    ): F[ExistingAssetEntry] =
       val values = Tuples.to(entry)
       sql"INSERT INTO ${AssetEntries}(${AssetEntries.allExceptId}) VALUES ($values) RETURNING ${AssetEntries.*}"
         .queryOf(AssetEntries.*)

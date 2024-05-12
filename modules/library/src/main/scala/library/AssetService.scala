@@ -37,22 +37,23 @@ object AssetService:
             .toList
             .sorted(Ordering[Releases].reverse)
 
-      def find(id: AssetId)
-          : F[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
+      def find(
+          id: AssetId
+      ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
         repository.findById(id)
 
       def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
         repository.add(asset)
 
-      def add(entry: NewAssetEntry)
-          : F[Either[AddEntryError, ExistingAssetEntry]] =
+      def add(
+          entry: NewAssetEntry
+      ): F[Either[AddEntryError, ExistingAssetEntry]] =
         repository.add(entry)
 
       def update(asset: ExistingAsset): F[Unit] =
-        /**
-         * TODO: This should probably check whether the asset exists first?
-         * But it's not like it's needed for the UI for now
-         */
+        /** TODO: This should probably check whether the asset exists first? But
+          * it's not like it's needed for the UI for now
+          */
         repository.update(asset)
 
       def setSeen(
@@ -60,13 +61,16 @@ object AssetService:
           entryId: EntryId,
           seen: WasEntrySeen
       ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]] =
-        repository.findById(assetId).flatMap:
-          case None => UpdateEntryError.AssetDoesNotExists.asLeft.pure
-          case Some(asset, entries) => entries.find(_.id == entryId) match
-              case None => UpdateEntryError.EntryDoesNotExist.asLeft.pure
-              case Some(entry) =>
-                val e = entry.copy(wasSeen = seen)
-                repository.update(e).as((asset, e).asRight)
+        repository
+          .findById(assetId)
+          .flatMap:
+            case None => UpdateEntryError.AssetDoesNotExists.asLeft.pure
+            case Some(asset, entries) =>
+              entries.find(_.id == entryId) match
+                case None => UpdateEntryError.EntryDoesNotExist.asLeft.pure
+                case Some(entry) =>
+                  val e = entry.copy(wasSeen = seen)
+                  repository.update(e).as((asset, e).asRight)
 
       def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)

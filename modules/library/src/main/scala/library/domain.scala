@@ -7,16 +7,15 @@ import cats.syntax.all.*
 import core.Newtype
 import core.given
 import doobie.util.Read
-import io.circe.{ Decoder, Encoder }
+import io.circe.{Decoder, Encoder}
 import io.github.arainko.ducktape.*
 import org.typelevel.cats.time.*
 import cats.kernel.Order
 
 object domain:
 
-  /**
-   * Asset
-   */
+  /** Asset
+    */
 
   type AssetId = AssetId.Type
   object AssetId extends Newtype[Long]
@@ -32,9 +31,8 @@ object domain:
   enum AddAssetError:
     case AssetAlreadyExists
 
-  /**
-   * Asset Entry
-   */
+  /** Asset Entry
+    */
 
   type EntryId = EntryId.Type
   object EntryId extends Newtype[Long]

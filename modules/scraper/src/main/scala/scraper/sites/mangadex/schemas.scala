@@ -2,7 +2,7 @@ package scraper.sites.mangadex
 
 import java.net.URI
 import java.time.format.DateTimeFormatter
-import java.time.{ LocalDate, ZonedDateTime }
+import java.time.{LocalDate, ZonedDateTime}
 
 import cats.syntax.all.*
 import core.Newt
@@ -27,8 +27,7 @@ case class ChapterAttributes(
 
 case class Chapter(id: String, attributes: ChapterAttributes) derives Decoder:
   val url: URI = URI(
-    attributes
-      .externalUrl
+    attributes.externalUrl
       .getOrElse(s"https://mangadex.org/chapter/${id}")
   )
 

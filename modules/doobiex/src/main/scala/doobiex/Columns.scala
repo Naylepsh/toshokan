@@ -14,8 +14,7 @@ object Columns:
     import Column.*
     val frags =
       Iterable.from(t.productIterator.map(_.asInstanceOf[Column[?]].sql))
-    frags
-      .headOption
+    frags.headOption
       .map: head =>
         frags.tail.foldLeft(head)(_ ++ fr"," ++ _)
       .getOrElse(fr0"")

@@ -3,12 +3,12 @@ package library
 case class Pagination(current: Int, last: Int):
   import Pagination.*
 
-  /**
-   * [1,2,3]
-   * [1,2,3, ..., 42]
-   * [1, ..., 10, 11, 12, ..., 42]
-   * [1, ..., 40, 41, 42]
-   */
+  /** Expected behavior:
+    *   - [1,2,3]
+    *   - [1,2,3, ..., 42]
+    *   - [1, ..., 10, 11, 12, ..., 42]
+    *   - [1, ..., 40, 41, 42]
+    */
   val pages =
     val core = ((current - offset).max(1) to (current + offset).min(last))
       .map(_.toString)

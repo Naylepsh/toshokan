@@ -12,15 +12,16 @@ class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
     MangadexScraper.extractMangaId(uri) match
       case Left(error) => error.asLeft.pure
       case Right(mangaId) =>
-        api.getMangaFeed(mangaId).map:
-          case Left(error) => ScrapeError.Other(error.toString).asLeft
-          case Right(feed) => extractEntries(feed)
+        api
+          .getMangaFeed(mangaId)
+          .map:
+            case Left(error) => ScrapeError.Other(error.toString).asLeft
+            case Right(feed) => extractEntries(feed)
 
   private def extractEntries(feed: GetMangaFeedResponse) =
     if feed.data.isEmpty then ScrapeError.NoEntriesFound.asLeft
     else
-      feed
-        .data
+      feed.data
         .filter: chapter =>
           // viz.com results are not viewable in PL
           chapter.url.getHost != "viz.com"

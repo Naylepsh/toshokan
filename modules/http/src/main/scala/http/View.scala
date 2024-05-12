@@ -22,10 +22,10 @@ object View:
         title(titleContent),
         link(
           href := "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css",
-          rel  := "stylesheet"
+          rel := "stylesheet"
         ),
         link(
-          href   := "https://cdn.jsdelivr.net/npm/daisyui@4.9.0/dist/full.min.css",
+          href := "https://cdn.jsdelivr.net/npm/daisyui@4.9.0/dist/full.min.css",
           rel    := "stylesheet",
           `type` := "text/css"
         ),
@@ -45,9 +45,8 @@ object View:
       )
     )
 
-  /**
-   * This navbar does not support small resolutions
-   */
+  /** This navbar does not support small resolutions
+    */
   def navBar(items: List[NavBarItem]) =
     div(
       cls := "navbar bg-accent sticky top-0 z-10",

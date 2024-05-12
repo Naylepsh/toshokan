@@ -13,10 +13,12 @@ import domain.*
 trait AssetScrapingRepository[F[_]]:
   def findAllEnabled: F[List[ExistingAssetScrapingConfig]]
   def findByAssetId(assetId: AssetId): F[List[ExistingAssetScrapingConfig]]
-  def add(scrapingConfig: NewAssetScrapingConfig)
-      : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
-  def update(scrapingConfig: ExistingAssetScrapingConfig)
-      : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
+  def add(
+      scrapingConfig: NewAssetScrapingConfig
+  ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
+  def update(
+      scrapingConfig: ExistingAssetScrapingConfig
+  ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetScrapingRepository:
@@ -31,8 +33,9 @@ object AssetScrapingRepository:
     val *           = Columns((id, uri, site, isEnabled, assetId))
     val allExceptId = Columns((uri, site, isEnabled, assetId))
 
-  def make[F[_]: MonadCancelThrow](xa: Transactor[F])
-      : AssetScrapingRepository[F] = new:
+  def make[F[_]: MonadCancelThrow](
+      xa: Transactor[F]
+  ): AssetScrapingRepository[F] = new:
     def findAllEnabled: F[List[ExistingAssetScrapingConfig]] =
       sql"""
         SELECT ${AssetScrapingConfigs.*}
@@ -53,15 +56,17 @@ object AssetScrapingRepository:
         .transact(xa)
         .map(_.map(Tuples.from[ExistingAssetScrapingConfig](_)))
 
-    def add(scrapingConfig: NewAssetScrapingConfig)
-        : F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
+    def add(
+        scrapingConfig: NewAssetScrapingConfig
+    ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
       exists(scrapingConfig.uri).flatMap: configExists =>
         if configExists then
           AddScrapingConfigError.ConfigAlreadyExists.asLeft.pure
         else addWithoutChecking(scrapingConfig).map(_.asRight)
 
-    def update(scrapingConfig: ExistingAssetScrapingConfig)
-        : F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
+    def update(
+        scrapingConfig: ExistingAssetScrapingConfig
+    ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
       exists(scrapingConfig.uri).flatMap: configExists =>
         if configExists then
           updateWithoutChecking(scrapingConfig).map(_.asRight)
@@ -80,8 +85,9 @@ object AssetScrapingRepository:
         WHERE ${AssetScrapingConfigs.uri === uri}
       """.query[Int].option.transact(xa).map(_.isDefined)
 
-    private def addWithoutChecking(scrapingConfig: NewAssetScrapingConfig)
-        : F[ExistingAssetScrapingConfig] =
+    private def addWithoutChecking(
+        scrapingConfig: NewAssetScrapingConfig
+    ): F[ExistingAssetScrapingConfig] =
       val values = Tuples.to(scrapingConfig)
       sql"""
         INSERT INTO ${AssetScrapingConfigs}(${AssetScrapingConfigs.allExceptId}) 

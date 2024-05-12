@@ -1,11 +1,11 @@
 package assetScraping
 
 import cats.syntax.all.*
-import http.View.{ layout, template }
-import library.domain.{ AssetId, ExistingAsset }
+import http.View.{layout, template}
+import library.domain.{AssetId, ExistingAsset}
 import scalatags.Text.all.*
 
-import domain.{ ExistingAssetScrapingConfig, Site }
+import domain.{ExistingAssetScrapingConfig, Site}
 import http.View.NavBarItem
 import assetScraping.domain.ScrapingSummary
 
@@ -37,9 +37,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
           div(
             id  := configGroupId,
             cls := "div-striped",
-            configs.map(config =>
-              renderConfigRow(asset.id, config.some)
-            )
+            configs.map(config => renderConfigRow(asset.id, config.some))
           )
         ),
         template(
@@ -49,7 +47,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         div(
           cls := "w-3/4 container mx-auto mt-4",
           button(
-            cls     := "btn btn-primary",
+            cls := "btn btn-primary",
             onclick := s"loadTemplate('#${configTemplateId}', '#${configGroupId}')",
             "Add new scraping config"
           )
@@ -80,10 +78,10 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
     var idField = span("-")
     var isEnabledModifiers =
       List(
-        cls     := "ml-5",
-        name    := "isEnabled",
-        `type`  := "checkbox",
-        value   := "true"
+        cls    := "ml-5",
+        name   := "isEnabled",
+        `type` := "checkbox",
+        value  := "true"
       )
     var uriModifiers    = List(name := "uri", cls := "input w-full mr-4")
     var hxMethod        = attr("hx-post")
@@ -97,10 +95,9 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         uriModifiers = (value := cfg.uri.value.toString) :: uriModifiers
         hxMethod = attr("hx-put")
         url = s"/asset-scraping/assets/${assetId}/configs/${cfg.id}"
-        deleteModifiers =
-          (attr("hx-delete")      := url)
-            :: (attr("hx-target") := "closest .config-form")
-            :: deleteModifiers
+        deleteModifiers = (attr("hx-delete") := url)
+          :: (attr("hx-target")              := "closest .config-form")
+          :: deleteModifiers
       case None =>
         isEnabledModifiers = (checked := "1") :: isEnabledModifiers
         deleteModifiers =
@@ -127,10 +124,12 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
           cls  := "select bg-transparent",
           Site.values.map: site =>
             var modifiers = (value := site.toString) :: Nil
-            config.map(_.site).foreach:
-              case s if s == site =>
-                modifiers = (selected := "") :: modifiers
-              case _ =>
+            config
+              .map(_.site)
+              .foreach:
+                case s if s == site =>
+                  modifiers = (selected := "") :: modifiers
+                case _ =>
             option(modifiers, site.toString)
         )
       ),
