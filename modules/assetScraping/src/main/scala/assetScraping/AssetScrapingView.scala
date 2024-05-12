@@ -176,6 +176,10 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
           tr(
             th("Scraping time"),
             td(s"${scrapingSummary.scrapingTimeSeconds}s")
+          ),
+          tr(
+            th("Saving time"),
+            td(s"${scrapingSummary.savingTimeSeconds}s")
           )
         )
       )

@@ -73,21 +73,24 @@ object AssetScrapingService:
         instructons = configs.map(makeScrapingInstruction)
         ((errors, successes), scrapingTime) <-
           scraper.scrape(instructons).measure
-        newEntriesCount <- successes
+        (newEntriesCount, savingTime) <- successes
           .traverse: (label, entries) =>
             entries.traverse(saveResult(label))
-          .map: res =>
-            res.flatten.foldLeft(0):
+          .measure
+          .map: (res, savingTime) =>
+            val newEntriesCount = res.flatten.foldLeft(0):
               case (newEntriesCount, Left(_)) =>
                 newEntriesCount
               case (newEntriesCount, Right(_)) =>
                 newEntriesCount + 1
+            (newEntriesCount, savingTime)
         _ = scribe.info("Done with the scrape")
         _ = errors.foreach(error => scribe.error(error.toString))
       yield ScrapingSummary(
         newEntriesCount,
         errors.length,
-        scrapingTime.toSeconds
+        scrapingTime.toSeconds,
+        savingTime.toSeconds
       )
 
     private def makeScrapingInstruction(config: ExistingAssetScrapingConfig) =

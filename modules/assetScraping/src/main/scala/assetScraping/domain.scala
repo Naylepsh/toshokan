@@ -134,5 +134,6 @@ enum UpdateScrapingConfigError:
 case class ScrapingSummary(
     newEntriesCount: Int,
     errorsCount: Int,
-    scrapingTimeSeconds: Long
+    scrapingTimeSeconds: Long,
+    savingTimeSeconds: Long
 )
