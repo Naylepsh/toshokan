@@ -1,5 +1,5 @@
 import assetScraping.AssetScrapingView
-import cats.effect.{ IO, IOApp }
+import cats.effect.{IO, IOApp}
 import cats.syntax.all.*
 import middleware.logErrors
 import org.http4s.syntax.all.*
