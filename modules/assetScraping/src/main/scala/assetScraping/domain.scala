@@ -19,17 +19,20 @@ type IsConfigEnabled = IsConfigEnabled.Type
 object IsConfigEnabled extends Newtype[Boolean]
 
 enum Site:
-  case Mangakakalot, Mangadex
+  case Mangakakalot, Mangadex, Yatta
 object Site:
   given Read[Site] = Read[String].map:
     case "mangadex"     => Mangadex
     case "mangakakalot" => Mangakakalot
+    case "yatta"        => Yatta
   given Write[Site] = Write[String].contramap:
     case Mangadex     => "mangadex"
     case Mangakakalot => "mangakakalot"
+    case Yatta        => "yatta"
   given Decoder[Site] = Decoder[String].emap:
     case "Mangadex"     => Mangadex.asRight
     case "Mangakakalot" => Mangakakalot.asRight
+    case "Yatta"        => Yatta.asRight
     case other          => s"'$other' is not a valid site".asLeft
   given Encoder[Site] = Encoder[String].contramap(_.toString)
 
@@ -87,6 +90,7 @@ object NewAssetScrapingConfig:
           case mangakakalotUri(_) => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
+      case Site.Yatta => uri.asRight
     normalizedUri.map: uri =>
       (uri, site, isEnabled, assetId)
 
