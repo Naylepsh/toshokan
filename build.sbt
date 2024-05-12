@@ -16,10 +16,12 @@ val commonDependencies = Seq(
 
 lazy val core = project
   .in(file("modules/core"))
+  .disablePlugins(RevolverPlugin)
   .settings(libraryDependencies ++= commonDependencies)
 
 lazy val doobiex = project
   .in(file("modules/doobiex"))
+  .disablePlugins(RevolverPlugin)
   .settings(
     libraryDependencies ++= commonDependencies
   )
@@ -27,6 +29,7 @@ lazy val doobiex = project
 
 lazy val db = project
   .in(file("modules/db"))
+  .disablePlugins(RevolverPlugin)
   .settings(
     libraryDependencies ++= commonDependencies ++ Seq(
       Dependencies.doobieHikari,
@@ -38,6 +41,7 @@ lazy val db = project
 
 lazy val http = project
   .in(file("modules/http"))
+  .disablePlugins(RevolverPlugin)
   .settings(
     libraryDependencies ++= commonDependencies ++ Seq(
       Dependencies.http4sCirce,
@@ -49,6 +53,7 @@ lazy val http = project
 
 lazy val library = project
   .in(file("modules/library"))
+  .disablePlugins(RevolverPlugin)
   .settings(
     libraryDependencies ++= commonDependencies ++ Seq(
       Dependencies.http4sCirce,
@@ -60,21 +65,26 @@ lazy val library = project
 
 lazy val scraper = project
   .in(file("modules/scraper"))
-  .settings(libraryDependencies ++= commonDependencies ++ Seq(
-    Dependencies.sttp,
-    Dependencies.sttpCats,
-    Dependencies.sttpCirce,
-    Dependencies.scalaScraper
-  ))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.sttp,
+      Dependencies.sttpCats,
+      Dependencies.sttpCirce,
+      Dependencies.scalaScraper
+    )
+  )
   .dependsOn(core)
 
 lazy val assetScraping = project
   .in(file("modules/assetScraping"))
+  .disablePlugins(RevolverPlugin)
   .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core, library, scraper)
 
 lazy val snapshot = project
   .in(file("modules/snapshot"))
+  .disablePlugins(RevolverPlugin)
   .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core, db)
 
