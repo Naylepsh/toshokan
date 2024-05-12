@@ -4,6 +4,7 @@ import cats.Monad
 import cats.implicits.*
 import library.domain.*
 import library.domain.Releases.given
+import cats.data.EitherT
 
 trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
@@ -11,6 +12,9 @@ trait AssetService[F[_]]:
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
+  def addIfNewRelease(
+      entries: List[NewAssetEntry]
+  ): F[List[Either[AddEntryError, List[ExistingAssetEntry]]]]
   def update(asset: ExistingAsset): F[Unit]
   def setSeen(
       assetId: AssetId,
@@ -49,6 +53,23 @@ object AssetService:
           entry: NewAssetEntry
       ): F[Either[AddEntryError, ExistingAssetEntry]] =
         repository.add(entry)
+
+      def addIfNewRelease(
+          entries: List[NewAssetEntry]
+      ): F[List[Either[AddEntryError, List[ExistingAssetEntry]]]] =
+        entries
+          .groupBy(_.assetId)
+          .toList
+          .traverse: (assetId, entries) =>
+            find(assetId).flatMap:
+              case None =>
+                AddEntryError.AssetDoesNotExists.asLeft.pure
+              case Some(_, assetEntries) =>
+                val existingUrls = assetEntries.map(_.uri)
+                entries
+                  .filter(entry => !existingUrls.contains(entry.uri))
+                  .traverse(entry => EitherT(add(entry)))
+                  .value
 
       def update(asset: ExistingAsset): F[Unit] =
         /** TODO: This should probably check whether the asset exists first? But

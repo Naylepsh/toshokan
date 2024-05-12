@@ -1,5 +1,8 @@
 package assetScraping
 
+import scala.util.chaining.*
+import scala.concurrent.duration.*
+
 import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.all.*
 import core.Measure.*
@@ -9,6 +12,7 @@ import scraper.Scraper
 import scraper.domain.{EntryFound, JobLabel, SiteScraper}
 
 import domain.*
+import scraper.ScrapeJobSuccess
 
 trait AssetScrapingService[F[_]]:
   def findByAssetId(assetId: AssetId): F[Either[
@@ -68,22 +72,11 @@ object AssetScrapingService:
 
     def getNewReleases: F[ScrapingSummary] =
       for
-        _       <- scribe.cats[F].info("Starting the asset scraping...")
-        configs <- repository.findAllEnabled
-        instructons = configs.map(makeScrapingInstruction)
+        _            <- scribe.cats[F].info("Starting the asset scraping...")
+        instructions <- getScrapingInstructions
         ((errors, successes), scrapingTime) <-
-          scraper.scrape(instructons).measure
-        (newEntriesCount, savingTime) <- successes
-          .traverse: (label, entries) =>
-            entries.traverse(saveResult(label))
-          .measure
-          .map: (res, savingTime) =>
-            val newEntriesCount = res.flatten.foldLeft(0):
-              case (newEntriesCount, Left(_)) =>
-                newEntriesCount
-              case (newEntriesCount, Right(_)) =>
-                newEntriesCount + 1
-            (newEntriesCount, savingTime)
+          scraper.scrape(instructions).measure
+        (newEntriesCount, savingTime) <- saveResults(successes)
         _ = scribe.info("Done with the scrape")
         _ = errors.foreach(error => scribe.error(error.toString))
       yield ScrapingSummary(
@@ -93,18 +86,31 @@ object AssetScrapingService:
         savingTime.toSeconds
       )
 
-    private def makeScrapingInstruction(config: ExistingAssetScrapingConfig) =
-      (
-        JobLabel(config.assetId.value),
-        config.uri.value,
-        pickSiteScraper(config.site)
-      )
+    private def getScrapingInstructions =
+      repository.findAllEnabled.map: configs =>
+        configs.map: config =>
+          (
+            JobLabel(config.assetId.value),
+            config.uri.value,
+            pickSiteScraper(config.site)
+          )
 
-    private def saveResult(label: JobLabel)(entry: EntryFound) =
-      val newEntry = NewAssetEntry.make(
-        EntryNo(entry.no.value),
-        EntryUri(entry.uri.value),
-        DateUploaded(entry.dateUploaded.value),
-        AssetId(label.value)
-      )
-      assetService.add(newEntry)
+    private def saveResults(successfulResults: List[ScrapeJobSuccess]) =
+      successfulResults
+        .flatMap: (label, entries) =>
+          entries.map: entry =>
+            NewAssetEntry.make(
+              EntryNo(entry.no.value),
+              EntryUri(entry.uri.value),
+              DateUploaded(entry.dateUploaded.value),
+              AssetId(label.value)
+            )
+        .pipe(assetService.addIfNewRelease)
+        .measure
+        .map: (results, savingTime) =>
+          val newEntriesCount = results.foldLeft(0):
+            case (newEntriesCount, Left(_)) =>
+              newEntriesCount
+            case (newEntriesCount, Right(savedEntries)) =>
+              newEntriesCount + savedEntries.length
+          (newEntriesCount, savingTime)
