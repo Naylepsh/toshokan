@@ -1,9 +1,11 @@
+package app
+
+import cats.MonadThrow
 import cats.syntax.all.*
+import fs2.io.file.Files
 import org.http4s.*
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.Router
-import cats.MonadThrow
-import fs2.io.file.Files
 
 class PublicController[F[_]: MonadThrow: Files] extends Http4sDsl[F]:
   private val httpRoutes: HttpRoutes[F] = HttpRoutes.of[F]:

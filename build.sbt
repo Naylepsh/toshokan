@@ -88,16 +88,26 @@ lazy val snapshot = project
   .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core, db)
 
-lazy val root = project
-  .in(file("."))
+lazy val app = project
+  .in(file("modules/app"))
   .settings(
-    name    := "toshokan",
-    version := "0.1.0",
-    fork    := true,
+    name := "app",
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
   .aggregate(core, library, scraper, assetScraping, snapshot)
   .dependsOn(core, library, scraper, assetScraping, snapshot)
+  .disablePlugins(RevolverPlugin)
 
-// SBT native packager
-enablePlugins(JavaAppPackaging)
+lazy val root = project
+  .in(file("."))
+  .settings(
+    name                := "toshokan",
+    version             := "0.1.0",
+    fork                := true,
+    Compile / mainClass := Some("app.Main"),
+    Compile / run       := Some("app.Main"),
+    Universal / run     := Some("app.Main")
+  )
+  .aggregate(app)
+  .dependsOn(app)
+  .enablePlugins(JavaAppPackaging) // SBT native packager

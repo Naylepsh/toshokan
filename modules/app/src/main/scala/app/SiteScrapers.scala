@@ -1,3 +1,5 @@
+package app
+
 import assetScraping.domain.Site
 import cats.effect.kernel.Sync
 import scraper.domain.SiteScraper

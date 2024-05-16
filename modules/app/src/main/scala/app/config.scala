@@ -1,3 +1,5 @@
+package app
+
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import http.View.NavBarItem

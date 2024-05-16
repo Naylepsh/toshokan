@@ -1,3 +1,5 @@
+package app
+
 import cats.Applicative
 import cats.effect.*
 import com.comcast.ip4s.*

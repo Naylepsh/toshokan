@@ -1,10 +1,13 @@
+package app
+
 import assetScraping.AssetScrapingView
 import cats.effect.{IO, IOApp}
 import cats.syntax.all.*
-import middleware.logErrors
 import org.http4s.syntax.all.*
 import scraper.Scraper
 import sttp.client3.httpclient.cats.HttpClientCatsBackend
+
+import middleware.logErrors
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =

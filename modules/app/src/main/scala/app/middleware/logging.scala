@@ -1,4 +1,4 @@
-package middleware
+package app.middleware
 
 import cats.effect.kernel.Sync
 import org.http4s.server.middleware.ErrorAction
