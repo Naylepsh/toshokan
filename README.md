@@ -9,6 +9,4 @@ For more information on the sbt-dotty plugin, see the
 
 ## TODO
 
-- [ ] Add more concurrent handling of scraping jobs
-- [ ] Add support for other sites
-- [ ] Add integration with anilist
+- [ ] Add integration with anilist/mal

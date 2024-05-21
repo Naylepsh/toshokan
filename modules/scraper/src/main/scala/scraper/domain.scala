@@ -1,7 +1,7 @@
 package scraper
 package domain
 
-import java.net.URI
+import java.net.{URI}
 import java.time.LocalDate
 
 import core.{Newtype, given}

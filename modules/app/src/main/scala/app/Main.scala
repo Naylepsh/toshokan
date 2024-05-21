@@ -5,6 +5,7 @@ import cats.effect.{IO, IOApp}
 import cats.syntax.all.*
 import org.http4s.syntax.all.*
 import scraper.Scraper
+import scraper.util.playwright
 import sttp.client3.httpclient.cats.HttpClientCatsBackend
 
 import middleware.logErrors
@@ -14,8 +15,12 @@ object Main extends IOApp.Simple:
     load[IO].flatMap: (serverConfig, dbConfig, snapshotConfig, navBarItems) =>
       (
         db.transactors.makeSqliteTransactorResource[IO](dbConfig),
-        HttpClientCatsBackend.resource[IO]()
-      ).tupled.use: (xa, httpBackend) =>
+        HttpClientCatsBackend.resource[IO](),
+        playwright
+          .makePlaywrightResource[IO]
+          .evalMap(p => IO.delay(p.chromium().launch()))
+      ).tupled.use: (xa, httpBackend, browser) =>
+
         val assetRepository = library.AssetRepository.make[IO](xa)
         val assetService    = library.AssetService.make(assetRepository)
         val assetView       = library.AssetView(navBarItems)
@@ -23,7 +28,8 @@ object Main extends IOApp.Simple:
 
         val scraper = Scraper.make[IO]
 
-        val pickSiteScraper = SiteScrapers.makeScraperPicker(httpBackend)
+        val pickSiteScraper =
+          SiteScrapers.makeScraperPicker(httpBackend, browser)
 
         val assetScrapingRepository =
           assetScraping.AssetScrapingRepository.make[IO](xa)

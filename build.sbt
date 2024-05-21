@@ -71,7 +71,8 @@ lazy val scraper = project
       Dependencies.sttp,
       Dependencies.sttpCats,
       Dependencies.sttpCirce,
-      Dependencies.scalaScraper
+      Dependencies.scalaScraper,
+      Dependencies.playwright
     )
   )
   .dependsOn(core)

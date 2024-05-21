@@ -19,20 +19,23 @@ type IsConfigEnabled = IsConfigEnabled.Type
 object IsConfigEnabled extends Newtype[Boolean]
 
 enum Site:
-  case Mangakakalot, Mangadex, Yatta
+  case Mangakakalot, Mangadex, Yatta, Hitomi
 object Site:
   given Read[Site] = Read[String].map:
     case "mangadex"     => Mangadex
     case "mangakakalot" => Mangakakalot
     case "yatta"        => Yatta
+    case "hitomi"       => Hitomi
   given Write[Site] = Write[String].contramap:
     case Mangadex     => "mangadex"
     case Mangakakalot => "mangakakalot"
     case Yatta        => "yatta"
+    case Hitomi       => "hitomi"
   given Decoder[Site] = Decoder[String].emap:
     case "Mangadex"     => Mangadex.asRight
     case "Mangakakalot" => Mangakakalot.asRight
     case "Yatta"        => Yatta.asRight
+    case "Hitomi"       => Hitomi.asRight
     case other          => s"'$other' is not a valid site".asLeft
   given Encoder[Site] = Encoder[String].contramap(_.toString)
 
@@ -55,6 +58,8 @@ object NewAssetScrapingConfig:
    */
   private val mangakakalotUri =
     "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com)/.+".r
+  private val yattaUri  = "^https://yatta.pl/.+".r
+  private val hitomiUri = "^https://hitomi.la/artist/(.+).html$".r
 
   def apply(
       uri: ScrapingConfigUri,
@@ -90,7 +95,16 @@ object NewAssetScrapingConfig:
           case mangakakalotUri(_) => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case Site.Yatta => uri.asRight
+      case Site.Yatta =>
+        uri.value.toString match
+          case yattaUri(_) => uri.asRight
+          case other =>
+            s"Uri: $other is not a valid config uri of site: $site".asLeft
+      case Site.Hitomi =>
+        uri.value.toString match
+          case hitomiUri(_) => uri.asRight
+          case other =>
+            s"Uri: $other is not a valid config uri of site: $site".asLeft
     normalizedUri.map: uri =>
       (uri, site, isEnabled, assetId)
 
@@ -137,3 +151,6 @@ case class ScrapingSummary(
     scrapingTimeSeconds: Long,
     savingTimeSeconds: Long
 )
+
+type DaysBetween = DaysBetween.Type
+object DaysBetween extends Newtype[Short]
