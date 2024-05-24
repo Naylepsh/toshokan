@@ -1,6 +1,6 @@
 package assetScraping
 
-import assetScraping.domain.*
+import assetScraping.domain.configs.*
 import library.domain.AssetId
 import java.net.URI
 import cats.syntax.all.*

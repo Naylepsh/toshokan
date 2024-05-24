@@ -11,6 +11,8 @@ case class Column[A: Read: Write](
     alias: Option[String] = None
 ):
   self =>
+  type T = A
+
   val name =
     Fragment.const0(alias.fold(rawName)(alias => s"${alias}.${rawName}"))
   val sql = name
@@ -33,6 +35,9 @@ case class Column[A: Read: Write](
     given Write[Option[A]] = Write.fromPutOption(self.put)
     Column[Option[A]](rawName, alias)
 
+  def ===(value: Option[A]): Fragment = value match
+    case None    => sql ++ fr"is null"
+    case Some(v) => ===(v)
   def ===(value: A): Fragment = sql ++ fr" = ${value}"
 
 object Column:

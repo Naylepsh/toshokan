@@ -1,6 +1,6 @@
 package app
 
-import assetScraping.domain.Site
+import assetScraping.domain.configs.Site
 import cats.effect.kernel.Sync
 import com.microsoft.playwright.Browser
 import scraper.domain.SiteScraper

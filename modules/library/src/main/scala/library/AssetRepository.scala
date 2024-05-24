@@ -6,7 +6,9 @@ import core.Tuples
 import doobie.*
 import doobie.implicits.*
 import doobiex.*
-import library.domain.*
+
+import domain.*
+import category.domain.CategoryId
 
 trait AssetRepository[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
@@ -18,27 +20,12 @@ trait AssetRepository[F[_]]:
   ]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
+  def addToAsset(asset: ExistingAsset, category: CategoryId): F[Unit]
   def update(asset: ExistingAsset): F[Unit]
   def update(entry: ExistingAssetEntry): F[Unit]
   def delete(assetId: AssetId): F[Unit]
 
 object AssetRepository:
-  object Assets extends TableDefinition("assets"):
-    val id    = Column[AssetId]("id")
-    val title = Column[AssetTitle]("title")
-
-    val * = Columns((id, title))
-
-  object AssetEntries extends TableDefinition("asset_entries"):
-    val id           = Column[EntryId]("id")
-    val no           = Column[EntryNo]("no")
-    val uri          = Column[EntryUri]("uri")
-    val wasSeen      = Column[WasEntrySeen]("was_seen")
-    val dateUploaded = Column[DateUploaded]("date_uploaded")
-    val assetId      = Column[AssetId]("asset_id")
-
-    val *           = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
-    val allExceptId = Columns((no, uri, wasSeen, dateUploaded, assetId))
 
   private val A  = Assets `as` "a"
   private val AE = AssetEntries `as` "ae"
@@ -115,6 +102,13 @@ object AssetRepository:
           if entryExists then AddEntryError.EntryAlreadyExists.asLeft.pure
           else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
           else addWithoutChecking(entry).map(_.asRight)
+
+    def addToAsset(asset: ExistingAsset, categoryId: CategoryId): F[Unit] =
+      sql"""
+      UPDATE ${Assets}
+      SET ${Assets.categoryId === categoryId.some}
+      WHERE ${Assets.id === asset.id}
+      """.update.run.transact(xa).void
 
     def update(asset: ExistingAsset): F[Unit] =
       sql"""
@@ -200,3 +194,21 @@ object AssetRepository:
         FROM ${AssetEntries}
         WHERE ${AssetEntries.uri === entryUri}
       """.query[Int].option.transact(xa).map(_.isDefined)
+
+private object Assets extends TableDefinition("assets"):
+  val id         = Column[AssetId]("id")
+  val title      = Column[AssetTitle]("title")
+  val categoryId = Column[Option[CategoryId]]("category_id")
+
+  val * = Columns((id, title))
+
+private object AssetEntries extends TableDefinition("asset_entries"):
+  val id           = Column[EntryId]("id")
+  val no           = Column[EntryNo]("no")
+  val uri          = Column[EntryUri]("uri")
+  val wasSeen      = Column[WasEntrySeen]("was_seen")
+  val dateUploaded = Column[DateUploaded]("date_uploaded")
+  val assetId      = Column[AssetId]("asset_id")
+
+  val *           = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
+  val allExceptId = Columns((no, uri, wasSeen, dateUploaded, assetId))

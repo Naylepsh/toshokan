@@ -1,5 +1,4 @@
-package assetScraping
-package domain
+package assetScraping.domain.configs
 
 import java.net.URI
 
@@ -144,13 +143,3 @@ enum AddScrapingConfigError:
 enum UpdateScrapingConfigError:
   case AssetDoesNotExists
   case ConfigDoesNotExist
-
-case class ScrapingSummary(
-    newEntriesCount: Int,
-    errorsCount: Int,
-    scrapingTimeSeconds: Long,
-    savingTimeSeconds: Long
-)
-
-type DaysBetween = DaysBetween.Type
-object DaysBetween extends Newtype[Short]

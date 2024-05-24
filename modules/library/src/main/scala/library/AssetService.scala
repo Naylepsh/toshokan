@@ -1,15 +1,20 @@
 package library
 
 import cats.Monad
-import cats.implicits.*
-import library.domain.*
-import library.domain.Releases.given
 import cats.data.EitherT
+import cats.implicits.*
+
+import domain.*
+import domain.Releases.given
+import category.domain.CategoryId
 
 trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
   def findAllGroupedByReleaseDate: F[List[Releases]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
+  def matchCategoriesToAssets(
+      categoryIds: List[CategoryId]
+  ): F[Map[CategoryId, List[AssetId]]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
   def addIfNewRelease(
@@ -26,10 +31,10 @@ trait AssetService[F[_]]:
 object AssetService:
   def make[F[_]: Monad](repository: AssetRepository[F]): AssetService[F] =
     new:
-      def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
+      override def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
         repository.findAll
 
-      def findAllGroupedByReleaseDate: F[List[Releases]] =
+      override def findAllGroupedByReleaseDate: F[List[Releases]] =
         repository.findAll.map: all =>
           all
             .flatMap: (asset, entries) =>
@@ -41,20 +46,26 @@ object AssetService:
             .toList
             .sorted(Ordering[Releases].reverse)
 
-      def find(
+      override def find(
           id: AssetId
       ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
         repository.findById(id)
 
-      def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
+      override def matchCategoriesToAssets(
+          categoryIds: List[CategoryId]
+      ): F[Map[CategoryId, List[AssetId]]] = ???
+
+      override def add(
+          asset: NewAsset
+      ): F[Either[AddAssetError, ExistingAsset]] =
         repository.add(asset)
 
-      def add(
+      override def add(
           entry: NewAssetEntry
       ): F[Either[AddEntryError, ExistingAssetEntry]] =
         repository.add(entry)
 
-      def addIfNewRelease(
+      override def addIfNewRelease(
           entries: List[NewAssetEntry]
       ): F[List[Either[AddEntryError, List[ExistingAssetEntry]]]] =
         entries
@@ -71,13 +82,13 @@ object AssetService:
                   .traverse(entry => EitherT(add(entry)))
                   .value
 
-      def update(asset: ExistingAsset): F[Unit] =
+      override def update(asset: ExistingAsset): F[Unit] =
         /** TODO: This should probably check whether the asset exists first? But
           * it's not like it's needed for the UI for now
           */
         repository.update(asset)
 
-      def setSeen(
+      override def setSeen(
           assetId: AssetId,
           entryId: EntryId,
           seen: WasEntrySeen
@@ -93,5 +104,5 @@ object AssetService:
                   val e = entry.copy(wasSeen = seen)
                   repository.update(e).as((asset, e).asRight)
 
-      def delete(assetId: AssetId): F[Unit] =
+      override def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)

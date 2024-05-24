@@ -5,9 +5,9 @@ import http.View.{layout, template}
 import library.domain.{AssetId, ExistingAsset}
 import scalatags.Text.all.*
 
-import domain.{ExistingAssetScrapingConfig, Site}
+import domain.configs.{ExistingAssetScrapingConfig, Site}
 import http.View.NavBarItem
-import assetScraping.domain.ScrapingSummary
+import assetScraping.scrapes.domain.ScrapingSummary
 
 class AssetScrapingView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString

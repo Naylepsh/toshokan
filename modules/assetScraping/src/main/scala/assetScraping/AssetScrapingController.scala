@@ -10,7 +10,7 @@ import org.http4s.circe.*
 import org.http4s.headers.*
 import org.http4s.server.Router
 
-import domain.*
+import domain.configs.*
 
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetScrapingService[F],

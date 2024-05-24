@@ -11,7 +11,8 @@ import library.domain.*
 import scraper.Scraper
 import scraper.domain.{EntryFound, JobLabel, SiteScraper}
 
-import domain.*
+import domain.configs.*
+import scrapes.domain.ScrapingSummary
 import scraper.ScrapeJobSuccess
 
 trait AssetScrapingService[F[_]]:

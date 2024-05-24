@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS "schema_migrations" (version varchar(128) primary key
 CREATE TABLE assets (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL UNIQUE
-);
+, category_id INTEGER
+    REFERENCES categories (id));
 CREATE TABLE asset_entries (
     id INTEGER PRIMARY KEY,
     no TEXT NOT NULL,
@@ -28,6 +29,11 @@ CREATE TABLE asset_scraping_configs (
         REFERENCES assets (id)
         ON DELETE CASCADE
 );
+CREATE TABLE categories (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
-  ('20240130211545');
+  ('20240130211545'),
+  ('20240524194511');
