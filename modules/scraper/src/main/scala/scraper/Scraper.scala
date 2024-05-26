@@ -12,22 +12,20 @@ type ScrapeResults    = (List[ScrapeJobError], List[ScrapeJobSuccess])
 object ScrapeResults:
   val empty: ScrapeResults = (List.empty, List.empty)
 
+type Instruction[F[_]] = (JobLabel, URI, SiteScraper[F])
+
 trait Scraper[F[_]]:
-  def scrape(
-      instructions: List[(JobLabel, URI, SiteScraper[F])]
-  ): F[ScrapeResults]
+  def scrape(instructions: List[Instruction[F]]): F[ScrapeResults]
 
 object Scraper:
   def noop[F[_]: Applicative]: Scraper[F] = new:
     def scrape(
-        instructions: List[(JobLabel, URI, SiteScraper[F])]
+        instructions: List[Instruction[F]]
     ): F[ScrapeResults] =
       (List.empty, List.empty).pure
 
   def make[F[_]: Applicative: Parallel]: Scraper[F] = new:
-    def scrape(
-        instructions: List[(JobLabel, URI, SiteScraper[F])]
-    ): F[ScrapeResults] =
+    def scrape(instructions: List[Instruction[F]]): F[ScrapeResults] =
       instructions
         .groupBy(_._3)
         .toList

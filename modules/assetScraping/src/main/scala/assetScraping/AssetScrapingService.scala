@@ -1,19 +1,21 @@
 package assetScraping
 
-import scala.util.chaining.*
+import java.net.URI
+
 import scala.concurrent.duration.*
+import scala.util.chaining.*
 
 import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.all.*
 import core.Measure.*
 import library.AssetService
 import library.domain.*
-import scraper.Scraper
 import scraper.domain.{EntryFound, JobLabel, SiteScraper}
+import scraper.{Instruction, ScrapeJobSuccess, Scraper}
 
 import domain.configs.*
 import scrapes.domain.ScrapingSummary
-import scraper.ScrapeJobSuccess
+import schedules.ScheduleService
 
 trait AssetScrapingService[F[_]]:
   def findByAssetId(assetId: AssetId): F[Either[
@@ -28,11 +30,13 @@ trait AssetScrapingService[F[_]]:
   ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(id: AssetScrapingConfigId): F[Unit]
   def getNewReleases: F[ScrapingSummary]
+  def getNewReleasesAccordingToSchedule: F[ScrapingSummary]
 
 object AssetScrapingService:
   def make[F[_]: Sync: Clock](
       repository: AssetScrapingRepository[F],
       assetService: AssetService[F],
+      scheduleService: ScheduleService[F],
       scraper: Scraper[F],
       pickSiteScraper: Site => SiteScraper[F]
   ): AssetScrapingService[F] = new:
@@ -73,8 +77,22 @@ object AssetScrapingService:
 
     def getNewReleases: F[ScrapingSummary] =
       for
-        _            <- scribe.cats[F].info("Starting the asset scraping...")
-        instructions <- getScrapingInstructions
+        configs <- repository.findAllEnabled
+        instructions = makeInstructions(configs)
+        results <- getNewReleases(instructions)
+      yield results
+
+    def getNewReleasesAccordingToSchedule: F[ScrapingSummary] =
+      for
+        assetIds <- scheduleService.findAssetsEligibleForScrape
+        configs  <- repository.findAllEnabled
+        instructions = makeInstructionsForAssets(assetIds, configs)
+        results <- getNewReleases(instructions)
+      yield results
+
+    private def getNewReleases(instructions: List[Instruction[F]]) =
+      for
+        _ <- scribe.cats[F].info("Starting the asset scraping...")
         ((errors, successes), scrapingTime) <-
           scraper.scrape(instructions).measure
         (newEntriesCount, savingTime) <- saveResults(successes)
@@ -87,9 +105,23 @@ object AssetScrapingService:
         savingTime.toSeconds
       )
 
-    private def getScrapingInstructions =
-      repository.findAllEnabled.map: configs =>
-        configs.map: config =>
+    private def makeInstructions(
+        configs: List[ExistingAssetScrapingConfig]
+    ): List[Instruction[F]] =
+      configs.map: config =>
+        (
+          JobLabel(config.assetId.value),
+          config.uri.value,
+          pickSiteScraper(config.site)
+        )
+
+    private def makeInstructionsForAssets(
+        assetIds: List[AssetId],
+        configs: List[ExistingAssetScrapingConfig]
+    ) =
+      configs
+        .filter(config => assetIds.contains(config.assetId))
+        .map: config =>
           (
             JobLabel(config.assetId.value),
             config.uri.value,

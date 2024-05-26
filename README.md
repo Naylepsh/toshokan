@@ -10,3 +10,6 @@ For more information on the sbt-dotty plugin, see the
 ## TODO
 
 - [ ] Add integration with anilist/mal
+- [ ] Increase queries' type-safety:
+  - [ ] Add the missing `updateTable` and `-->` from `doobie-typesafe`
+  - [ ] Use ^

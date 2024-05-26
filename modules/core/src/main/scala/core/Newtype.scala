@@ -1,6 +1,6 @@
 package core
 
-import cats.kernel.Order
+import cats.{Eq, Order, Show}
 import doobie.{Put, Read}
 import io.circe.{Decoder, Encoder}
 import monocle.Iso
@@ -17,6 +17,8 @@ abstract class Newt[A]:
   protected inline final def derive[F[_]](using ev: F[A]): F[Type] = ev
 
 abstract class Newtype[A](using
+    eqv: Eq[A],
+    shw: Show[A],
     ord: Order[A],
     enc: Encoder[A],
     dec: Decoder[A],
@@ -39,7 +41,9 @@ abstract class Newtype[A](using
     def iso: Iso[A, Type] =
       Iso[A, Type](apply(_))(_.value)
 
+  given Eq[Type]           = eqv
   given Order[Type]        = ord
+  given Show[Type]         = shw
   given Encoder[Type]      = enc
   given Decoder[Type]      = dec
   given Read[Type]         = read
