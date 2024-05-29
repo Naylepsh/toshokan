@@ -1,6 +1,5 @@
-package assetScraping
+package assetScraping.configs
 
-import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
 import core.Tuples
@@ -9,10 +8,9 @@ import doobie.implicits.*
 import doobiex.*
 import library.domain.AssetId
 
-import domain.configs.*
-import scrapes.domain.*
+import domain.*
 
-trait AssetScrapingRepository[F[_]]:
+trait AssetScrapingConfigRepository[F[_]]:
   def findAllEnabled: F[List[ExistingAssetScrapingConfig]]
   def findByAssetId(assetId: AssetId): F[List[ExistingAssetScrapingConfig]]
   def add(
@@ -22,12 +20,8 @@ trait AssetScrapingRepository[F[_]]:
       scrapingConfig: ExistingAssetScrapingConfig
   ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
   def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
-  def addOrUpdate(
-      assetIds: NonEmptyList[AssetId],
-      scrapeDate: PastScrapeCreatedAt
-  ): F[Unit]
 
-object AssetScrapingRepository:
+object AssetScrapingConfigRepository:
   private object AssetScrapingConfigs
       extends TableDefinition("asset_scraping_configs"):
     val id        = Column[AssetScrapingConfigId]("id")
@@ -39,16 +33,9 @@ object AssetScrapingRepository:
     val *           = Columns((id, uri, site, isEnabled, assetId))
     val allExceptId = Columns((uri, site, isEnabled, assetId))
 
-  private object PastScrapes extends TableDefinition("past_scrapes"):
-    val id        = Column[Long]("id")
-    val assetId   = Column[AssetId]("asset_id")
-    val createdAt = Column[PastScrapeCreatedAt]("created_at")
-
-    val * = Columns((assetId, createdAt))
-
   def make[F[_]: MonadCancelThrow](
       xa: Transactor[F]
-  ): AssetScrapingRepository[F] = new:
+  ): AssetScrapingConfigRepository[F] = new:
     def findAllEnabled: F[List[ExistingAssetScrapingConfig]] =
       sql"""
         SELECT ${AssetScrapingConfigs.*}
@@ -89,21 +76,6 @@ object AssetScrapingRepository:
       sql"""
         DELETE FROM ${AssetScrapingConfigs} 
         WHERE ${AssetScrapingConfigs.id === scrapingConfigId}
-      """.update.run.transact(xa).void
-
-    def addOrUpdate(
-        assetIds: NonEmptyList[AssetId],
-        scrapeDate: PastScrapeCreatedAt
-    ): F[Unit] =
-      val values = assetIds.map: assetId =>
-        fr"(${assetId}, ${scrapeDate})"
-      val valuesFrag = values.tail.foldLeft(values.head)(_ ++ fr"," ++ _)
-
-      sql"""
-      INSERT INTO ${PastScrapes}(${PastScrapes.assetId}, ${PastScrapes.createdAt})
-      VALUES ${valuesFrag}
-      ON CONFLICT ${PastScrapes.assetId} DO UPDATE SET
-        ${PastScrapes.createdAt === scrapeDate}
       """.update.run.transact(xa).void
 
     private def exists(uri: ScrapingConfigUri): F[Boolean] =

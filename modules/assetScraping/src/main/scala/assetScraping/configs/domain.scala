@@ -1,4 +1,4 @@
-package assetScraping.domain.configs
+package assetScraping.configs.domain
 
 import java.net.URI
 

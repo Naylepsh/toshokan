@@ -32,35 +32,39 @@ object Main extends IOApp.Simple:
         val assetController = library.AssetController(assetService, assetView)
 
         val scraper = Scraper.make[IO]
-
         val pickSiteScraper =
           SiteScrapers.makeScraperPicker(httpBackend, browser)
+
         val scheduleRepository = ScheduleRepository.make[IO](xa)
         val scheduleService = ScheduleService.make(
           scheduleRepository,
           assetService,
           categoryService
         )
-
-        val schedulesRepository = ScheduleRepository.make[IO](xa)
-        val schedulesService = ScheduleService.make(
-          schedulesRepository,
-          assetService,
-          categoryService
-        )
-        val schedulesView = ScheduleView(navBarItems)
-        val schedulesController =
+        val scheduleView = ScheduleView(navBarItems)
+        val scheduleController =
           ScheduleController[IO](
-            schedulesService,
+            scheduleService,
             categoryService,
-            schedulesView
+            scheduleView
           )
 
-        val assetScrapingRepository =
-          assetScraping.AssetScrapingRepository.make[IO](xa)
+        val assetScrapingConfigRepository =
+          assetScraping.configs.AssetScrapingConfigRepository.make[IO](xa)
+        val assetScrapingConfigService =
+          assetScraping.configs.AssetScrapingService
+            .make[IO](assetScrapingConfigRepository, assetService)
+        val assetScrapingConfigView = assetScraping.configs
+          .AssetScrapingConfigView(navBarItems = navBarItems)
+        val assetScrapingConfigController =
+          assetScraping.configs.AssetScrapingConfigController(
+            assetScrapingConfigService,
+            assetScrapingConfigView
+          )
+
         val assetScrapingService = assetScraping.AssetScrapingService.make[IO](
-          assetScrapingRepository,
           assetService,
+          assetScrapingConfigService,
           scheduleService,
           scraper,
           pickSiteScraper
@@ -76,7 +80,8 @@ object Main extends IOApp.Simple:
 
         val routes = assetController.routes
           <+> assetScrapingController.routes
-          <+> schedulesController.routes
+          <+> assetScrapingConfigController.routes
+          <+> scheduleController.routes
           <+> publicController.routes
 
         val snapshotManager =

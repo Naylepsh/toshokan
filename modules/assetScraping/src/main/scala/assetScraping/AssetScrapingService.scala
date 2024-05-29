@@ -13,71 +13,26 @@ import library.domain.*
 import scraper.domain.{EntryFound, JobLabel, SiteScraper}
 import scraper.{Instruction, ScrapeJobSuccess, Scraper}
 
-import domain.configs.*
-import scrapes.domain.ScrapingSummary
+import configs.AssetScrapingConfigService
+import configs.domain.{Site, ExistingAssetScrapingConfig}
 import schedules.ScheduleService
+import scrapes.domain.ScrapingSummary
 
 trait AssetScrapingService[F[_]]:
-  def findByAssetId(assetId: AssetId): F[Either[
-    FindScrapingConfigError,
-    (ExistingAsset, List[ExistingAssetScrapingConfig])
-  ]]
-  def add(
-      scrapingConfig: NewAssetScrapingConfig
-  ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
-  def update(
-      scrapingConfig: ExistingAssetScrapingConfig
-  ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
-  def delete(id: AssetScrapingConfigId): F[Unit]
   def getNewReleases: F[ScrapingSummary]
   def getNewReleasesAccordingToSchedule: F[ScrapingSummary]
 
 object AssetScrapingService:
   def make[F[_]: Sync: Clock](
-      repository: AssetScrapingRepository[F],
       assetService: AssetService[F],
+      configService: AssetScrapingConfigService[F],
       scheduleService: ScheduleService[F],
       scraper: Scraper[F],
       pickSiteScraper: Site => SiteScraper[F]
   ): AssetScrapingService[F] = new:
-    def findByAssetId(assetId: AssetId): F[Either[
-      FindScrapingConfigError,
-      (ExistingAsset, List[ExistingAssetScrapingConfig])
-    ]] =
-      assetService
-        .find(assetId)
-        .flatMap:
-          case Some(asset, _) =>
-            repository
-              .findByAssetId(assetId)
-              .map: configs =>
-                (asset, configs).asRight
-          case None => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
-
-    def add(
-        scrapingConfig: NewAssetScrapingConfig
-    ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
-      assetService
-        .find(scrapingConfig.assetId)
-        .flatMap:
-          case Some(_) => repository.add(scrapingConfig)
-          case None    => AddScrapingConfigError.AssetDoesNotExists.asLeft.pure
-
-    def update(
-        scrapingConfig: ExistingAssetScrapingConfig
-    ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
-      assetService
-        .find(scrapingConfig.assetId)
-        .flatMap:
-          case Some(_) => repository.update(scrapingConfig)
-          case None => UpdateScrapingConfigError.AssetDoesNotExists.asLeft.pure
-
-    def delete(id: AssetScrapingConfigId): F[Unit] =
-      repository.delete(id)
-
     def getNewReleases: F[ScrapingSummary] =
       for
-        configs <- repository.findAllEnabled
+        configs <- configService.findAllEnabled
         instructions = makeInstructions(configs)
         results <- getNewReleases(instructions)
       yield results
@@ -85,7 +40,7 @@ object AssetScrapingService:
     def getNewReleasesAccordingToSchedule: F[ScrapingSummary] =
       for
         assetIds <- scheduleService.findAssetsEligibleForScrape
-        configs  <- repository.findAllEnabled
+        configs  <- configService.findAllEnabled
         instructions = makeInstructionsForAssets(assetIds, configs)
         results <- getNewReleases(instructions)
       yield results
