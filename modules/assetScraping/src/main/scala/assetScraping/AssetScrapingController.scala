@@ -7,6 +7,7 @@ import library.AssetController.AssetIdVar
 import library.domain.AssetId
 import org.http4s.*
 import org.http4s.circe.*
+import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 import org.http4s.headers.*
 import org.http4s.server.Router
 
@@ -26,8 +27,13 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
         `Content-Type`(MediaType.text.html)
       )
 
-    case POST -> Root =>
-      service.getNewReleases.flatMap: summary =>
+    case POST -> Root :? OptionalScrapeTypeQueryParam(scrapeType) =>
+      val getNewReleases = scrapeType.getOrElse(ScrapeType.Full) match
+        case ScrapeType.Full =>
+          service.getNewReleases
+        case ScrapeType.ScheduleOnly =>
+          service.getNewReleasesAccordingToSchedule
+      getNewReleases.flatMap: summary =>
         Ok(
           view.scrapingSummaryPartial(summary),
           `Content-Type`(MediaType.text.html)
@@ -93,30 +99,16 @@ object AssetScrapingController:
     def unapply(str: String): Option[AssetScrapingConfigId] =
       str.toIntOption.map(AssetScrapingConfigId(_))
 
-  given Decoder[IsConfigEnabled] = new Decoder[IsConfigEnabled]:
-    private def makeErrorMessage(c: HCursor): String =
-      s"""${c.value.toString} is not one of [true, false, "true", "false", "on"]"""
-
-    final def apply(c: HCursor): Decoder.Result[IsConfigEnabled] =
-      /** HTML form sends checkbox value as either "on" or no value at all.
-        * Hence this scuffed handling.
-        *
-        * This could be simplified to just:
-        * {{{
-        * c.as[String].flatMap:
-        *   case "on" => Right(IsConfigEnabled(true))
-        *   case other => Left(DecodingFailure(s"$other is not a valid value"))
-        * }}}
-        * if we were to allow only the HTML form payload, but I'm keeping it
-        * more complex for the lulz
-        */
-      c.as[Boolean] match
-        case Right(bool) => Right(IsConfigEnabled(bool))
-        case Left(_) =>
-          c.as[String] match
-            case Right("true" | "on") => Right(IsConfigEnabled(true))
-            case Right("false")       => Right(IsConfigEnabled(false))
-            case _ => Left(DecodingFailure(makeErrorMessage(c), List.empty))
+  /** HTML form sends checkbox value as either "on" or no value at all. I also
+    * wanted to handle booleans for pure-json payloads (for no reason other than
+    * a whim). Thus this scuffed custom Decoder
+    */
+  given Decoder[IsConfigEnabled] =
+    Decoder[Boolean].map(IsConfigEnabled.apply) or Decoder[String].emap:
+      case "true" | "on" => IsConfigEnabled(true).asRight
+      case "false"       => IsConfigEnabled(false).asRight
+      case other =>
+        s"""${other} is not one of [true, false, "true", "false", "on"]""".asLeft
 
   case class AssetScrapingConfigDTO(
       uri: ScrapingConfigUri,
@@ -145,3 +137,18 @@ object AssetScrapingController:
 
   given [F[_]: Concurrent]: EntityDecoder[F, AssetScrapingConfigDTO] =
     jsonOf[F, AssetScrapingConfigDTO]
+
+  enum ScrapeType:
+    case Full, ScheduleOnly
+  object ScrapeType:
+    given QueryParamDecoder[ScrapeType] = QueryParamDecoder[String].emap:
+      case "full"          => ScrapeType.Full.asRight
+      case "schedule-only" => ScrapeType.ScheduleOnly.asRight
+      case other =>
+        ParseResult.fail(
+          "Invalid scrape type",
+          s"${other} is not a valid scrape type"
+        )
+
+  object OptionalScrapeTypeQueryParam
+      extends OptionalQueryParamDecoderMatcher[ScrapeType]("scrape-type")

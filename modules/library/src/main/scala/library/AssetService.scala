@@ -7,6 +7,7 @@ import cats.implicits.*
 import domain.*
 import domain.Releases.given
 import category.domain.CategoryId
+import cats.data.NonEmptyList
 
 trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
@@ -53,7 +54,11 @@ object AssetService:
 
       override def matchCategoriesToAssets(
           categoryIds: List[CategoryId]
-      ): F[Map[CategoryId, List[AssetId]]] = ???
+      ): F[Map[CategoryId, List[AssetId]]] =
+        NonEmptyList
+          .fromList(categoryIds)
+          .map(repository.matchCategoriesToAssets)
+          .getOrElse(Map.empty.pure)
 
       override def add(
           asset: NewAsset

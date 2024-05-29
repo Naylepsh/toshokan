@@ -100,6 +100,7 @@ object AssetScrapingService:
         _ = errors.foreach(error => scribe.error(error.toString))
       yield ScrapingSummary(
         newEntriesCount,
+        instructions.length,
         errors.length,
         scrapingTime.toSeconds,
         savingTime.toSeconds

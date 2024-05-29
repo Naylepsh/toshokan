@@ -58,14 +58,28 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
 
   def renderScrapingManagement: String =
     layout(
-      "Asset Scraping".some,
+      "Asset scraping".some,
       div(
-        cls := "mt-5",
-        a(
-          cls             := "btn btn-primary w-full",
-          attr("hx-post") := "/asset-scraping",
-          attr("hx-swap") := "outerHTML",
-          "Scrape all enabled"
+        cls := "max-w-xl mx-auto mt-5",
+        div(
+          h2(
+            cls := "text-xl font-semibold text-center",
+            "Trigger Asset Scraping"
+          ),
+          a(
+            cls               := "btn btn-primary w-full mt-3",
+            attr("hx-post")   := "/asset-scraping?scrape-type=full",
+            attr("hx-swap")   := "outerHTML",
+            attr("hx-target") := "closest div",
+            "Check for all new releases"
+          ),
+          a(
+            cls               := "btn btn-primary w-full mt-3",
+            attr("hx-post")   := "/asset-scraping?scrape-type=schedule-only",
+            attr("hx-swap")   := "outerHTML",
+            attr("hx-target") := "closest div",
+            "Check for scheduled new releases"
+          )
         )
       ),
       navBarItems
@@ -168,6 +182,10 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
           tr(
             th("New entries count"),
             td(scrapingSummary.newEntriesCount)
+          ),
+          tr(
+            th("Used configs count"),
+            td(scrapingSummary.configsCount)
           ),
           tr(
             th("Errors count"),

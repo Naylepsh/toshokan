@@ -8,6 +8,7 @@ import org.typelevel.cats.time.*
 
 case class ScrapingSummary(
     newEntriesCount: Int,
+    configsCount: Int,
     errorsCount: Int,
     scrapingTimeSeconds: Long,
     savingTimeSeconds: Long

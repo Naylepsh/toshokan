@@ -1,5 +1,6 @@
 package library
 
+import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
 import cats.implicits.*
 import core.Tuples
@@ -24,6 +25,9 @@ trait AssetRepository[F[_]]:
   def update(asset: ExistingAsset): F[Unit]
   def update(entry: ExistingAssetEntry): F[Unit]
   def delete(assetId: AssetId): F[Unit]
+  def matchCategoriesToAssets(
+      categoryIds: NonEmptyList[CategoryId]
+  ): F[Map[CategoryId, List[AssetId]]]
 
 object AssetRepository:
 
@@ -42,7 +46,7 @@ object AssetRepository:
 
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
 
-    def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
+    override def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
       sql"""
           SELECT ${findAllColumns} 
           FROM ${A}
@@ -74,7 +78,7 @@ object AssetRepository:
             .toList
             .sortBy((asset, _) => asset.id)
 
-    def findById(assetId: AssetId): F[Option[
+    override def findById(assetId: AssetId): F[Option[
       (
           ExistingAsset,
           List[ExistingAssetEntry]
@@ -89,12 +93,12 @@ object AssetRepository:
       ).tupled.map: (maybeAsset, entries) =>
         maybeAsset.map(asset => (asset, entries))
 
-    def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
+    override def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
       doesAssetExist(asset.title).flatMap:
         case true  => AddAssetError.AssetAlreadyExists.asLeft.pure
         case false => addWithoutChecking(asset).map(_.asRight)
 
-    def add(
+    override def add(
         entry: NewAssetEntry
     ): F[Either[AddEntryError, ExistingAssetEntry]] =
       (doesAssetExist(entry.assetId), doesEntryExist(entry.uri)).tupled.flatMap:
@@ -103,21 +107,24 @@ object AssetRepository:
           else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
           else addWithoutChecking(entry).map(_.asRight)
 
-    def addToAsset(asset: ExistingAsset, categoryId: CategoryId): F[Unit] =
+    override def addToAsset(
+        asset: ExistingAsset,
+        categoryId: CategoryId
+    ): F[Unit] =
       sql"""
       UPDATE ${Assets}
       SET ${Assets.categoryId === categoryId.some}
       WHERE ${Assets.id === asset.id}
       """.update.run.transact(xa).void
 
-    def update(asset: ExistingAsset): F[Unit] =
+    override def update(asset: ExistingAsset): F[Unit] =
       sql"""
       UPDATE ${Assets}
       SET ${Assets.title === asset.title}
       WHERE ${Assets.id === asset.id}
       """.update.run.transact(xa).void
 
-    def update(entry: ExistingAssetEntry): F[Unit] =
+    override def update(entry: ExistingAssetEntry): F[Unit] =
       sql"""
       UPDATE ${AssetEntries}
       SET ${AssetEntries.no === entry.no},
@@ -127,10 +134,29 @@ object AssetRepository:
       WHERE ${AssetEntries.id === entry.id}
       """.update.run.transact(xa).void
 
-    def delete(assetId: AssetId): F[Unit] =
+    override def delete(assetId: AssetId): F[Unit] =
       sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}".update.run
         .transact(xa)
         .void
+
+    override def matchCategoriesToAssets(
+        categoryIds: NonEmptyList[CategoryId]
+    ): F[Map[CategoryId, List[AssetId]]] =
+      val query = sql"""
+      SELECT ${Assets.id}, ${Assets.categoryId}
+      FROM ${Assets}
+      WHERE """ ++ Fragments.in(Assets.categoryId, categoryIds)
+      query
+        .queryOf(Columns(Assets.id, Assets.categoryId))
+        .to[List]
+        .transact(xa)
+        .map: rows =>
+          rows
+            .groupBy(_._2)
+            .foldLeft(Map.empty):
+              case (acc, (Some(categoryId), group)) =>
+                acc + (categoryId -> group.map(_._1))
+              case (acc, _) => acc
 
     private def findAsset(assetId: AssetId): F[Option[ExistingAsset]] =
       sql"""

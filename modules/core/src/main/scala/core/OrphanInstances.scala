@@ -24,7 +24,7 @@ given Order[DayOfWeek]   = Order[Int].contramap(_.ordinal)
 given Encoder[DayOfWeek] = Encoder.encodeInt.contramap(_.ordinal)
 given Decoder[DayOfWeek] = Decoder.decodeInt.emapTry(i => Try(DayOfWeek.of(i)))
 given Get[DayOfWeek]     = Get[Short].map(DayOfWeek.of)
-given Put[DayOfWeek]     = Put[Short].contramap(_.ordinal.toShort)
+given Put[DayOfWeek]     = Put[Short].contramap(_.getValue.toShort)
 given Show[DayOfWeek] with
   override def show(t: DayOfWeek): String =
     val s = t.toString
