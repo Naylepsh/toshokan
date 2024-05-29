@@ -29,7 +29,8 @@ object Main extends IOApp.Simple:
         val assetRepository = library.AssetRepository.make[IO](xa)
         val assetService    = library.AssetService.make(assetRepository)
         val assetView       = library.AssetView(navBarItems)
-        val assetController = library.AssetController(assetService, assetView)
+        val assetController =
+          library.AssetController(assetService, categoryService, assetView)
 
         val scraper = Scraper.make[IO]
         val pickSiteScraper =

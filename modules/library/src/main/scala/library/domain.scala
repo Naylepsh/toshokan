@@ -13,6 +13,8 @@ import io.github.arainko.ducktape.*
 import org.typelevel.cats.time.*
 import cats.kernel.Order
 
+import category.domain.CategoryId
+
 /** Asset
   */
 
@@ -22,10 +24,15 @@ object AssetId extends Newtype[Long]
 type AssetTitle = AssetTitle.Type
 object AssetTitle extends Newtype[String]
 
-case class NewAsset(title: AssetTitle) derives Decoder:
+case class NewAsset(title: AssetTitle, categoryId: Option[CategoryId])
+    derives Decoder:
   def asExisting(id: AssetId): ExistingAsset =
     this.into[ExistingAsset].transform(Field.const(_.id, id))
-case class ExistingAsset(id: AssetId, title: AssetTitle)
+case class ExistingAsset(
+    id: AssetId,
+    title: AssetTitle,
+    categoryId: Option[CategoryId]
+)
 
 enum AddAssetError:
   case AssetAlreadyExists

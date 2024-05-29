@@ -11,10 +11,10 @@ class AliasedTableDefinition[T <: TableDefinition](
 ):
   val name = Fragment.const0(s"${rawName} AS ${alias}")
 
-  def column[A: Read: Put](f: T => Column[A]): Column[A] =
+  def column[A: Read: Write](f: T => Column[A]): Column[A] =
     Column(f(original).rawName, alias.some)
 
-  def apply[A: Read: Put](f: T => Column[A]): Column[A] = column(f)
+  def apply[A: Read: Write](f: T => Column[A]): Column[A] = column(f)
 
 object AliasedTableDefinition:
   given Conversion[AliasedTableDefinition[?], Fragment]                = _.name

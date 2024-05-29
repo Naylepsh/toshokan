@@ -6,6 +6,8 @@ import scalatags.Text.all.*
 import http.View.layout
 import http.View.NavBarItem
 
+import category.domain.*
+
 class AssetView(navBarItems: List[NavBarItem]):
   import AssetView.*
 
@@ -68,7 +70,10 @@ class AssetView(navBarItems: List[NavBarItem]):
       navBarItems
     )
 
-  def renderForm(asset: Option[ExistingAsset]) =
+  def renderForm(
+      asset: Option[ExistingAsset],
+      categories: List[ExistingCategory]
+  ) =
     val titleId = "title"
     val (hxMethod, url) = asset
       .map(asset => (attr("hx-put"), s"/assets/${asset.id}"))
@@ -81,22 +86,25 @@ class AssetView(navBarItems: List[NavBarItem]):
           hxMethod       := url,
           attr("hx-ext") := "json-enc",
           div(
-            cls := "mb-3",
             label(
               `for` := titleId,
-              cls   := "input input-bordered flex items-center gap-2 w-full",
+              cls   := "form-control w-full",
+              div(cls := "label", span(cls := "label-text", "Title")),
               input(
-                cls   := "grow",
+                cls   := "input input-bordered w-full",
                 id    := titleId,
                 name  := "title",
                 value := asset.map(_.title.value).getOrElse("")
-              ),
-              "Title"
+              )
             )
+          ),
+          div(
+            cls := "mt-3",
+            categorySelectionPartial(categories, asset.flatMap(_.categoryId))
           ),
           button(
             `type` := "submit",
-            cls    := "btn btn-primary w-full",
+            cls    := "btn btn-primary w-full mt-3",
             "Submit"
           )
         ),
@@ -194,3 +202,37 @@ object AssetView:
       attr("hx-get") := s"/assets/partials/entries-by-release-date?page=$page",
       attr("hx-target") := "#releases"
     )
+
+  private def categorySelectionPartial(
+      categories: List[ExistingCategory],
+      selectedCategory: Option[CategoryId]
+  ) =
+    categories match
+      case Nil => div()
+      case head :: tail =>
+        label(
+          cls := "form-control w-full max-w-ws",
+          div(
+            cls := "label",
+            span(cls := "label-text", "Category")
+          ),
+          select(
+            cls  := "select select-bordered",
+            name := "categoryId",
+            option(
+              value := head.id.value,
+              if head.id.some == selectedCategory then
+                selected := selectedCategory.get.show
+              else (),
+              head.name.show
+            ),
+            tail.map: category =>
+              option(
+                value := category.id.value,
+                if category.id.some == selectedCategory then
+                  selected := selectedCategory.get.show
+                else (),
+                category.name.show
+              )
+          )
+        )

@@ -37,6 +37,7 @@ object AssetRepository:
     Columns(
       A(_.id),
       A(_.title),
+      A(_.categoryId),
       AE(_.id).option,
       AE(_.no).option,
       AE(_.uri).option,
@@ -58,23 +59,23 @@ object AssetRepository:
         .transact(xa)
         .map: rows =>
           rows
-            .groupBy(row => (row._1, row._2))
+            .groupBy(row => (row._1, row._2, row._3))
             .map: (asset, records) =>
-              val (assetId, assetTitle) = asset
+              val (id, title, categoryId) = asset
               val entries = records
                 .map: record =>
                   (
-                    record._3,
                     record._4,
                     record._5,
                     record._6,
                     record._7,
-                    assetId.some
+                    record._8,
+                    id.some
                   ).tupled
                     .map(Tuples.from[ExistingAssetEntry](_))
                 .collect:
                   case Some(entry) => entry
-              ExistingAsset(assetId, assetTitle) -> entries
+              ExistingAsset(id, title, categoryId) -> entries
             .toList
             .sortBy((asset, _) => asset.id)
 
@@ -226,7 +227,7 @@ private object Assets extends TableDefinition("assets"):
   val title      = Column[AssetTitle]("title")
   val categoryId = Column[Option[CategoryId]]("category_id")
 
-  val * = Columns((id, title))
+  val * = Columns((id, title, categoryId))
 
 private object AssetEntries extends TableDefinition("asset_entries"):
   val id           = Column[EntryId]("id")

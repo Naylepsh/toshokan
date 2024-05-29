@@ -10,9 +10,11 @@ import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
 import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
+import library.category.CategoryService
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent](
-    service: AssetService[F],
+    assetService: AssetService[F],
+    categoryService: CategoryService[F],
     view: AssetView
 ) extends http.Controller[F]:
   import http.Controller.given
@@ -20,30 +22,31 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
-      service.findAll.flatMap: assetsWithEntries =>
+      assetService.findAll.flatMap: assetsWithEntries =>
         Ok(
           view.renderAssets(assetsWithEntries),
           `Content-Type`(MediaType.text.html)
         )
 
     case GET -> Root / "new" =>
-      Ok(view.renderForm(None), `Content-Type`(MediaType.text.html))
+      categoryService.findAll.flatMap: categories =>
+        Ok(
+          view.renderForm(None, categories),
+          `Content-Type`(MediaType.text.html)
+        )
 
     case GET -> Root / "edit" / AssetIdVar(id) =>
-      service
-        .find(id)
-        .flatMap:
-          case Some(asset, _) =>
-            Ok(
-              view.renderForm(asset.some),
-              `Content-Type`(MediaType.text.html)
-            )
-          case None =>
-            NotFound(s"Asset ${id} not found")
+      (assetService.find(id), categoryService.findAll).tupled.flatMap:
+        case (None, _) => NotFound(s"Asset ${id} not found")
+        case (Some(asset, _), categories) =>
+          Ok(
+            view.renderForm(asset.some, categories),
+            `Content-Type`(MediaType.text.html)
+          )
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[NewAsset](req): newAsset =>
-        service
+        assetService
           .add(newAsset)
           .flatMap:
             case Left(AddAssetError.AssetAlreadyExists) =>
@@ -60,13 +63,13 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
     case req @ PUT -> Root / AssetIdVar(id) =>
       withJsonErrorsHandled[NewAsset](req): newAsset =>
         val asset = newAsset.asExisting(id)
-        service.update(asset) *> Ok(
+        assetService.update(asset) *> Ok(
           asset.id.value.toString,
           addRedirectHeaderIfHtmxRequest(req, "/assets")
         )
 
     case DELETE -> Root / AssetIdVar(id) =>
-      service.delete(id) *> Ok()
+      assetService.delete(id) *> Ok()
 
     case req @ PATCH -> Root
         / AssetIdVar(assetId)
@@ -75,7 +78,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
       withJsonErrorsHandled[PartialAssetEntry](req): assetEntry =>
         assetEntry.wasSeen
           .map: wasSeen =>
-            service
+            assetService
               .setSeen(assetId, entryId, wasSeen)
               .flatMap:
                 case Left(reason)        => BadRequest("Oops")
@@ -83,7 +86,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
           .getOrElse(Ok(""))
 
     case GET -> Root / "entries-by-release-date" =>
-      service.findAllGroupedByReleaseDate.attempt.flatMap:
+      assetService.findAllGroupedByReleaseDate.attempt.flatMap:
         case Left(reason) =>
           InternalServerError("Something went wrong")
         case Right(releases) =>
@@ -96,7 +99,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
     case GET -> Root / "partials" / "entries-by-release-date" :? OptionalPageQueryParam(
           page
         ) =>
-      service.findAllGroupedByReleaseDate.attempt.flatMap:
+      assetService.findAllGroupedByReleaseDate.attempt.flatMap:
         case Left(reason) =>
           InternalServerError("Something went wrong")
         case Right(releases) =>
