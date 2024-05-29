@@ -21,35 +21,16 @@ object MinDaysSinceLastScrape extends Newtype[Short]
 
 case class ScrapingSchedule private (
     categoryId: CategoryId,
-    days: NonEmptyList[DayOfTheWeek],
-    minDaysSinceLastScrape: MinDaysSinceLastScrape
+    days: NonEmptyList[DayOfTheWeek]
 )
 object ScrapingSchedule:
   def apply(
       categoryId: CategoryId,
-      days: NonEmptyList[DayOfTheWeek],
-      minDaysSinceLastScrape: MinDaysSinceLastScrape
-  ): Either[String, ScrapingSchedule] =
-    days match
-      case NonEmptyList(_, Nil) =>
-        new ScrapingSchedule(categoryId, days, minDaysSinceLastScrape).asRight
-      case _ =>
-        val sortedDays =
-          NonEmptyList.fromListUnsafe(Set.from(days.toIterable).toList).sorted
-        val minDifferenceBetweenDays = sortedDays.toList
-          .zip(sortedDays.tail :+ sortedDays.head)
-          .map(_.ordinal - _.ordinal)
-          .min
-        Either.cond(
-          minDifferenceBetweenDays < minDaysSinceLastScrape || sortedDays.length == 1,
-          new ScrapingSchedule(
-            categoryId,
-            sortedDays,
-            minDaysSinceLastScrape
-          ),
-          s"""Difference between at least one pair of days is smaller than minDaysSinceLastScrape:
-          | ($minDifferenceBetweenDays vs $minDaysSinceLastScrape)"""
-        )
+      days: NonEmptyList[DayOfTheWeek]
+  ): ScrapingSchedule =
+    val dedupedDays =
+      NonEmptyList.fromListUnsafe(Set.from(days.toIterable).toList).sorted
+    new ScrapingSchedule(categoryId, dedupedDays)
 
 enum AddScheduleError:
   case CategoryDoesNotExist

@@ -34,27 +34,18 @@ object ScheduleRepository:
               .groupBy(_._1)
               .map: (assetId, grouped) =>
                 // groupyBy guarantees that `grouped` list has at least 1 element
-                val (head :: tail) = grouped: @unchecked
                 ScrapingSchedule(
                   assetId,
-                  NonEmptyList.of(head._2, tail.map(_._2)*),
-                  head._3
+                  NonEmptyList.fromListUnsafe(grouped.map(_._2))
                 )
               .toList
-              .foldLeft(List.empty):
-                case (acc, Right(schedule)) =>
-                  schedule :: acc
-                case (acc, Left(error)) =>
-                  scribe.error(error)
-                  acc
 
       override def add(schedule: ScrapingSchedule): F[Unit] =
         findByCategoryIds(NonEmptyList.of(schedule.categoryId)).flatMap:
           case Nil =>
             addUnsafe(
               schedule.categoryId,
-              schedule.days,
-              schedule.minDaysSinceLastScrape
+              schedule.days
             )
           case existingSchedule :: _ =>
             val daysToAdd = schedule.days.foldLeft(List.empty[DayOfTheWeek]):
@@ -69,8 +60,7 @@ object ScheduleRepository:
               .map: days =>
                 addUnsafe(
                   schedule.categoryId,
-                  days,
-                  schedule.minDaysSinceLastScrape
+                  days
                 )
               .getOrElse(MonadCancelThrow[F].pure(()))
             val removeDays = NonEmptyList
@@ -100,27 +90,19 @@ object ScheduleRepository:
                 val (head :: tail) = grouped: @unchecked
                 ScrapingSchedule(
                   assetId,
-                  NonEmptyList.of(head._2, tail.map(_._2)*),
-                  head._3
+                  NonEmptyList.of(head._2, tail.map(_._2)*)
                 )
               .toList
-              .foldLeft(List.empty):
-                case (acc, Right(schedule)) =>
-                  schedule :: acc
-                case (acc, Left(error)) =>
-                  scribe.error(error)
-                  acc
 
       private def addUnsafe(
           assetId: CategoryId,
-          days: NonEmptyList[DayOfTheWeek],
-          minDaysSinceLastScrape: MinDaysSinceLastScrape
+          days: NonEmptyList[DayOfTheWeek]
       ) =
         days
           .map: day =>
             sql"""
             INSERT INTO ${Schedules} (${Schedules.allWithoutId})
-            VALUES (${assetId}, ${day}, ${minDaysSinceLastScrape})
+            VALUES (${assetId}, ${day})
             """.update.run
           .sequence
           .transact(xa)
@@ -140,7 +122,5 @@ private object Schedules extends TableDefinition("scraping_schedules"):
   val id         = Column[Long]("id")
   val categoryId = Column[CategoryId]("category_id")
   val day        = Column[DayOfTheWeek]("day_of_week")
-  val minDaysSinceLastScrape =
-    Column[MinDaysSinceLastScrape]("min_days_since_last_scrape")
 
-  val allWithoutId = Columns((categoryId, day, minDaysSinceLastScrape))
+  val allWithoutId = Columns((categoryId, day))

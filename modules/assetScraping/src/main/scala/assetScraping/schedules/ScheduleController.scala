@@ -51,14 +51,12 @@ object ScheduleController:
 
   case class ScheduleDTO(
       categoryId: CategoryId,
-      days: List[DayOfTheWeek],
-      minDaysSinceLastScrape: MinDaysSinceLastScrape
+      days: List[DayOfTheWeek]
   ) derives Decoder:
     def toDomain =
       NonEmptyList.fromList(days) match
-        case None => "At least one day required".asLeft
-        case Some(days) =>
-          ScrapingSchedule(categoryId, days, minDaysSinceLastScrape)
+        case None       => "At least one day required".asLeft
+        case Some(days) => ScrapingSchedule(categoryId, days).asRight
 
   object ScheduleDTO:
     given [F[_]: Concurrent]: EntityDecoder[F, ScheduleDTO] =

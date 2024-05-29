@@ -37,7 +37,6 @@ CREATE TABLE scraping_schedules (
     id INTEGER PRIMARY KEY,
     category_id INTEGER NOT NULL,
     day_of_week INTEGER NOT NULL,
-    min_days_since_last_scrape INTEGER NOT NULL,
 
     CONSTRAINT fk_category_id
         FOREIGN KEY (category_id)
@@ -48,4 +47,5 @@ CREATE TABLE scraping_schedules (
 INSERT INTO "schema_migrations" (version) VALUES
   ('20240130211545'),
   ('20240524194511'),
-  ('20240529124324');
+  ('20240529124324'),
+  ('20240529175125');
