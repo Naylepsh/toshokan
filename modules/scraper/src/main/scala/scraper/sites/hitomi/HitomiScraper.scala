@@ -10,6 +10,7 @@ import com.microsoft.playwright.{Browser, Page}
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
+import net.ruippeixotog.scalascraper.model.Element
 import scraper.domain.*
 
 class HitomiScraper[F[_]: MonadCancelThrow: Sync](
@@ -32,25 +33,44 @@ class HitomiScraper[F[_]: MonadCancelThrow: Sync](
       new Page.WaitForSelectorOptions().setTimeout(timeout)
     )
 
-  private def parse(page: Page) =
+  private def parse(page: Page): Either[ScrapeError, List[EntryFound]] =
     val parser  = JsoupBrowser()
     val html    = parser.parseString(page.content())
     val entries = html >> elementList(".gallery-content > div")
-    val results = entries
-      .map: entry =>
-        val titleElem = entry >> element(".lillie > a")
-        val no        = EntryNo(titleElem.text)
-        val href      = titleElem >> attr("href")
-        val uri       = EntryUri(makeUri(href))
-        val dateUploaded = DateUploaded(
-          parseDate(entry >> element("p.date") >> attr("data-posted"))
-        )
-        EntryFound(no, uri, dateUploaded)
+    val results = entries.foldLeft(List.empty[EntryFound]): (acc, entry) =>
+      parseLanguage(entry) match
+        case Some(language)
+            if List("english", "japanese", "chinese").contains(language) =>
+          HitomiScraper.parse(entry) :: acc
+        case _ => acc
+
     results match
       case Nil     => ScrapeError.NoEntriesFound.asLeft
       case entries => entries.asRight
 
 object HitomiScraper:
-  def parseDate(rawDate: String) = LocalDate.parse(rawDate.split(" ").head)
+  private def parseDate(rawDate: String): LocalDate =
+    LocalDate.parse(rawDate.split(" ").head)
 
-  def makeUri(href: String) = new URI("https", "hitomi.la", href, null)
+  private def makeUri(href: String): URI =
+    new URI("https", "hitomi.la", href, null)
+
+  private def parse(entry: Element): EntryFound =
+    val titleElem = entry >> element(".lillie > a")
+    val no        = EntryNo(titleElem.text)
+    val href      = titleElem >> attr("href")
+    val uri       = EntryUri(makeUri(href))
+    val dateUploaded = DateUploaded(
+      parseDate(entry >> element("p.date") >> attr("data-posted"))
+    )
+    EntryFound(no, uri, dateUploaded)
+
+  private val languageInHrefRegex = "index-(.+).html".r
+  private def parseLanguage(entry: Element): Option[String] =
+    val languageHref =
+      entry >> element("table tr:nth-of-type(3) a") >> attr("href")
+    languageHref match
+      case languageInHrefRegex(language) => language.some
+      case other =>
+        scribe.error(s"Could not extract lanuage from href: $other")
+        None
