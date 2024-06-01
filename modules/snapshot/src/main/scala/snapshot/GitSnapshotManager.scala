@@ -38,7 +38,7 @@ class GitSnapshotManager[F[_]: Sync](config: Config)(using clock: Clock[F])
   def saveIfDue(): F[Unit] =
     wasSavedRecently().flatMap:
       case true =>
-        scribe.cats[F].info("Snapshot taken recently. Not taking another one")
+        scribe.cats[F].debug("Snapshot taken recently. Not taking another one")
       case false =>
         scribe
           .cats[F]

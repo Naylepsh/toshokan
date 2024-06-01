@@ -13,6 +13,12 @@ import middleware.logErrors
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
+    scribe.Logger.root
+      .clearHandlers()
+      .clearModifiers()
+      .withHandler(minimumLevel = Some(scribe.Level.Debug))
+      .replace()
+
     load[IO].flatMap: (serverConfig, dbConfig, snapshotConfig, navBarItems) =>
       (
         db.transactors.makeSqliteTransactorResource[IO](dbConfig),
