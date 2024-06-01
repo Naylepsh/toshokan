@@ -1,9 +1,9 @@
 package scraper
 
-import cats.effect.IOApp
-import cats.effect.IO
-import scraper.sites.mangakakalot.MangakakalotScraper
 import java.net.URI
+
+import cats.effect.{IO, IOApp}
+import scraper.sites.mangakakalot.MangakakalotScraper
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =

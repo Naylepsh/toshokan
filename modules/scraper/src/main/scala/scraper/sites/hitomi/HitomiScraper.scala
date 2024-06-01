@@ -96,7 +96,9 @@ object HitomiScraper:
 
   private val languageInHrefRegex = ".*index-(.+).html".r
   private def parseLanguage(entry: Element): Either[ScrapeError, String] =
-    (entry >> element("table tr:nth-of-type(3) a") >?> attr("href"))
+    (entry >?> element("table tr:nth-of-type(3) a[href]"))
+      // cannot use `>>` because cats' impl takes precedence
+      .extract(attr("href"))
       .map:
         case languageInHrefRegex(language) => language.asRight
         case other =>
