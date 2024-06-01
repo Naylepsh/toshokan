@@ -184,7 +184,10 @@ object AssetRepository:
           rows.map(Tuples.from[ExistingAssetEntry](_))
 
     private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
-      sql"INSERT INTO ${Assets}(${Assets.title}) VALUES (${asset.title}) RETURNING ${Assets.*}"
+      sql"""
+        INSERT INTO ${Assets} (${Assets.title}, ${Assets.categoryId})
+        VALUES (${asset.title}, ${asset.categoryId})
+        RETURNING ${Assets.*}"""
         .queryOf(Assets.*)
         .unique
         .transact(xa)
