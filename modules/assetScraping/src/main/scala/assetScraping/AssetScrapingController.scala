@@ -2,6 +2,8 @@ package assetScraping
 
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
+import library.category.CategoryService
+import library.category.schemas.CategoryIdVar
 import org.http4s.*
 import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 import org.http4s.headers.*
@@ -9,6 +11,7 @@ import org.http4s.server.Router
 
 class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetScrapingService[F],
+    categoryService: CategoryService[F],
     view: AssetScrapingView
 ) extends http.Controller[F]:
   import http.Controller.given
@@ -16,10 +19,11 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
-      Ok(
-        view.renderScrapingManagement,
-        `Content-Type`(MediaType.text.html)
-      )
+      categoryService.findAll.flatMap: categories =>
+        Ok(
+          view.renderScrapingManagement(categories),
+          `Content-Type`(MediaType.text.html)
+        )
 
     case POST -> Root :? OptionalScrapeTypeQueryParam(scrapeType) =>
       val getNewReleases = scrapeType.getOrElse(ScrapeType.Full) match
@@ -32,6 +36,17 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
           view.scrapingSummaryPartial(summary),
           `Content-Type`(MediaType.text.html)
         )
+
+    case POST -> Root / "category" / CategoryIdVar(categoryId) =>
+      service
+        .getNewReleasesOfCategory(categoryId)
+        .flatMap:
+          case None => NotFound(s"Category.id=${categoryId} does not exist")
+          case Some(summary) =>
+            Ok(
+              view.scrapingSummaryPartial(summary),
+              `Content-Type`(MediaType.text.html)
+            )
 
   val routes = Router("asset-scraping" -> httpRoutes)
 

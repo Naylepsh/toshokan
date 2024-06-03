@@ -4,17 +4,17 @@ import cats.MonadThrow
 import cats.data.NonEmptyList
 import cats.effect.Concurrent
 import cats.syntax.all.*
-import io.circe.Decoder
+import io.circe.Decoder.Result
+import io.circe.{Decoder, HCursor}
 import library.category.CategoryService
 import library.category.domain.CategoryId
+import library.category.schemas.CategoryIdVar
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.headers.*
 import org.http4s.server.Router
 
 import domain.*
-import io.circe.HCursor
-import io.circe.Decoder.Result
 
 class ScheduleController[F[_]: MonadThrow: Concurrent](
     service: ScheduleService[F],
@@ -42,10 +42,6 @@ class ScheduleController[F[_]: MonadThrow: Concurrent](
   val routes = Router("scraping-schedules" -> httpRoutes)
 
 object ScheduleController:
-  object CategoryIdVar:
-    def unapply(str: String): Option[CategoryId] =
-      str.toIntOption.map(CategoryId(_))
-
   given Decoder[List[DayOfTheWeek]] =
     Decoder.decodeList[DayOfTheWeek] or Decoder[DayOfTheWeek].map(_ :: Nil)
 

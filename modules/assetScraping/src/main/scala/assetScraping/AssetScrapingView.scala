@@ -1,16 +1,16 @@
 package assetScraping
 
-import cats.syntax.all.*
-import http.View.{layout}
-import scalatags.Text.all.*
-
-import http.View.NavBarItem
 import assetScraping.scrapes.domain.ScrapingSummary
+import cats.syntax.all.*
+import http.View.{NavBarItem, layout}
+import library.category.domain.ExistingCategory
+import scalatags.Text.all.*
+import scalatags.Text.TypedTag
 
 class AssetScrapingView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
 
-  def renderScrapingManagement: String =
+  def renderScrapingManagement(categories: List[ExistingCategory]): String =
     layout(
       "Asset scraping".some,
       div(
@@ -33,13 +33,16 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
             attr("hx-swap")   := "outerHTML",
             attr("hx-target") := "closest div",
             "Check for scheduled new releases"
-          )
+          ),
+          categories.map(categoryScrapePartial)
         )
       ),
       navBarItems
     )
 
-  def scrapingSummaryPartial(scrapingSummary: ScrapingSummary) =
+  def scrapingSummaryPartial(
+      scrapingSummary: ScrapingSummary
+  ): TypedTag[String] =
     div(
       cls := "mx-auto max-w-96",
       table(
@@ -73,4 +76,13 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
           )
         )
       )
+    )
+
+  private def categoryScrapePartial(category: ExistingCategory) =
+    a(
+      cls               := "btn btn-primary w-full mt-3",
+      attr("hx-post")   := s"/asset-scraping/category/${category.id}",
+      attr("hx-swap")   := "outerHTML",
+      attr("hx-target") := "closest div",
+      s"Check for ${category.name}'s new releases"
     )

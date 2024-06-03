@@ -80,6 +80,7 @@ object Main extends IOApp.Simple:
         val assetScrapingController =
           assetScraping.AssetScrapingController[IO](
             assetScrapingService,
+            categoryService,
             assetScrapingView
           )
 

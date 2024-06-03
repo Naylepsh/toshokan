@@ -9,6 +9,11 @@ For more information on the sbt-dotty plugin, see the
 
 ## TODO
 
+- [ ] Add view for editing schedule
+- [ ] Add view for category managemet
+  - [ ] Add category
+  - [ ] Edit category
+  - [ ] Delete category
 - [ ] Add integration with anilist/mal
 - [ ] Increase queries' type-safety:
   - [ ] Add the missing `updateTable` and `-->` from `doobie-typesafe`
