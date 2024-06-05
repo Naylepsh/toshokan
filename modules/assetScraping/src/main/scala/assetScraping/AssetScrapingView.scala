@@ -18,7 +18,12 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
         div(
           h2(
             cls := "text-xl font-semibold text-center",
-            "Trigger Asset Scraping"
+            "Scraping Management"
+          ),
+          a(
+            cls  := "btn btn-primary w-full mt-3",
+            href := "/scraping-schedules",
+            "Manage scraping schedules"
           ),
           a(
             cls               := "btn btn-primary w-full mt-3",

@@ -25,7 +25,22 @@ class ScheduleController[F[_]: MonadThrow: Concurrent](
   import ScheduleController.*
 
   private val httpRoutes = HttpRoutes.of[F]:
-    case GET -> Root / CategoryIdVar(categoryId) => ???
+    case GET -> Root =>
+      service.findCategoriesOfAllSchedules.flatMap: categories =>
+        Ok(
+          view.renderScheduleLinks(categories),
+          `Content-Type`(MediaType.text.html)
+        )
+
+    case GET -> Root / CategoryIdVar(categoryId) =>
+      (service.find(categoryId), categoryService.findAll).tupled.flatMap:
+        case (None, _) =>
+          BadRequest(s"Schedule for categoryId=${categoryId} does not exist")
+        case (schedule @ Some(_), categories) =>
+          Ok(
+            view.renderForm(categories, schedule),
+            `Content-Type`(MediaType.text.html)
+          )
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[ScheduleDTO](req): schedule =>
@@ -37,7 +52,10 @@ class ScheduleController[F[_]: MonadThrow: Concurrent](
 
     case GET -> Root / "new" =>
       categoryService.findAll.flatMap: categories =>
-        Ok(view.renderForm(categories), `Content-Type`(MediaType.text.html))
+        Ok(
+          view.renderForm(categories, None),
+          `Content-Type`(MediaType.text.html)
+        )
 
   val routes = Router("scraping-schedules" -> httpRoutes)
 

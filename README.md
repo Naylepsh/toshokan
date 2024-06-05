@@ -10,6 +10,7 @@ For more information on the sbt-dotty plugin, see the
 ## TODO
 
 - [ ] Add view for editing schedule
+  - [ ] Add route and service & repository methods for updating schedule
 - [ ] Add view for category managemet
   - [ ] Add category
   - [ ] Edit category

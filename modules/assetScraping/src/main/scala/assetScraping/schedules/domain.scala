@@ -16,9 +16,6 @@ object DayOfTheWeek extends Newtype[DayOfWeek]:
   def now[F[_]](using F: Sync[F]): F[DayOfTheWeek] =
     F.delay(DayOfTheWeek(LocalDate.now().getDayOfWeek))
 
-type MinDaysSinceLastScrape = MinDaysSinceLastScrape.Type
-object MinDaysSinceLastScrape extends Newtype[Short]
-
 case class ScrapingSchedule private (
     categoryId: CategoryId,
     days: NonEmptyList[DayOfTheWeek]

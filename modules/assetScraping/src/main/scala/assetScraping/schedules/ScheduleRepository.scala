@@ -62,12 +62,12 @@ object ScheduleRepository:
                   schedule.categoryId,
                   days
                 )
-              .getOrElse(MonadCancelThrow[F].pure(()))
+              .getOrElse(MonadCancelThrow[F].unit)
             val removeDays = NonEmptyList
               .fromList(daysToRemove)
               .map: days =>
                 remove(schedule.categoryId, days)
-              .getOrElse(MonadCancelThrow[F].pure(()))
+              .getOrElse(MonadCancelThrow[F].unit)
             addDays *> removeDays
 
       override def findByCategoryIds(

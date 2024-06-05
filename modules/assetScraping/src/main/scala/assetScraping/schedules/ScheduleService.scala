@@ -8,9 +8,13 @@ import library.category.domain.CategoryId
 import library.domain.AssetId
 
 import domain.{DayOfTheWeek, ScrapingSchedule, AddScheduleError}
+import cats.data.NonEmptyList
+import library.category.domain.ExistingCategory
 
 trait ScheduleService[F[_]]:
   def findAssetsEligibleForScrape: F[List[AssetId]]
+  def find(categoryId: CategoryId): F[Option[ScrapingSchedule]]
+  def findCategoriesOfAllSchedules: F[List[ExistingCategory]]
   def add(schedule: ScrapingSchedule): F[Either[AddScheduleError, Unit]]
 
 object ScheduleService:
@@ -19,15 +23,6 @@ object ScheduleService:
       assetService: AssetService[F],
       categoryService: CategoryService[F]
   ): ScheduleService[F] = new:
-
-    override def add(
-        schedule: ScrapingSchedule
-    ): F[Either[AddScheduleError, Unit]] =
-      categoryService
-        .find(schedule.categoryId)
-        .flatMap:
-          case Some(_) => repository.add(schedule).map(_.asRight)
-          case None    => AddScheduleError.CategoryDoesNotExist.asLeft.pure
 
     override def findAssetsEligibleForScrape: F[List[AssetId]] =
       for
@@ -41,6 +36,26 @@ object ScheduleService:
         categoryToAssets,
         currentDayOfTheWeek
       )
+
+    override def find(categoryId: CategoryId): F[Option[ScrapingSchedule]] =
+      repository
+        .findByCategoryIds(NonEmptyList.of(categoryId))
+        .map(_.headOption)
+
+    override def findCategoriesOfAllSchedules: F[List[ExistingCategory]] =
+      for
+        ids        <- repository.findAll.map(_.map(_.categoryId))
+        categories <- categoryService.find(ids)
+      yield categories
+
+    override def add(
+        schedule: ScrapingSchedule
+    ): F[Either[AddScheduleError, Unit]] =
+      categoryService
+        .find(schedule.categoryId)
+        .flatMap:
+          case Some(_) => repository.add(schedule).map(_.asRight)
+          case None    => AddScheduleError.CategoryDoesNotExist.asLeft.pure
 
   private def extractAssetsEligibleForScraping(
       schedules: List[ScrapingSchedule],
