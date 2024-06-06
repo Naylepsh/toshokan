@@ -1,21 +1,22 @@
 package assetScraping.schedules
 
+import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import library.AssetService
 import library.category.CategoryService
-import library.category.domain.CategoryId
+import library.category.domain.{CategoryId, ExistingCategory}
 import library.domain.AssetId
 
 import domain.{DayOfTheWeek, ScrapingSchedule, AddScheduleError}
-import cats.data.NonEmptyList
-import library.category.domain.ExistingCategory
+import assetScraping.schedules.domain.UpdateScheduleError
 
 trait ScheduleService[F[_]]:
   def findAssetsEligibleForScrape: F[List[AssetId]]
   def find(categoryId: CategoryId): F[Option[ScrapingSchedule]]
   def findCategoriesOfAllSchedules: F[List[ExistingCategory]]
   def add(schedule: ScrapingSchedule): F[Either[AddScheduleError, Unit]]
+  def update(schedule: ScrapingSchedule): F[Either[UpdateScheduleError, Unit]]
 
 object ScheduleService:
   def make[F[_]: Sync](
@@ -56,6 +57,15 @@ object ScheduleService:
         .flatMap:
           case Some(_) => repository.add(schedule).map(_.asRight)
           case None    => AddScheduleError.CategoryDoesNotExist.asLeft.pure
+
+    override def update(
+        schedule: ScrapingSchedule
+    ): F[Either[UpdateScheduleError, Unit]] =
+      categoryService
+        .find(schedule.categoryId)
+        .flatMap:
+          case Some(_) => repository.update(schedule)
+          case None    => UpdateScheduleError.CategoryDoesNotExist.asLeft.pure
 
   private def extractAssetsEligibleForScraping(
       schedules: List[ScrapingSchedule],

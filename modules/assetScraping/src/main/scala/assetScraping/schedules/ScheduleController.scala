@@ -43,12 +43,27 @@ class ScheduleController[F[_]: MonadThrow: Concurrent](
           )
 
     case req @ POST -> Root =>
-      withJsonErrorsHandled[ScheduleDTO](req): schedule =>
+      withJsonErrorsHandled[CreateScheduleDTO](req): schedule =>
         schedule.toDomain
           .traverse(service.add)
+          .map(_.flatten)
           .flatMap:
-            case Left(reason)    => BadRequest(reason)
+            case Left(reason)    => BadRequest(reason.toString)
             case Right(schedule) => Ok("")
+
+    case req @ PUT -> Root / CategoryIdVar(categoryId) =>
+      withJsonErrorsHandled[UpdateScheduleDTO](req): schedule =>
+        schedule
+          .toDomain(categoryId)
+          .traverse(service.update)
+          .map(_.flatten)
+          .flatMap:
+            case Left(UpdateScheduleError.CategoryDoesNotExist) =>
+              NotFound(s"Category with id=${categoryId} does not exist")
+            case Left(UpdateScheduleError.ScheduleDoesNotExist) =>
+              NotFound(s"Schedule for categoryId=${categoryId} does not exist")
+            case Left(error: String) => BadRequest(error)
+            case Right(schedule)     => Ok("")
 
     case GET -> Root / "new" =>
       categoryService.findAll.flatMap: categories =>
@@ -63,15 +78,27 @@ object ScheduleController:
   given Decoder[List[DayOfTheWeek]] =
     Decoder.decodeList[DayOfTheWeek] or Decoder[DayOfTheWeek].map(_ :: Nil)
 
-  case class ScheduleDTO(
+  case class CreateScheduleDTO(
       categoryId: CategoryId,
       days: List[DayOfTheWeek]
   ) derives Decoder:
-    def toDomain =
-      NonEmptyList.fromList(days) match
-        case None       => "At least one day required".asLeft
-        case Some(days) => ScrapingSchedule(categoryId, days).asRight
+    def toDomain: Either[String, ScrapingSchedule] =
+      makeScrapingSchedule(days)(categoryId)
 
-  object ScheduleDTO:
-    given [F[_]: Concurrent]: EntityDecoder[F, ScheduleDTO] =
-      jsonOf[F, ScheduleDTO]
+  object CreateScheduleDTO:
+    given [F[_]: Concurrent]: EntityDecoder[F, CreateScheduleDTO] =
+      jsonOf[F, CreateScheduleDTO]
+
+  case class UpdateScheduleDTO(days: List[DayOfTheWeek]) derives Decoder:
+    val toDomain: CategoryId => Either[String, ScrapingSchedule] =
+      makeScrapingSchedule(days)
+
+  object UpdateScheduleDTO:
+    given [F[_]: Concurrent]: EntityDecoder[F, UpdateScheduleDTO] =
+      jsonOf[F, UpdateScheduleDTO]
+
+  def makeScrapingSchedule(days: List[DayOfTheWeek])(categoryId: CategoryId) =
+    NonEmptyList
+      .fromList(days)
+      .map(ScrapingSchedule(categoryId, _))
+      .toRight("At least one day required")

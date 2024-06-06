@@ -16,6 +16,7 @@ trait ScheduleRepository[F[_]]:
       categoryIds: NonEmptyList[CategoryId]
   ): F[List[ScrapingSchedule]]
   def add(schedule: ScrapingSchedule): F[Unit]
+  def update(schedule: ScrapingSchedule): F[Either[UpdateScheduleError, Unit]]
 
 object ScheduleRepository:
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): ScheduleRepository[F] =
@@ -41,13 +42,14 @@ object ScheduleRepository:
               .toList
 
       override def add(schedule: ScrapingSchedule): F[Unit] =
-        findByCategoryIds(NonEmptyList.of(schedule.categoryId)).flatMap:
-          case Nil =>
-            addUnsafe(
-              schedule.categoryId,
-              schedule.days
-            )
-          case existingSchedule :: _ =>
+        addUnsafe(schedule.categoryId, schedule.days)
+
+      override def update(
+          schedule: ScrapingSchedule
+      ): F[Either[UpdateScheduleError, Unit]] =
+        findByCategoryId(schedule.categoryId).flatMap:
+          case None => UpdateScheduleError.ScheduleDoesNotExist.asLeft.pure
+          case Some(existingSchedule) =>
             val daysToAdd = schedule.days.foldLeft(List.empty[DayOfTheWeek]):
               (acc, day) =>
                 if existingSchedule.days.contains_(day) then acc else day :: acc
@@ -58,17 +60,14 @@ object ScheduleRepository:
             val addDays = NonEmptyList
               .fromList(daysToAdd)
               .map: days =>
-                addUnsafe(
-                  schedule.categoryId,
-                  days
-                )
+                addUnsafe(schedule.categoryId, days)
               .getOrElse(MonadCancelThrow[F].unit)
             val removeDays = NonEmptyList
               .fromList(daysToRemove)
               .map: days =>
                 remove(schedule.categoryId, days)
               .getOrElse(MonadCancelThrow[F].unit)
-            addDays *> removeDays
+            (addDays *> removeDays).map(_.asRight)
 
       override def findByCategoryIds(
           categoryIds: NonEmptyList[CategoryId]
@@ -85,24 +84,46 @@ object ScheduleRepository:
           .map: results =>
             results
               .groupBy(_._1)
-              .map: (assetId, grouped) =>
+              .map: (categoryId, grouped) =>
                 // groupyBy guarantees that `grouped` list has at least 1 element
                 val (head :: tail) = grouped: @unchecked
                 ScrapingSchedule(
-                  assetId,
+                  categoryId,
                   NonEmptyList.of(head._2, tail.map(_._2)*)
                 )
               .toList
 
+      private def findByCategoryId(
+          categoryId: CategoryId
+      ): F[Option[ScrapingSchedule]] =
+        sql"""
+          SELECT ${Schedules.allWithoutId}
+          FROM ${Schedules}
+          WHERE ${Schedules.categoryId === categoryId}
+          """
+          .queryOf(Schedules.allWithoutId)
+          .to[List]
+          .transact(xa)
+          .map:
+            case Nil => None
+            case (categoryId, day) :: tail =>
+              ScrapingSchedule(
+                categoryId,
+                NonEmptyList.of(day, tail.map(_._2)*)
+              ).some
+
+      /** This is unsafe because it makes no guarantee that category with
+        * `categoryId` exists
+        */
       private def addUnsafe(
-          assetId: CategoryId,
+          categoryId: CategoryId,
           days: NonEmptyList[DayOfTheWeek]
       ) =
         days
           .map: day =>
             sql"""
             INSERT INTO ${Schedules} (${Schedules.allWithoutId})
-            VALUES (${assetId}, ${day})
+            VALUES (${categoryId}, ${day})
             """.update.run
           .sequence
           .transact(xa)

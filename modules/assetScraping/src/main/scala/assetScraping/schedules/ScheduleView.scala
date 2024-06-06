@@ -6,8 +6,7 @@ import library.category.domain.{CategoryId, ExistingCategory}
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
-import domain.DayOfTheWeek
-import domain.ScrapingSchedule
+import domain.{DayOfTheWeek, ScrapingSchedule}
 
 class ScheduleView(navBarItems: List[NavBarItem]):
   def renderScheduleLinks(
@@ -21,12 +20,17 @@ class ScheduleView(navBarItems: List[NavBarItem]):
           cls := "text-xl font-semibold text-center",
           "Scraping schedules"
         ),
-        categories.map: category =>
+        (categories.map: category =>
           a(
             cls  := "btn btn-primary mt-3",
             href := s"/scraping-schedules/${category.id}",
             s"${category.name}'s schedule"
-          ),
+          )),
+        a(
+          cls  := "btn btn-secondary mt-3",
+          href := s"/scraping-schedules/new",
+          "Add new schedule"
+        )
       ),
       navBarItems
     )
@@ -56,10 +60,9 @@ class ScheduleView(navBarItems: List[NavBarItem]):
           .getOrElse(attr("hx-post") := "/scraping-schedules"),
         attr("hx-ext") := "json-enc",
         h2(cls := "text-2xl text-center", title),
-        categorySelectionPartial(
-          availableCategories,
-          schedule.map(_.categoryId)
-        ),
+        (schedule
+          .as(frag())
+          .getOrElse(categorySelectionPartial(availableCategories))),
         daysPartial(schedule.map(_.days.toList).getOrElse(List.empty)),
         button(
           `type` := "submit",
@@ -70,9 +73,8 @@ class ScheduleView(navBarItems: List[NavBarItem]):
     )
 
   private def categorySelectionPartial(
-      categories: List[ExistingCategory],
-      selectedCategory: Option[CategoryId]
-  ) =
+      categories: List[ExistingCategory]
+  ): Modifier =
     categories match
       case Nil => div()
       case head :: tail =>
@@ -88,27 +90,15 @@ class ScheduleView(navBarItems: List[NavBarItem]):
             option(
               value := head.id.value,
               head.name.show,
-              inferSelectedModifier(head, selectedCategory)
+              selected := "1"
             ),
             tail.map: category =>
               option(
                 value := category.id.value,
-                inferSelectedModifier(category, selectedCategory),
                 category.name.show
               )
           )
         )
-
-  private def inferSelectedModifier(
-      category: ExistingCategory,
-      selectedCategory: Option[CategoryId]
-  ): Modifier =
-    selectedCategory match
-      case None =>
-        (selected := "1")
-      case Some(cat) if cat.eqv(category.id) =>
-        (selected := "1")
-      case _ =>
 
   private def daysPartial(selectedDays: List[DayOfTheWeek]) =
     div(

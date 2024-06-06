@@ -31,3 +31,6 @@ object ScrapingSchedule:
 
 enum AddScheduleError:
   case CategoryDoesNotExist
+
+enum UpdateScheduleError:
+  case CategoryDoesNotExist, ScheduleDoesNotExist
