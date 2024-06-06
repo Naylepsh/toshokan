@@ -21,7 +21,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
             "Scraping Management"
           ),
           a(
-            cls  := "btn btn-primary w-full mt-3",
+            cls  := "btn btn-secondary w-full mt-3",
             href := "/scraping-schedules",
             "Manage scraping schedules"
           ),
