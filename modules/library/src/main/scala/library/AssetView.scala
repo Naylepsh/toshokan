@@ -1,10 +1,10 @@
 package library
 
 import cats.syntax.all.*
+import http.View.{NavBarItem, layout}
 import library.domain.*
+import scalatags.Text.TypedTag
 import scalatags.Text.all.*
-import http.View.layout
-import http.View.NavBarItem
 
 import category.domain.*
 
@@ -18,7 +18,7 @@ class AssetView(navBarItems: List[NavBarItem]):
             List[ExistingAssetEntry]
         )
       ]
-  ) =
+  ): TypedTag[String] =
     layout(
       "Assets".some,
       div(
@@ -120,18 +120,25 @@ class AssetView(navBarItems: List[NavBarItem]):
       navBarItems
     )
 
-  def renderReleases(releases: List[Releases], pagination: Pagination) =
+  def renderReleases(
+      releases: List[Releases],
+      pagination: Pagination
+  ): TypedTag[String] =
     layout(
       "Releases".some,
       div(
         id  := "releases",
         cls := "mt-5",
-        releasesPartial(releases, pagination)
+        if releases.isEmpty then noReleasesPartial
+        else releasesPartial(releases, pagination)
       ),
       navBarItems
     )
 
-  def releasesPartial(releases: List[Releases], pagination: Pagination) =
+  def releasesPartial(
+      releases: List[Releases],
+      pagination: Pagination
+  ): TypedTag[String] =
     val releaseElems = releases.map: (dateUploaded, results) =>
       div(
         cls := "collapse bg-base-200 my-2",
@@ -174,7 +181,10 @@ class AssetView(navBarItems: List[NavBarItem]):
       )
     )
 
-  def entryPartial(asset: ExistingAsset, entry: ExistingAssetEntry) =
+  def entryPartial(
+      asset: ExistingAsset,
+      entry: ExistingAssetEntry
+  ): TypedTag[String] =
     val linkToEntry = a(
       href := s"${entry.uri}",
       p(s"Ch. ${entry.no.value}")
@@ -236,3 +246,6 @@ object AssetView:
               )
           )
         )
+
+  private def noReleasesPartial =
+    h2(cls := "text-center font-semibold", "No releases found")

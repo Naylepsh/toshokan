@@ -86,7 +86,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
           .getOrElse(Ok(""))
 
     case GET -> Root / "entries-by-release-date" =>
-      assetService.findAllGroupedByReleaseDate.attempt.flatMap:
+      assetService.findNotSeenReleases.attempt.flatMap:
         case Left(reason) =>
           InternalServerError("Something went wrong")
         case Right(releases) =>
@@ -99,7 +99,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
     case GET -> Root / "partials" / "entries-by-release-date" :? OptionalPageQueryParam(
           page
         ) =>
-      assetService.findAllGroupedByReleaseDate.attempt.flatMap:
+      assetService.findNotSeenReleases.attempt.flatMap:
         case Left(reason) =>
           InternalServerError("Something went wrong")
         case Right(releases) =>

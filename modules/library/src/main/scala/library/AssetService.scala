@@ -1,17 +1,16 @@
 package library
 
 import cats.Monad
-import cats.data.EitherT
+import cats.data.{EitherT, NonEmptyList}
 import cats.implicits.*
 
 import domain.*
 import domain.Releases.given
 import category.domain.CategoryId
-import cats.data.NonEmptyList
 
 trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
-  def findAllGroupedByReleaseDate: F[List[Releases]]
+  def findNotSeenReleases: F[List[Releases]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def matchCategoriesToAssets(
       categoryIds: List[CategoryId]
@@ -35,11 +34,13 @@ object AssetService:
       override def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
         repository.findAll
 
-      override def findAllGroupedByReleaseDate: F[List[Releases]] =
+      override def findNotSeenReleases: F[List[Releases]] =
         repository.findAll.map: all =>
           all
             .flatMap: (asset, entries) =>
-              entries.map(entry => asset -> entry)
+              entries
+                .filter(_.wasSeen.eqv(WasEntrySeen(false)))
+                .map(entry => asset -> entry)
             .groupBy: (_, entry) =>
               entry.dateUploaded
             .map: (key, assetsAndEntries) =>
