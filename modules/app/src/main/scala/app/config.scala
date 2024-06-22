@@ -22,7 +22,8 @@ def load[F[_]](using F: Sync[F]) =
     val navBarItems = List(
       NavBarItem("Assets", "/assets"),
       NavBarItem("New releases", "/assets/entries-by-release-date"),
-      NavBarItem("Scraping", "/asset-scraping")
+      NavBarItem("Scraping", "/asset-scraping"),
+      NavBarItem("Shutdown", "/shutdown")
     )
 
     (

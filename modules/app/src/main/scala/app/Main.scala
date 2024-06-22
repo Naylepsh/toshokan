@@ -2,7 +2,8 @@ package app
 
 import assetScraping.AssetScrapingView
 import assetScraping.schedules.*
-import cats.effect.{IO, IOApp}
+import cats.effect.kernel.Resource
+import cats.effect.{Deferred, IO, IOApp}
 import cats.syntax.all.*
 import org.http4s.syntax.all.*
 import scraper.Scraper
@@ -25,8 +26,9 @@ object Main extends IOApp.Simple:
         HttpClientCatsBackend.resource[IO](),
         playwright
           .makePlaywrightResource[IO]
-          .evalMap(p => IO.delay(p.chromium().launch()))
-      ).tupled.use: (xa, httpBackend, browser) =>
+          .evalMap(p => IO.delay(p.chromium().launch())),
+        Resource.eval(Deferred[IO, Unit])
+      ).tupled.use: (xa, httpBackend, browser, shutdownSignal) =>
 
         val categoryRepository =
           library.category.CategoryRepository.make[IO](xa)
@@ -84,13 +86,15 @@ object Main extends IOApp.Simple:
             assetScrapingView
           )
 
-        val publicController = PublicController[IO]()
+        val publicController   = PublicController[IO]()
+        val shutdownController = ShutdownController[IO](shutdownSignal)
 
         val routes = assetController.routes
           <+> assetScrapingController.routes
           <+> assetScrapingConfigController.routes
           <+> scheduleController.routes
           <+> publicController.routes
+          <+> shutdownController.routes
 
         val snapshotManager =
           snapshotConfig
@@ -101,4 +105,5 @@ object Main extends IOApp.Simple:
           .newEmber(serverConfig, logErrors(routes).orNotFound)
           .evalTap: _ =>
             snapshotManager.saveIfDue()
-          .useForever
+          .use: _ =>
+            IO.never.race(shutdownSignal.get).void
