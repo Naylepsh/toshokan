@@ -4,8 +4,7 @@ import cats.MonadThrow
 import cats.data.NonEmptyList
 import cats.effect.Concurrent
 import cats.syntax.all.*
-import io.circe.Decoder.Result
-import io.circe.{Decoder, HCursor}
+import io.circe.Decoder
 import library.category.CategoryService
 import library.category.domain.CategoryId
 import library.category.schemas.CategoryIdVar
