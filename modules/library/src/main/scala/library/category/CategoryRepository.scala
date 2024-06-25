@@ -1,5 +1,6 @@
 package library.category
 
+import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
 import core.Tuples
@@ -18,11 +19,11 @@ object CategoryRepository:
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): CategoryRepository[F] =
     new:
       override def add(category: NewCategory): F[ExistingCategory] =
-        sql"""
-          INSERT INTO ${Categories}(${Categories.name_}) 
-          VALUES (${category.name}) 
-          RETURNING ${Categories.*}
-          """
+        insertIntoReturning(
+          Categories,
+          NonEmptyList.of(_.name_ --> category.name),
+          _.*
+        )
           .queryOf(Categories.*)
           .unique
           .transact(xa)

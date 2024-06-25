@@ -1,5 +1,6 @@
 package assetScraping.configs
 
+import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
 import core.Tuples
@@ -22,16 +23,6 @@ trait AssetScrapingConfigRepository[F[_]]:
   def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetScrapingConfigRepository:
-  private object AssetScrapingConfigs
-      extends TableDefinition("asset_scraping_configs"):
-    val id        = Column[AssetScrapingConfigId]("id")
-    val uri       = Column[ScrapingConfigUri]("uri")
-    val isEnabled = Column[IsConfigEnabled]("is_enabled")
-    val site      = Column[Site]("site")
-    val assetId   = Column[AssetId]("asset_id")
-
-    val *           = Columns((id, uri, site, isEnabled, assetId))
-    val allExceptId = Columns((uri, site, isEnabled, assetId))
 
   def make[F[_]: MonadCancelThrow](
       xa: Transactor[F]
@@ -88,11 +79,16 @@ object AssetScrapingConfigRepository:
     private def addWithoutChecking(
         scrapingConfig: NewAssetScrapingConfig
     ): F[ExistingAssetScrapingConfig] =
-      val values = Tuples.to(scrapingConfig)
-      sql"""
-        INSERT INTO ${AssetScrapingConfigs}(${AssetScrapingConfigs.allExceptId}) 
-        VALUES ($values) 
-        RETURNING ${AssetScrapingConfigs.*}"""
+      insertIntoReturning(
+        AssetScrapingConfigs,
+        NonEmptyList.of(
+          _.uri --> scrapingConfig.uri,
+          _.isEnabled --> scrapingConfig.isEnabled,
+          _.site --> scrapingConfig.site,
+          _.assetId --> scrapingConfig.assetId
+        ),
+        _.*
+      )
         .queryOf(AssetScrapingConfigs.*)
         .unique
         .transact(xa)
@@ -108,3 +104,14 @@ object AssetScrapingConfigRepository:
         ${AssetScrapingConfigs.site === scrapingConfig.site}
       WHERE ${AssetScrapingConfigs.id === scrapingConfig.id}
       """.update.run.transact(xa).as(scrapingConfig)
+
+private object AssetScrapingConfigs
+    extends TableDefinition("asset_scraping_configs"):
+  val id        = Column[AssetScrapingConfigId]("id")
+  val uri       = Column[ScrapingConfigUri]("uri")
+  val isEnabled = Column[IsConfigEnabled]("is_enabled")
+  val site      = Column[Site]("site")
+  val assetId   = Column[AssetId]("asset_id")
+
+  val *           = Columns((id, uri, site, isEnabled, assetId))
+  val allExceptId = Columns((uri, site, isEnabled, assetId))

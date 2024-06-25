@@ -121,10 +121,10 @@ object ScheduleRepository:
       ) =
         days
           .map: day =>
-            sql"""
-            INSERT INTO ${Schedules} (${Schedules.allWithoutId})
-            VALUES (${categoryId}, ${day})
-            """.update.run
+            insertInto(
+              Schedules,
+              NonEmptyList.of(_.categoryId --> categoryId, _.day --> day)
+            ).update.run
           .sequence
           .transact(xa)
           .void

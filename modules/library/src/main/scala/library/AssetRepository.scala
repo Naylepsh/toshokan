@@ -184,10 +184,14 @@ object AssetRepository:
           rows.map(Tuples.from[ExistingAssetEntry](_))
 
     private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
-      sql"""
-        INSERT INTO ${Assets} (${Assets.title}, ${Assets.categoryId})
-        VALUES (${asset.title}, ${asset.categoryId})
-        RETURNING ${Assets.*}"""
+      insertIntoReturning(
+        Assets,
+        NonEmptyList.of(
+          _.title --> asset.title,
+          _.categoryId --> asset.categoryId
+        ),
+        _.*
+      )
         .queryOf(Assets.*)
         .unique
         .transact(xa)
@@ -197,8 +201,17 @@ object AssetRepository:
     private def addWithoutChecking(
         entry: NewAssetEntry
     ): F[ExistingAssetEntry] =
-      val values = Tuples.to(entry)
-      sql"INSERT INTO ${AssetEntries}(${AssetEntries.allExceptId}) VALUES ($values) RETURNING ${AssetEntries.*}"
+      insertIntoReturning(
+        AssetEntries,
+        NonEmptyList.of(
+          _.no --> entry.no,
+          _.uri --> entry.uri,
+          _.wasSeen --> entry.wasSeen,
+          _.dateUploaded --> entry.dateUploaded,
+          _.assetId --> entry.assetId
+        ),
+        _.*
+      )
         .queryOf(AssetEntries.*)
         .unique
         .transact(xa)
@@ -240,5 +253,4 @@ private object AssetEntries extends TableDefinition("asset_entries"):
   val dateUploaded = Column[DateUploaded]("date_uploaded")
   val assetId      = Column[AssetId]("asset_id")
 
-  val *           = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
-  val allExceptId = Columns((no, uri, wasSeen, dateUploaded, assetId))
+  val * = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
