@@ -40,6 +40,8 @@ case class Column[A: Read: Write](
     case Some(v) => ===(v)
   def ===(value: A): Fragment = sql ++ fr" = ${value}"
 
+  def -->(a: A): (Fragment, Fragment) = (name, fr0"$a")
+
 object Column:
   given [A]: Conversion[Column[A], SingleFragment[A]] =
     c => SingleFragment(fr"${c.name}")
