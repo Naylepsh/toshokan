@@ -9,10 +9,6 @@ For more information on the sbt-dotty plugin, see the
 
 ## TODO
 
-- [ ] Increase queries' type-safety:
-  - [ ] Add the missing `updateTable` and `-->` from `doobie-typesafe`
-  - [ ] Use ^
-  - [ ] Use `insert` thingy from doobie-typesafe?
 - [ ] Add integration with anilist/mal
 - [ ] Add view for category management
   - [ ] Add category

@@ -98,10 +98,14 @@ object AssetScrapingConfigRepository:
         scrapingConfig: ExistingAssetScrapingConfig
     ): F[ExistingAssetScrapingConfig] =
       sql"""
-      UPDATE ${AssetScrapingConfigs}
-      SET ${AssetScrapingConfigs.isEnabled === scrapingConfig.isEnabled},
-        ${AssetScrapingConfigs.uri === scrapingConfig.uri},
-        ${AssetScrapingConfigs.site === scrapingConfig.site}
+      ${updateTable(
+          AssetScrapingConfigs,
+          NonEmptyList.of(
+            _.isEnabled --> scrapingConfig.isEnabled,
+            _.uri --> scrapingConfig.uri,
+            _.site --> scrapingConfig.site
+          )
+        )}
       WHERE ${AssetScrapingConfigs.id === scrapingConfig.id}
       """.update.run.transact(xa).as(scrapingConfig)
 

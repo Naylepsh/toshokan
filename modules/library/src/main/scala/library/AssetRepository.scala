@@ -113,25 +113,26 @@ object AssetRepository:
         categoryId: CategoryId
     ): F[Unit] =
       sql"""
-      UPDATE ${Assets}
-      SET ${Assets.categoryId === categoryId.some}
+      ${updateTable(Assets, NonEmptyList.of(_.categoryId --> categoryId.some))}
       WHERE ${Assets.id === asset.id}
       """.update.run.transact(xa).void
 
     override def update(asset: ExistingAsset): F[Unit] =
       sql"""
-      UPDATE ${Assets}
-      SET ${Assets.title === asset.title}
+      ${updateTable(Assets, NonEmptyList.of(_.title --> asset.title))}
       WHERE ${Assets.id === asset.id}
       """.update.run.transact(xa).void
 
     override def update(entry: ExistingAssetEntry): F[Unit] =
       sql"""
-      UPDATE ${AssetEntries}
-      SET ${AssetEntries.no === entry.no},
-        ${AssetEntries.uri === entry.uri},
-        ${AssetEntries.wasSeen === entry.wasSeen},
-        ${AssetEntries.dateUploaded === entry.dateUploaded}
+      ${updateTable(
+          AssetEntries,
+          NonEmptyList.of(
+            _.no --> entry.no,
+            _.wasSeen --> entry.wasSeen,
+            _.dateUploaded --> entry.dateUploaded
+          )
+        )}
       WHERE ${AssetEntries.id === entry.id}
       """.update.run.transact(xa).void
 
