@@ -1,4 +1,5 @@
 package app
+package config
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*

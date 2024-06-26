@@ -102,7 +102,6 @@ object HitomiScraper:
       .map:
         case languageInHrefRegex(language) => language.asRight
         case other =>
-          None
           ScrapeError
             .Other(s"Could not extract language from href: $other")
             .asLeft

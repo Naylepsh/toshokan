@@ -20,13 +20,13 @@ object Dependencies {
   val http4sServer = "org.http4s" %% "http4s-ember-server" % "0.23.27"
   val http4sDsl   = "org.http4s"  %% "http4s-dsl"   % http4sServer.revision
   val http4sCirce = "org.http4s"  %% "http4s-circe" % http4sServer.revision
-  val scalaTags   = "com.lihaoyi" %% "scalatags"    % "0.12.0"
+  val scalaTags   = "com.lihaoyi" %% "scalatags"    % "0.13.1"
 
   // DB Layer
   val doobieCore   = "org.tpolecat" %% "doobie-core"   % "1.0.0-RC5"
   val doobieHikari = "org.tpolecat" %% "doobie-hikari" % doobieCore.revision
-  val hikariCp     = "com.zaxxer"    % "HikariCP"      % "5.0.1"
-  val sqliteJDBC   = "org.xerial"    % "sqlite-jdbc"   % "3.44.0.0"
+  val hikariCp     = "com.zaxxer"    % "HikariCP"      % "5.1.0"
+  val sqliteJDBC   = "org.xerial"    % "sqlite-jdbc"   % "3.36.0"
 
   // Logging
   val slf4j      = "org.slf4j" % "slf4j-simple" % "2.0.13" // Only for http4s
