@@ -4,8 +4,8 @@ import assetScraping.scrapes.domain.ScrapingSummary
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout}
 import library.category.domain.ExistingCategory
-import scalatags.Text.all.*
 import scalatags.Text.TypedTag
+import scalatags.Text.all.*
 
 class AssetScrapingView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString

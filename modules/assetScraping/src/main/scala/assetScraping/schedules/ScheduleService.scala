@@ -1,5 +1,6 @@
 package assetScraping.schedules
 
+import assetScraping.schedules.domain.UpdateScheduleError
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
@@ -9,7 +10,6 @@ import library.category.domain.{CategoryId, ExistingCategory}
 import library.domain.AssetId
 
 import domain.{DayOfTheWeek, ScrapingSchedule, AddScheduleError}
-import assetScraping.schedules.domain.UpdateScheduleError
 
 trait ScheduleService[F[_]]:
   def findAssetsEligibleForScrape: F[List[AssetId]]

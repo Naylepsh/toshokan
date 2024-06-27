@@ -24,7 +24,7 @@ abstract class Newtype[A](using
     dec: Decoder[A],
     read: Read[A],
     readOpt: Read[Option[A]],
-    put: Put[A],
+    put: Put[A]
 ):
   /** Shamelessly copy-pasted from:
     * https://github.com/gvolpe/trading/blob/main/modules/domain/shared/src/main/scala/trading/Newtype.scala

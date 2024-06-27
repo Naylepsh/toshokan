@@ -5,8 +5,8 @@ import java.time.{DayOfWeek, LocalDate}
 
 import scala.util.Try
 
-import cats.{Show, Order}
 import cats.syntax.all.*
+import cats.{Order, Show}
 import doobie.util.{Get, Put}
 import io.circe.{Decoder, Encoder}
 

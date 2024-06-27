@@ -1,5 +1,6 @@
 package app
 
+import assetScraping.configs.domain.Site
 import cats.effect.kernel.Sync
 import com.microsoft.playwright.Browser
 import scraper.domain.SiteScraper
@@ -9,7 +10,6 @@ import scraper.sites.mangakakalot.MangakakalotScraper
 import scraper.sites.yatta.YattaScraper
 import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
-import assetScraping.configs.domain.Site
 
 object SiteScrapers:
   def makeScraperPicker[F[_]: Sync](

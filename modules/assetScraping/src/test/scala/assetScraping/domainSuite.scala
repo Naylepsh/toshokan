@@ -1,9 +1,11 @@
 package assetScraping
 
-import configs.domain.*
-import library.domain.AssetId
 import java.net.URI
+
 import cats.syntax.all.*
+import library.domain.AssetId
+
+import configs.domain.*
 
 class domainSuite extends munit.FunSuite:
   List(

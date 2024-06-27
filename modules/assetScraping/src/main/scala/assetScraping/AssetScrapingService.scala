@@ -9,6 +9,7 @@ import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.all.*
 import core.Measure.*
 import library.AssetService
+import library.category.domain.CategoryId
 import library.domain.*
 import scraper.domain.{EntryFound, JobLabel, SiteScraper}
 import scraper.{Instruction, ScrapeJobSuccess, Scraper}
@@ -17,7 +18,6 @@ import configs.AssetScrapingConfigService
 import configs.domain.{Site, ExistingAssetScrapingConfig}
 import schedules.ScheduleService
 import scrapes.domain.ScrapingSummary
-import library.category.domain.CategoryId
 
 trait AssetScrapingService[F[_]]:
   def getNewReleases: F[ScrapingSummary]

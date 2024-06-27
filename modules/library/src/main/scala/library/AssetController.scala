@@ -3,14 +3,14 @@ package library
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
 import io.circe.Decoder
+import library.category.CategoryService
 import library.domain.*
 import org.http4s.*
 import org.http4s.circe.*
+import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
-import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
-import library.category.CategoryService
 
 class AssetController[F[_]: MonadCancelThrow: Concurrent](
     assetService: AssetService[F],
