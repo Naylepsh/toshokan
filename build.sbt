@@ -1,4 +1,6 @@
-ThisBuild / scalaVersion := "3.4.2"
+ThisBuild / scalaVersion      := "3.4.2"
+// ThisBuild / semanticdbEnabled := true
+// ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 val commonDependencies = Seq(
   Dependencies.catsCore,
@@ -89,14 +91,26 @@ lazy val snapshot = project
   .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core, db)
 
+lazy val progressTracking = project
+  .in(file("modules/progressTracking"))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.sttp,
+      Dependencies.sttpCats,
+      Dependencies.sttpCirce
+    )
+  )
+  .dependsOn(core, doobiex, db, library)
+
 lazy val app = project
   .in(file("modules/app"))
   .settings(
     name := "app",
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
-  .aggregate(core, library, scraper, assetScraping, snapshot)
-  .dependsOn(core, library, scraper, assetScraping, snapshot)
+  .aggregate(core, library, scraper, assetScraping, snapshot, progressTracking)
+  .dependsOn(core, library, scraper, assetScraping, snapshot, progressTracking)
   .disablePlugins(RevolverPlugin)
 
 lazy val root = project
