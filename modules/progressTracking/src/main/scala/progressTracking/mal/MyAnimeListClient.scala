@@ -9,6 +9,8 @@ import sttp.client3.{SttpBackend, UriContext, basicRequest}
 
 import domain.{MangaId, LatestChapter, Term}
 
+case class MalAuth(clientId: String, clientSecret: String)
+
 trait MyAnimeListClient[F[_]]:
   def searchManga(
       token: AuthToken,
@@ -20,11 +22,12 @@ trait MyAnimeListClient[F[_]]:
       latestChapter: LatestChapter
   ): F[Either[Throwable, Unit]]
   def acquireToken(): F[AuthToken]
-  def refreshToken(refreshToken: String): F[AuthToken]
+  def refreshAuthToken(token: RefreshToken): F[Either[Throwable, AuthToken]]
 
 object MyAnimeListClient:
   def make[F[_]: MonadCancelThrow](
-      backend: SttpBackend[F, WebSockets]
+      backend: SttpBackend[F, WebSockets],
+      auth: MalAuth
   ): MyAnimeListClient[F] = new:
     override def searchManga(
         token: AuthToken,
@@ -58,5 +61,24 @@ object MyAnimeListClient:
         .map: response =>
           response.body.void.leftMap(new RuntimeException(_))
 
-    override def acquireToken(): F[AuthToken]                 = ???
-    override def refreshToken(refreshToken: String): F[AuthToken] = ???
+    override def acquireToken(): F[AuthToken] = ???
+
+    override def refreshAuthToken(
+        token: RefreshToken
+    ): F[Either[Throwable, AuthToken]] =
+      val url = uri"https://myanimelist.net/v1/oauth2/token"
+
+      basicRequest
+        .post(url)
+        .body(
+          Map(
+            "client_id"     -> auth.clientId,
+            "client_secret" -> auth.clientSecret,
+            "grant_type"    -> "refresh_token",
+            "refresh_token" -> token.value
+          )
+        )
+        .response(asJson[AuthToken])
+        .send(backend)
+        .map: response =>
+          response.body.leftMap(new RuntimeException(_))

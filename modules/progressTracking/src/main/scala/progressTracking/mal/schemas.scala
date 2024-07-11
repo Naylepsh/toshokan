@@ -1,5 +1,6 @@
 package progressTracking.mal
 
+import core.Newtype
 import io.circe.derivation.{Configuration, ConfiguredDecoder, ConfiguredEncoder}
 import io.circe.{Decoder, Encoder}
 
@@ -20,5 +21,14 @@ object MangaStatus:
 case class UpdateMangaStatusBody(status: MangaStatus, numChaptersRead: Int)
     derives ConfiguredEncoder
 
-case class AuthToken(expiresIn: Long, refreshToken: String, accessToken: String)
-    derives ConfiguredDecoder
+type RefreshToken = RefreshToken.Type
+object RefreshToken extends Newtype[String]
+
+type AccessToken = AccessToken.Type
+object AccessToken extends Newtype[String]
+
+case class AuthToken(
+    expiresIn: Long,
+    refreshToken: RefreshToken,
+    accessToken: AccessToken
+) derives ConfiguredDecoder
