@@ -11,7 +11,7 @@ import http.Routed
 import http.View.NavBarItem
 import org.http4s.HttpRoutes
 import org.http4s.syntax.all.*
-import progressTracking.mal.{AuthToken, MyAnimeListClient}
+import progressTracking.mal.{MalAuth, MyAnimeListClient}
 import progressTracking.{
   ProgressTrackingController,
   ProgressTrackingService,
@@ -23,30 +23,30 @@ import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
 import sttp.client3.httpclient.cats.HttpClientCatsBackend
 
-import util.chaining.*
 import middleware.logErrors
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
     for
-      _                                                     <- logging.init[IO]
-      (serverConfig, dbConfig, snapshotConfig, navBarItems) <- config.load[IO]
+      _ <- logging.init[IO]
+      (serverConfig, dbConfig, snapshotConfig, malAuth, navBarItems) <- config
+        .load[IO]
       result <- setupResources(dbConfig).use:
-        (xa, httpBackend, browser, shutdownSignal, authToken) =>
-          val routes = createControllers(
-            xa,
-            httpBackend,
-            browser,
-            authToken,
-            shutdownSignal,
-            navBarItems
-          ).pipe(Routed.combine)
+        (xa, httpBackend, browser, shutdownSignal) =>
           val snapshotManager = snapshotConfig
             .map(snapshot.git.GitSnapshotManager[IO](_))
             .getOrElse(snapshot.NoopSnapshotManager[IO])
-
-          snapshotManager.saveIfDue()
-            *> startServer(serverConfig, routes, shutdownSignal)
+          createControllers(
+            xa,
+            httpBackend,
+            browser,
+            malAuth,
+            shutdownSignal,
+            navBarItems
+          ).map(Routed.combine)
+            .flatMap: routes =>
+              snapshotManager.saveIfDue()
+                *> startServer(serverConfig, routes, shutdownSignal)
     yield result
 
   private def setupResources(dbConfig: db.Config) =
@@ -57,22 +57,13 @@ object Main extends IOApp.Simple:
         .makePlaywrightResource[IO]
         .evalMap(p => IO.delay(p.chromium().launch()))
       shutdownSignal <- Resource.eval(Deferred[IO, Unit])
-      authToken <- Resource.eval(
-        Ref[IO].of(
-          AuthToken(
-            expiresIn = 1,
-            refreshToken = "...",
-            accessToken = sys.env("MAL_ACCESS_TOKEN")
-          )
-        )
-      )
-    yield (xa, httpBackend, browser, shutdownSignal, authToken)
+    yield (xa, httpBackend, browser, shutdownSignal)
 
   private def createControllers(
       xa: Transactor[IO],
       httpBackend: SttpBackend[IO, WebSockets],
       browser: Browser,
-      authToken: Ref[IO, AuthToken],
+      malAuth: MalAuth,
       shutdownSignal: Deferred[IO, Unit],
       navBarItems: List[NavBarItem]
   ) =
@@ -121,28 +112,29 @@ object Main extends IOApp.Simple:
       assetScrapingView
     )
 
-    val malClient = MyAnimeListClient.make(httpBackend, authToken)
-    val progressTrackingService =
-      ProgressTrackingService.make(xa, malClient, assetService, categoryService)
-    val progressTrackingView = ProgressTrackingView(navBarItems)
-    val progressTrackingController = ProgressTrackingController(
-      assetService,
-      progressTrackingService,
-      progressTrackingView
-    )
+    val malClient = MyAnimeListClient.make(httpBackend, malAuth)
+    ProgressTrackingService
+      .make(xa, malClient, assetService, categoryService)
+      .map: progressTrackingService =>
+        val progressTrackingView = ProgressTrackingView(navBarItems)
+        val progressTrackingController = ProgressTrackingController(
+          assetService,
+          progressTrackingService,
+          progressTrackingView
+        )
 
-    val publicController   = PublicController[IO]()
-    val shutdownController = ShutdownController[IO](shutdownSignal)
+        val publicController   = PublicController[IO]()
+        val shutdownController = ShutdownController[IO](shutdownSignal)
 
-    List(
-      assetController,
-      assetScrapingController,
-      assetScrapingConfigController,
-      scheduleController,
-      progressTrackingController,
-      publicController,
-      shutdownController
-    )
+        List(
+          assetController,
+          assetScrapingController,
+          assetScrapingConfigController,
+          scheduleController,
+          progressTrackingController,
+          publicController,
+          shutdownController
+        )
 
   private def startServer(
       serverConfig: ServerConfig,

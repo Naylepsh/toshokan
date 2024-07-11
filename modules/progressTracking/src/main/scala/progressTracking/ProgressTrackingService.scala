@@ -13,7 +13,7 @@ import doobiex.*
 import library.AssetService
 import library.category.CategoryService
 import library.domain.{AssetId, EntryNo, ExistingAssetEntry}
-import progressTracking.mal.{AuthToken, MyAnimeListClient}
+import progressTracking.mal.{Manga as _, *}
 
 import util.chaining.*
 import domain.*
@@ -35,7 +35,7 @@ trait ProgressTrackingService[F[_]]:
 type EitherThrowable[A] = Either[Throwable, A]
 
 object ProgressTrackingService:
-  def make[F[_]: MonadCancelThrow: Parallel: Concurrent: Clock](
+  def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
       assetService: AssetService[F],
@@ -45,7 +45,7 @@ object ProgressTrackingService:
       .of[F, Option[AuthToken]](None)
       .map(make(xa, malClient, assetService, categoryService, _))
 
-  def make[F[_]: MonadCancelThrow: Parallel: Clock](
+  def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
       assetService: AssetService[F],
@@ -100,21 +100,36 @@ object ProgressTrackingService:
         )
 
     private val getOrRefreshToken: F[Option[AuthToken]] =
-      (
-        TokensSql.getToken("mal-access-token").transact(xa),
-        TokensSql.getToken("mal-refresh-token").transact(xa)
-      ).parTupled
+      getMalToken
         .flatMap:
           case (Some(accessToken), Some(refreshToken)) =>
             AuthToken(0L, refreshToken, accessToken).some.pure
           case (None, Some(refreshToken)) =>
-            malClient
-              .refreshToken(refreshToken)
-              .flatTap(saveMalToken)
-              .map(_.some)
+            refreshMalToken(refreshToken)
           case _ => None.pure
         .flatMap: token =>
           tokenRef.set(token).as(token)
+
+    private def getMalToken: F[(Option[AccessToken], Option[RefreshToken])] =
+      (
+        TokensSql
+          .getToken("mal-access-token")
+          .transact(xa)
+          .map(_.map(AccessToken(_))),
+        TokensSql
+          .getToken("mal-refresh-token")
+          .transact(xa)
+          .map(_.map(RefreshToken(_)))
+      ).parTupled
+
+    private def refreshMalToken(token: RefreshToken): F[Option[AuthToken]] =
+      malClient
+        .refreshAuthToken(token)
+        .flatMap:
+          case Left(error) =>
+            scribe.cats[F].error(error.getMessage).as(None)
+          case Right(token) =>
+            saveMalToken(token).as(token.some)
 
     private def saveMalToken(token: AuthToken): F[Unit] =
       Clock[F].monotonic.flatMap: now =>
@@ -190,7 +205,7 @@ private object Tokens extends TableDefinition("tokens"):
 private object TokensSql:
   def getToken(name: String): ConnectionIO[Option[String]] =
     sql"""
-    SELECT ${Tokens.value}
+    SELECT ${Tokens.name_}
     FROM ${Tokens}
     WHERE ${Tokens.name_ === name}
     AND ${Tokens.expiresAt} > (strftime('%s', 'now') * 1000)"""
