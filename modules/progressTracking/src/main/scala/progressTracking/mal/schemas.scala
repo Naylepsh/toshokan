@@ -20,5 +20,5 @@ object MangaStatus:
 case class UpdateMangaStatusBody(status: MangaStatus, numChaptersRead: Int)
     derives ConfiguredEncoder
 
-case class AuthToken(expiresAt: Long, refreshToken: String, accessToken: String)
+case class AuthToken(expiresIn: Long, refreshToken: String, accessToken: String)
     derives ConfiguredDecoder
