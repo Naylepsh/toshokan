@@ -60,7 +60,7 @@ object Main extends IOApp.Simple:
       authToken <- Resource.eval(
         Ref[IO].of(
           AuthToken(
-            expiresAt = 1,
+            expiresIn = 1,
             refreshToken = "...",
             accessToken = sys.env("MAL_ACCESS_TOKEN")
           )

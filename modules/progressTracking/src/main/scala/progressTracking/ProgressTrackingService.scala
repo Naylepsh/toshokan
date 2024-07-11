@@ -1,8 +1,9 @@
 package progressTracking
 
 import cats.data.{NonEmptyList, OptionT}
-import cats.effect.MonadCancelThrow
+import cats.effect.*
 import cats.syntax.all.*
+import cats.{Functor, Parallel}
 import doobie.ConnectionIO
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
@@ -12,7 +13,7 @@ import doobiex.*
 import library.AssetService
 import library.category.CategoryService
 import library.domain.{AssetId, EntryNo, ExistingAssetEntry}
-import progressTracking.mal.MyAnimeListClient
+import progressTracking.mal.{AuthToken, MyAnimeListClient}
 
 import util.chaining.*
 import domain.*
@@ -24,32 +25,42 @@ import domain.*
  */
 
 trait ProgressTrackingService[F[_]]:
-  def searchForManga(term: Term): F[Either[String, List[Manga]]]
+  def searchForManga(term: Term): F[Either[Throwable, List[Manga]]]
   def assignExternalIdToManga(
       externalId: ExternalMangaId,
       internalId: MangaId
   ): F[Unit]
   def updateProgress(assetId: AssetId, no: EntryNo): F[Either[Throwable, Unit]]
 
-object ProgressTrackingService:
+type EitherThrowable[A] = Either[Throwable, A]
 
-  def make[F[_]: MonadCancelThrow](
+object ProgressTrackingService:
+  def make[F[_]: MonadCancelThrow: Parallel: Concurrent: Clock](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
       assetService: AssetService[F],
       categoryService: CategoryService[F]
+  ): F[ProgressTrackingService[F]] =
+    Ref
+      .of[F, Option[AuthToken]](None)
+      .map(make(xa, malClient, assetService, categoryService, _))
+
+  def make[F[_]: MonadCancelThrow: Parallel: Clock](
+      xa: Transactor[F],
+      malClient: MyAnimeListClient[F],
+      assetService: AssetService[F],
+      categoryService: CategoryService[F],
+      tokenRef: Ref[F, Option[AuthToken]]
   ): ProgressTrackingService[F] = new:
     override def searchForManga(
         term: Term
-    ): F[Either[String, List[Manga]]] =
-      malClient
-        .searchManga(term)
-        .map: result =>
-          result
-            .leftMap(_.toString)
-            .map: body =>
-              body.data.map: d =>
-                Manga(ExternalMangaId(d.node.id), MangaTitle(d.node.title))
+    ): F[Either[Throwable, List[Manga]]] =
+      withToken: token =>
+        Functor[F]
+          .compose[EitherThrowable]
+          .map(malClient.searchManga(token, term)): body =>
+            body.data.map: d =>
+              Manga(ExternalMangaId(d.node.id), MangaTitle(d.node.title))
 
     override def assignExternalIdToManga(
         externalId: ExternalMangaId,
@@ -62,23 +73,72 @@ object ProgressTrackingService:
         assetId: AssetId,
         no: EntryNo
     ): F[Either[Throwable, Unit]] =
-      // TODO: This should also handle the `assetService.setSeen`
+      withToken: token =>
+        val getMangaId = for
+          (asset, entries) <- OptionT(assetService.find(assetId))
+          category <- asset.categoryId
+            .traverse(categoryService.find)
+            .map(_.flatten)
+            .pipe(OptionT(_))
+          mangaId <- Option
+            .when(isLatestEntry(no, entries))(MangaId(asset.id, category.name))
+            .flatten
+            .pipe(OptionT.fromOption(_))
+        yield mangaId
 
-      val getMangaId = for
-        (asset, entries) <- OptionT(assetService.find(assetId))
-        category <- asset.categoryId
-          .traverse(categoryService.find)
-          .map(_.flatten)
-          .pipe(OptionT(_))
-        mangaId <- Option
-          .when(isLatestEntry(no, entries))(MangaId(asset.id, category.name))
-          .flatten
-          .pipe(OptionT.fromOption(_))
-      yield mangaId
+        getMangaId.value
+          .map((_, LatestChapter(no)).tupled)
+          .flatMap(
+            _.fold(Either.unit.pure)(malClient.updateStatus(token, _, _))
+          )
 
-      getMangaId.value
-        .map((_, LatestChapter(no)).tupled)
-        .flatMap(_.fold(Either.unit.pure)(malClient.updateStatus))
+    private def withToken[A](f: AuthToken => F[Either[Throwable, A]]) =
+      tokenRef.get
+        .flatMap(_.fold(getOrRefreshToken)(_.some.pure))
+        .flatMap(
+          _.fold(new RuntimeException("No auth token set").asLeft.pure)(f)
+        )
+
+    private val getOrRefreshToken: F[Option[AuthToken]] =
+      (
+        TokensSql.getToken("mal-access-token").transact(xa),
+        TokensSql.getToken("mal-refresh-token").transact(xa)
+      ).parTupled
+        .flatMap:
+          case (Some(accessToken), Some(refreshToken)) =>
+            AuthToken(0L, refreshToken, accessToken).some.pure
+          case (None, Some(refreshToken)) =>
+            malClient
+              .refreshToken(refreshToken)
+              .flatTap(saveMalToken)
+              .map(_.some)
+          case _ => None.pure
+        .flatMap: token =>
+          tokenRef.set(token).as(token)
+
+    private def saveMalToken(token: AuthToken): F[Unit] =
+      Clock[F].monotonic.flatMap: now =>
+        val nowMillis = now.toMillis
+
+        /** I have no clue what's the actual expiration date for refresh tokens,
+          * so I kinda eyeball it
+          */
+        val refreshTokenExpiresAt = nowMillis + token.expiresIn * 3
+        val accessTokenExpiresAt  = nowMillis + token.expiresIn
+
+        val program = for
+          _ <- TokensSql.upsertToken(
+            "mal-access-token",
+            token.accessToken,
+            accessTokenExpiresAt
+          )
+          _ <- TokensSql.upsertToken(
+            "mal-refresh-token",
+            token.refreshToken,
+            refreshTokenExpiresAt
+          )
+        yield ()
+        program.transact(xa)
 
   /** EntryNo can be just a number, but it can also be a full chapter title. It
     * would probably make sense to force a split into separate EntryTitle and
@@ -120,3 +180,29 @@ private object MalMangaSql:
     WHERE ${MalMangaMapping.mangaId === mangaId}"""
       .queryOf(MalMangaMapping.malId)
       .option
+
+private object Tokens extends TableDefinition("tokens"):
+  val id        = Column[Long]("id")
+  val name_     = Column[String]("name")
+  val value     = Column[String]("value")
+  val expiresAt = Column[Long]("expires_at")
+
+private object TokensSql:
+  def getToken(name: String): ConnectionIO[Option[String]] =
+    sql"""
+    SELECT ${Tokens.value}
+    FROM ${Tokens}
+    WHERE ${Tokens.name_ === name}
+    AND ${Tokens.expiresAt} > (strftime('%s', 'now') * 1000)"""
+      .query[String]
+      .option
+
+  def upsertToken(
+      name: String,
+      value: String,
+      expiresAt: Long
+  ): ConnectionIO[Unit] =
+    sql"""
+    ${insertInto(Tokens, NonEmptyList.of(_.name_ --> name, _.value --> value))}
+    ON CONFLICT ${Tokens.name_} DO UPDATE SET ${Tokens.value === value}
+    """.update.run.void
