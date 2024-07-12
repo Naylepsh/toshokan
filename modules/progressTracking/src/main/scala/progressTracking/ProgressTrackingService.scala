@@ -1,5 +1,7 @@
 package progressTracking
 
+import java.net.URL
+
 import cats.data.{NonEmptyList, OptionT}
 import cats.effect.*
 import cats.syntax.all.*
@@ -14,9 +16,17 @@ import library.AssetService
 import library.category.CategoryService
 import library.domain.{AssetId, EntryNo, ExistingAssetEntry}
 import progressTracking.mal.{Manga as _, *}
+import sttp.model.Uri
 
 import util.chaining.*
+import util.control.NoStackTrace
 import domain.*
+
+case object NoAuthToken extends NoStackTrace
+type NoAuthToken = NoAuthToken.type
+
+case object NoCodeChallenge extends NoStackTrace
+type NoCodeChallenge = NoCodeChallenge.type
 
 /*
  * ProgressTracking module should probably sit on top of the library module?
@@ -31,6 +41,8 @@ trait ProgressTrackingService[F[_]]:
       internalId: MangaId
   ): F[Unit]
   def updateProgress(assetId: AssetId, no: EntryNo): F[Either[Throwable, Unit]]
+  def acquireToken(code: String): F[Either[Throwable, Unit]]
+  def prepareForTokenAcqusition: F[Uri]
 
 type EitherThrowable[A] = Either[Throwable, A]
 
@@ -38,19 +50,31 @@ object ProgressTrackingService:
   def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
+      authRedirectLink: URL,
       assetService: AssetService[F],
       categoryService: CategoryService[F]
   ): F[ProgressTrackingService[F]] =
-    Ref
-      .of[F, Option[AuthToken]](None)
-      .map(make(xa, malClient, assetService, categoryService, _))
+    for
+      token         <- Ref.of[F, Option[AuthToken]](None)
+      codeChallenge <- Ref.of[F, Option[String]](None)
+    yield make(
+      xa,
+      malClient,
+      authRedirectLink,
+      assetService,
+      categoryService,
+      token,
+      codeChallenge
+    )
 
   def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
+      authRedirectLink: URL,
       assetService: AssetService[F],
       categoryService: CategoryService[F],
-      tokenRef: Ref[F, Option[AuthToken]]
+      tokenRef: Ref[F, Option[AuthToken]],
+      codeChallengeRef: Ref[F, Option[String]]
   ): ProgressTrackingService[F] = new:
     override def searchForManga(
         term: Term
@@ -92,11 +116,30 @@ object ProgressTrackingService:
             _.fold(Either.unit.pure)(malClient.updateStatus(token, _, _))
           )
 
+    override val prepareForTokenAcqusition: F[Uri] =
+      for
+        codeChallenge <- malClient.generateCodeChallenge
+        authLink = malClient.createAuthorizationLink(
+          authRedirectLink,
+          codeChallenge
+        )
+        _ <- codeChallengeRef.set(codeChallenge.some)
+      yield authLink
+
+    override def acquireToken(code: String): F[Either[Throwable, Unit]] =
+      codeChallengeRef.get.flatMap(_.fold(NoCodeChallenge.asLeft.pure):
+        codeChallenge =>
+          malClient
+            .acquireToken(code, codeChallenge)
+            .flatMap(_.traverse(saveMalToken))
+            .flatTap(_ => codeChallengeRef.set(None))
+      )
+
     private def withToken[A](f: AuthToken => F[Either[Throwable, A]]) =
       tokenRef.get
         .flatMap(_.fold(getOrRefreshToken)(_.some.pure))
         .flatMap(
-          _.fold(new RuntimeException("No auth token set").asLeft.pure)(f)
+          _.fold(NoAuthToken.asLeft.pure)(f)
         )
 
     private val getOrRefreshToken: F[Option[AuthToken]] =
