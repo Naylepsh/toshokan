@@ -23,9 +23,7 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Sync](
       service
         .searchForManga(term)
         .flatMap:
-          case Left(error) =>
-            scribe.cats[F].error(error)
-              *> InternalServerError("Something went wrong")
+          case Left(error) => MonadCancelThrow[F].raiseError(error)
           case Right(mangaMatches) =>
             Ok(
               view.mangaMatchesPartial(mangaMatches),
@@ -43,8 +41,18 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Sync](
               `Content-Type`(MediaType.text.html)
             )
 
+    case POST -> Root / "mal" =>
+      service.prepareForTokenAcqusition.flatMap(uri => Ok(uri.toString))
+
+    case GET -> Root / "mal" :? CodeQueryParamMatcher(code) =>
+      service
+        .acquireToken(code)
+        .flatMap(_.fold(MonadCancelThrow[F].raiseError, _ => Ok("")))
+
   val routes = Router("progress-tracking" -> httpRoutes)
 
 given QueryParamDecoder[Term] = QueryParamDecoder[String].map(Term(_))
 
 object TermQueryParam extends QueryParamDecoderMatcher[Term]("term")
+
+object CodeQueryParamMatcher extends QueryParamDecoderMatcher[String]("code")
