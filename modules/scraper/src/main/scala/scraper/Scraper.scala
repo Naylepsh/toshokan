@@ -28,8 +28,9 @@ object Scraper:
     def scrape(instructions: List[Instruction[F]]): F[ScrapeResults] =
       instructions
         .groupBy(_._3)
+        .values
         .toList
-        .parTraverse: (_, instructions) =>
+        .parTraverse: instructions =>
           instructions.traverse(findEntries.tupled)
         .map: results =>
           combineResults(results.flatten)

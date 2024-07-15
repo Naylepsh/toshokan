@@ -10,8 +10,8 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.microsoft.playwright.{Browser, Page}
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
-import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
+import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.model.Element
 import scraper.domain.*
 
@@ -24,13 +24,15 @@ class HitomiScraper[F[_]: MonadCancelThrow: Sync](
   import HitomiScraper.*
 
   override def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
-    browser.makePage.use: page =>
-      scribe.cats[F].debug(s"Scraping $uri")
-        *> page.navigateSafe(uri.toString)
-        *> waitForContentToLoad(page).flatMap:
-          case Left(error) => error.asLeft.pure
-          case Right(_)    => parse(page).pure
-        <* scribe.cats[F].debug(s"Done with $uri")
+    browser.makePage
+      .use: page =>
+        scribe.cats[F].debug(s"Scraping $uri")
+          *> page.navigateSafe(uri.toString)
+          *> waitForContentToLoad(page).flatMap:
+            case Left(error) => error.asLeft.pure
+            case Right(_)    => parse(page).pure
+          <* scribe.cats[F].debug(s"Done with $uri")
+      .handleError(error => ScrapeError.Other(error.getMessage).asLeft)
 
   private def waitForContentToLoad(page: Page) =
     page
