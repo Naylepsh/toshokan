@@ -1,7 +1,7 @@
 package progressTracking
 package mal
 
-import java.net.URL
+import java.net.URI
 
 import cats.effect.MonadCancelThrow
 import cats.effect.std.Random
@@ -31,12 +31,13 @@ trait MyAnimeListClient[F[_]]:
       codeChallenge: String
   ): F[Either[Throwable, AuthToken]]
   def generateCodeChallenge: F[String]
-  def createAuthorizationLink(redirectUri: URL, codeChallenge: String): Uri
+  def createAuthorizationLink(redirectUri: URI, codeChallenge: String): Uri
 
 object MyAnimeListClient:
-  def make[F[_]: MonadCancelThrow: Random](
+  def make[F[_]: MonadCancelThrow](
       backend: SttpBackend[F, WebSockets],
-      auth: MalAuth
+      auth: MalAuth,
+      random: Random[F]
   ): MyAnimeListClient[F] = new:
     override def searchManga(
         token: AuthToken,
@@ -109,7 +110,7 @@ object MyAnimeListClient:
           response.body.leftMap(new RuntimeException(_))
 
     override def createAuthorizationLink(
-        redirectUri: URL,
+        redirectUri: URI,
         codeChallenge: String
     ): Uri =
       val params = Map(
@@ -123,5 +124,5 @@ object MyAnimeListClient:
 
     override val generateCodeChallenge: F[String] =
       (1 to 50).toList
-        .traverse(_ => Random[F].nextAlphaNumeric)
+        .traverse(_ => random.nextAlphaNumeric)
         .map(_.mkString)

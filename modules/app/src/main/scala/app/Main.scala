@@ -1,10 +1,13 @@
 package app
 
+import java.net.URI
+
 import assetScraping.configs.AssetScrapingConfigController
 import assetScraping.schedules.*
 import assetScraping.{AssetScrapingController, AssetScrapingView}
 import cats.effect.*
 import cats.effect.kernel.Resource
+import cats.effect.std.Random
 import com.microsoft.playwright.Browser
 import doobie.Transactor
 import http.Routed
@@ -31,6 +34,7 @@ object Main extends IOApp.Simple:
       _ <- logging.init[IO]
       (serverConfig, dbConfig, snapshotConfig, malAuth, navBarItems) <- config
         .load[IO]
+      random <- Random.scalaUtilRandom[IO]
       result <- setupResources(dbConfig).use:
         (xa, httpBackend, browser, shutdownSignal) =>
           val snapshotManager = snapshotConfig
@@ -42,7 +46,8 @@ object Main extends IOApp.Simple:
             browser,
             malAuth,
             shutdownSignal,
-            navBarItems
+            navBarItems,
+            random
           ).map(Routed.combine)
             .flatMap: routes =>
               snapshotManager.saveIfDue()
@@ -65,7 +70,8 @@ object Main extends IOApp.Simple:
       browser: Browser,
       malAuth: MalAuth,
       shutdownSignal: Deferred[IO, Unit],
-      navBarItems: List[NavBarItem]
+      navBarItems: List[NavBarItem],
+      random: Random[IO]
   ) =
     val categoryRepo = library.category.CategoryRepository.make[IO](xa)
     val categoryService =
@@ -112,9 +118,10 @@ object Main extends IOApp.Simple:
       assetScrapingView
     )
 
-    val malClient = MyAnimeListClient.make(httpBackend, malAuth)
+    val authRedirectUrl = new URI("")
+    val malClient = MyAnimeListClient.make[IO](httpBackend, malAuth, random)
     ProgressTrackingService
-      .make(xa, malClient, assetService, categoryService)
+      .make(xa, malClient, authRedirectUrl, assetService, categoryService)
       .map: progressTrackingService =>
         val progressTrackingView = ProgressTrackingView(navBarItems)
         val progressTrackingController = ProgressTrackingController(

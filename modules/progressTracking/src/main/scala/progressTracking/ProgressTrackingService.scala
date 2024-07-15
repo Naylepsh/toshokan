@@ -1,6 +1,6 @@
 package progressTracking
 
-import java.net.URL
+import java.net.URI
 
 import cats.data.{NonEmptyList, OptionT}
 import cats.effect.*
@@ -50,7 +50,7 @@ object ProgressTrackingService:
   def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
-      authRedirectLink: URL,
+      authRedirectLink: URI,
       assetService: AssetService[F],
       categoryService: CategoryService[F]
   ): F[ProgressTrackingService[F]] =
@@ -70,7 +70,7 @@ object ProgressTrackingService:
   def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
-      authRedirectLink: URL,
+      authRedirectLink: URI,
       assetService: AssetService[F],
       categoryService: CategoryService[F],
       tokenRef: Ref[F, Option[AuthToken]],
