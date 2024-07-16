@@ -1,7 +1,5 @@
 package progressTracking
 
-import java.net.URI
-
 import cats.data.{NonEmptyList, OptionT}
 import cats.effect.*
 import cats.syntax.all.*
@@ -50,7 +48,6 @@ object ProgressTrackingService:
   def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
-      authRedirectLink: URI,
       assetService: AssetService[F],
       categoryService: CategoryService[F]
   ): F[ProgressTrackingService[F]] =
@@ -60,7 +57,6 @@ object ProgressTrackingService:
     yield make(
       xa,
       malClient,
-      authRedirectLink,
       assetService,
       categoryService,
       token,
@@ -70,7 +66,6 @@ object ProgressTrackingService:
   def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F],
-      authRedirectLink: URI,
       assetService: AssetService[F],
       categoryService: CategoryService[F],
       tokenRef: Ref[F, Option[AuthToken]],
@@ -119,10 +114,7 @@ object ProgressTrackingService:
     override val prepareForTokenAcqusition: F[Uri] =
       for
         codeChallenge <- malClient.generateCodeChallenge
-        authLink = malClient.createAuthorizationLink(
-          authRedirectLink,
-          codeChallenge
-        )
+        authLink = malClient.createAuthorizationLink(codeChallenge)
         _ <- codeChallengeRef.set(codeChallenge.some)
       yield authLink
 
@@ -261,6 +253,13 @@ private object TokensSql:
       expiresAt: Long
   ): ConnectionIO[Unit] =
     sql"""
-    ${insertInto(Tokens, NonEmptyList.of(_.name_ --> name, _.value --> value))}
-    ON CONFLICT ${Tokens.name_} DO UPDATE SET ${Tokens.value === value}
+    ${insertInto(
+        Tokens,
+        NonEmptyList.of(
+          _.name_ --> name,
+          _.value --> value,
+          _.expiresAt --> expiresAt
+        )
+      )}
+    ON CONFLICT (${Tokens.name_}) DO UPDATE SET ${Tokens.value === value}
     """.update.run.void

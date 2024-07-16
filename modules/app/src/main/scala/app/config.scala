@@ -5,6 +5,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import http.View.NavBarItem
 import progressTracking.mal.MalAuth
+import java.net.URI
 
 def load[F[_]](using F: Sync[F]) =
   F.delay:
@@ -13,6 +14,7 @@ def load[F[_]](using F: Sync[F]) =
     val snapshotRecencyThreshold = sys.env.get("SNAPSHOT_RECENCY_THRESHOLD")
     val malClientId              = sys.env("MAL_CLIENT_ID")
     val malSecret                = sys.env("MAL_SECRET")
+    val malRedirectUrl           = new URI(sys.env("MAL_REDIRECT_URL"))
 
     val serverConfig = ServerConfig.default
     val dbConfig     = db.Config.forSqlite(db.Path(databaseUrl))
@@ -23,7 +25,7 @@ def load[F[_]](using F: Sync[F]) =
           snapshot.git.PathToSnapshot(path),
           snapshot.git.RecencyThreshold(threshold.toInt)
         )
-    val malAuth = MalAuth(malClientId, malSecret)
+    val malAuth = MalAuth(malClientId, malSecret, malRedirectUrl)
     val navBarItems = List(
       NavBarItem("Assets", "/assets"),
       NavBarItem("New releases", "/assets/entries-by-release-date"),
