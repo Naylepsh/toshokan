@@ -13,7 +13,7 @@ import sttp.model.Uri
 
 import domain.{MangaId, LatestChapter, Term}
 
-case class MalAuth(clientId: String, clientSecret: String)
+case class MalAuth(clientId: String, clientSecret: String, redirectUri: URI)
 
 trait MyAnimeListClient[F[_]]:
   def searchManga(
@@ -31,7 +31,7 @@ trait MyAnimeListClient[F[_]]:
       codeChallenge: String
   ): F[Either[Throwable, AuthToken]]
   def generateCodeChallenge: F[String]
-  def createAuthorizationLink(redirectUri: URI, codeChallenge: String): Uri
+  def createAuthorizationLink(codeChallenge: String): Uri
 
 object MyAnimeListClient:
   def make[F[_]: MonadCancelThrow](
@@ -101,7 +101,8 @@ object MyAnimeListClient:
             "client_secret" -> auth.clientSecret,
             "grant_type"    -> "authorization_code",
             "code"          -> code,
-            "code_verifier" -> codeChallenge
+            "code_verifier" -> codeChallenge,
+            "redirect_uri"  -> auth.redirectUri.toString
           )
         )
         .response(asJson[AuthToken])
@@ -110,7 +111,6 @@ object MyAnimeListClient:
           response.body.leftMap(new RuntimeException(_))
 
     override def createAuthorizationLink(
-        redirectUri: URI,
         codeChallenge: String
     ): Uri =
       val params = Map(
@@ -118,7 +118,7 @@ object MyAnimeListClient:
         "response_type"         -> "code",
         "code_challenge"        -> codeChallenge,
         "code_challenge_method" -> "plain",
-        "redirect_uri"          -> redirectUri.toString
+        "redirect_uri"          -> auth.redirectUri.toString
       )
       uri"https://myanimelist.net/v1/oauth2/authorize?${params}"
 

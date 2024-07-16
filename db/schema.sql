@@ -43,9 +43,16 @@ CREATE TABLE scraping_schedules (
         REFERENCES categories (id)
         ON DELETE CASCADE
 );
+CREATE TABLE tokens (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    value TEXT NOT NULL UNIQUE,
+    expires_at INTEGER NOT NULL
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20240130211545'),
   ('20240524194511'),
   ('20240529124324'),
-  ('20240529175125');
+  ('20240529175125'),
+  ('20240712124302');

@@ -1,7 +1,5 @@
 package app
 
-import java.net.URI
-
 import assetScraping.configs.AssetScrapingConfigController
 import assetScraping.schedules.*
 import assetScraping.{AssetScrapingController, AssetScrapingView}
@@ -118,10 +116,9 @@ object Main extends IOApp.Simple:
       assetScrapingView
     )
 
-    val authRedirectUrl = new URI("")
     val malClient = MyAnimeListClient.make[IO](httpBackend, malAuth, random)
     ProgressTrackingService
-      .make(xa, malClient, authRedirectUrl, assetService, categoryService)
+      .make(xa, malClient, assetService, categoryService)
       .map: progressTrackingService =>
         val progressTrackingView = ProgressTrackingView(navBarItems)
         val progressTrackingController = ProgressTrackingController(

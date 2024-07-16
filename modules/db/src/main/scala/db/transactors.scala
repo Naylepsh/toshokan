@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import doobie.*
 import doobie.hikari.HikariTransactor
 import doobie.implicits.*
+import doobie.util.log.{LogEvent, LogHandler}
 
 object transactors:
   def makeSqliteTransactorResource[F[_]: Async](
@@ -24,3 +25,7 @@ object transactors:
         sql"PRAGMA foreign_keys=ON".update.run *> _
       )
     yield sqliteXa
+
+  def printSqlLogHandler[F[_]: Sync]: LogHandler[F] = new:
+    override def run(logEvent: LogEvent): F[Unit] =
+      Sync[F].delay(println(logEvent.sql))
