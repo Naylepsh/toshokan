@@ -143,6 +143,7 @@ object ProgressTrackingService:
             refreshMalToken(refreshToken)
           case _ => None.pure
         .flatMap: token =>
+          println(s"[getOrRefreshToken] found token=$token")
           tokenRef.set(token).as(token)
 
     private def getMalToken: F[(Option[AccessToken], Option[RefreshToken])] =
@@ -167,14 +168,14 @@ object ProgressTrackingService:
             saveMalToken(token).as(token.some)
 
     private def saveMalToken(token: AuthToken): F[Unit] =
-      Clock[F].monotonic.flatMap: now =>
+      Clock[F].realTime.flatMap: now =>
         val nowMillis = now.toMillis
 
         /** I have no clue what's the actual expiration date for refresh tokens,
           * so I kinda eyeball it
           */
-        val refreshTokenExpiresAt = nowMillis + token.expiresIn * 3
-        val accessTokenExpiresAt  = nowMillis + token.expiresIn
+        val refreshTokenExpiresAt = nowMillis + (token.expiresIn * 1000) * 3
+        val accessTokenExpiresAt  = nowMillis + (token.expiresIn * 1000)
 
         val program = for
           _ <- TokensSql.upsertToken(
@@ -240,7 +241,7 @@ private object Tokens extends TableDefinition("tokens"):
 private object TokensSql:
   def getToken(name: String): ConnectionIO[Option[String]] =
     sql"""
-    SELECT ${Tokens.name_}
+    SELECT ${Tokens.value}
     FROM ${Tokens}
     WHERE ${Tokens.name_ === name}
     AND ${Tokens.expiresAt} > (strftime('%s', 'now') * 1000)"""
