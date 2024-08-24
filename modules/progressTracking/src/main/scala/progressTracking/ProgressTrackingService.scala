@@ -143,7 +143,6 @@ object ProgressTrackingService:
             refreshMalToken(refreshToken)
           case _ => None.pure
         .flatMap: token =>
-          println(s"[getOrRefreshToken] found token=$token")
           tokenRef.set(token).as(token)
 
     private def getMalToken: F[(Option[AccessToken], Option[RefreshToken])] =
