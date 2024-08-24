@@ -49,10 +49,21 @@ CREATE TABLE tokens (
     value TEXT NOT NULL UNIQUE,
     expires_at INTEGER NOT NULL
 );
+CREATE TABLE mal_manga_mapping (
+    id INTEGER PRIMARY KEY,
+    manga_id INTEGER NOT NULL UNIQUE,
+    mal_id INTEGER NOT NULL UNIQUE,
+
+    CONSTRAINT fk_manga_id
+        FOREIGN KEY (manga_id)
+        REFERENCES assets (id)
+        ON DELETE CASCADE
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20240130211545'),
   ('20240524194511'),
   ('20240529124324'),
   ('20240529175125'),
-  ('20240712124302');
+  ('20240712124302'),
+  ('20240824174343');
