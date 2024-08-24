@@ -1,17 +1,19 @@
 package progressTracking
 
-import cats.effect.{Sync, MonadCancelThrow}
+import cats.effect.{MonadCancelThrow, Concurrent}
 import cats.syntax.all.*
 import library.AssetController.AssetIdVar
 import library.AssetService
+import library.domain.AssetId
 import org.http4s.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.headers.*
 import org.http4s.server.Router
 
 import domain.Term
+import schemas.{*, given}
 
-class ProgressTrackingController[F[_]: MonadCancelThrow: Sync](
+class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
     assetService: AssetService[F],
     service: ProgressTrackingService[F],
     view: ProgressTrackingView
@@ -26,7 +28,7 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Sync](
           case Left(error) => MonadCancelThrow[F].raiseError(error)
           case Right(mangaMatches) =>
             Ok(
-              view.mangaMatchesPartial(mangaMatches),
+              view.mangaMatchesPartial(id, mangaMatches),
               `Content-Type`(MediaType.text.html)
             )
 
@@ -41,6 +43,18 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Sync](
               `Content-Type`(MediaType.text.html)
             )
 
+    case req @ POST -> Root / "mal" / "manga-mapping" =>
+      withJsonErrorsHandled[NewMalMangaMappingDTO](req): newMalLinking =>
+        service
+          .assignExternalIdToManga(newMalLinking.malId, newMalLinking.assetId)
+          .flatMap:
+            case Left(AssetNotFound) => NotFound("Asset not found")
+            case Left(CategoryNotFound | AssetIsNotManga) =>
+              BadRequest("Asset illegible for MAL integration")
+            case Left(ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned) =>
+              Conflict("Duplicate mangaId / externalId assignment")
+            case Right(_) => Ok("")
+
     case POST -> Root / "mal" =>
       service.prepareForTokenAcqusition.flatMap(uri => Ok(uri.toString))
 
@@ -53,6 +67,7 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Sync](
 
 given QueryParamDecoder[Term] = QueryParamDecoder[String].map(Term(_))
 
-object TermQueryParam extends QueryParamDecoderMatcher[Term]("term")
+private object TermQueryParam extends QueryParamDecoderMatcher[Term]("term")
 
-object CodeQueryParamMatcher extends QueryParamDecoderMatcher[String]("code")
+private object CodeQueryParamMatcher
+    extends QueryParamDecoderMatcher[String]("code")

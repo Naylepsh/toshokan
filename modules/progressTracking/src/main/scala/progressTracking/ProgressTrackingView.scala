@@ -2,11 +2,13 @@ package progressTracking
 
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout}
+import io.circe.syntax.*
 import library.domain.*
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
 import domain.Manga
+import schemas.NewMalMangaMappingDTO
 
 class ProgressTrackingView(navbarItems: List[NavBarItem]):
   def renderMangaSearch(
@@ -19,7 +21,10 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
       navbarItems
     )
 
-  def mangaMatchesPartial(matches: List[Manga]): TypedTag[String] =
+  def mangaMatchesPartial(
+      assetId: AssetId,
+      matches: List[Manga]
+  ): TypedTag[String] =
     div(
       cls := "mx-auto max-w-96",
       table(
@@ -37,7 +42,14 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
               th(manga.id.show),
               td(manga.title.show),
               td(
-                button(attr("hx-post") := "TODO", "Commit")
+                button(
+                  attr("hx-post") := "/progress-tracking/mal/manga-mapping",
+                  attr(
+                    "hx-vals"
+                  ) := NewMalMangaMappingDTO(assetId, manga.id).asJson.toString,
+                  attr("hx-ext") := "json-enc",
+                  "Commit"
+                )
               )
             ),
         )

@@ -1,6 +1,6 @@
 package progressTracking
 
-import cats.data.{NonEmptyList, OptionT}
+import cats.data.{EitherT, NonEmptyList, OptionT}
 import cats.effect.*
 import cats.syntax.all.*
 import cats.{Functor, Parallel}
@@ -12,7 +12,7 @@ import doobie.util.transactor.Transactor
 import doobiex.*
 import library.AssetService
 import library.category.CategoryService
-import library.domain.{AssetId, EntryNo, ExistingAssetEntry}
+import library.domain.*
 import progressTracking.mal.{Manga as _, *}
 import sttp.model.Uri
 
@@ -26,6 +26,24 @@ type NoAuthToken = NoAuthToken.type
 case object NoCodeChallenge extends NoStackTrace
 type NoCodeChallenge = NoCodeChallenge.type
 
+case object AssetNotFound extends NoStackTrace
+type AssetNotFound = AssetNotFound.type
+
+case object CategoryNotFound extends NoStackTrace
+type CategoryNotFound = CategoryNotFound.type
+
+case object AssetIsNotManga extends NoStackTrace
+type AssetIsNotManga = AssetIsNotManga.type
+
+case object ExternalIdAlreadyInUse extends NoStackTrace
+type ExternalIdAlreadyInUse = ExternalIdAlreadyInUse.type
+
+case object MangaAlreadyHasExternalIdAssigned extends NoStackTrace
+type MangaAlreadyHasExternalIdAssigned = MangaAlreadyHasExternalIdAssigned.type
+
+type AssignExternalIdToMangaError = AssetNotFound | CategoryNotFound |
+  AssetIsNotManga | ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned
+
 /*
  * ProgressTracking module should probably sit on top of the library module?
  * Then the `wasSeen` should be probably moved from there to this module as well?
@@ -36,8 +54,8 @@ trait ProgressTrackingService[F[_]]:
   def searchForManga(term: Term): F[Either[Throwable, List[Manga]]]
   def assignExternalIdToManga(
       externalId: ExternalMangaId,
-      internalId: MangaId
-  ): F[Unit]
+      internalId: AssetId
+  ): F[Either[AssignExternalIdToMangaError, Unit]]
   def updateProgress(assetId: AssetId, no: EntryNo): F[Either[Throwable, Unit]]
   def acquireToken(code: String): F[Either[Throwable, Unit]]
   def prepareForTokenAcqusition: F[Uri]
@@ -83,10 +101,41 @@ object ProgressTrackingService:
 
     override def assignExternalIdToManga(
         externalId: ExternalMangaId,
-        internalId: MangaId
-    ): F[Unit] = MalMangaSql
-      .assignMalIdToManga(externalId, internalId)
-      .transact(xa)
+        internalId: AssetId
+    ): F[Either[AssignExternalIdToMangaError, Unit]] =
+      val getMangaId = for
+        (asset, _) <- EitherT.fromOptionF(
+          assetService.find(internalId),
+          AssetNotFound: AssignExternalIdToMangaError
+        )
+        category <- EitherT.fromOptionF(
+          asset.categoryId.traverse(categoryService.find).map(_.flatten),
+          CategoryNotFound
+        )
+        mangaId <- EitherT.fromEither(
+          Either
+            .fromOption(MangaId(asset.id, category.name), AssetIsNotManga)
+        )
+      yield mangaId
+
+      getMangaId.value.flatMap:
+        case Left(error) => error.asLeft.pure
+        case Right(mangaId) =>
+          (
+            MalMangaSql.findMalId(mangaId),
+            MalMangaSql.findMangaId(externalId)
+          ).tupled
+            .transact(xa)
+            .flatMap:
+              case (Some(_), _) =>
+                ExternalIdAlreadyInUse.asLeft.pure
+              case (_, Some(_)) =>
+                MangaAlreadyHasExternalIdAssigned.asLeft.pure
+              case (None, None) =>
+                MalMangaSql
+                  .assignMalIdToManga(externalId, mangaId)
+                  .transact(xa)
+                  .map(_.asRight)
 
     override def updateProgress(
         assetId: AssetId,
@@ -223,12 +272,20 @@ private object MalMangaSql:
 
   def findMalId(
       mangaId: MangaId
-  ): ConnectionIO[Option[ExternalMangaId.Type]] =
+  ): ConnectionIO[Option[ExternalMangaId]] =
     sql"""
     SELECT ${MalMangaMapping.malId}
     FROM ${MalMangaMapping}
     WHERE ${MalMangaMapping.mangaId === mangaId}"""
       .queryOf(MalMangaMapping.malId)
+      .option
+
+  def findMangaId(malId: ExternalMangaId): ConnectionIO[Option[MangaId]] =
+    sql"""
+    SELECT ${MalMangaMapping.mangaId}
+    FROM ${MalMangaMapping}
+    WHERE ${MalMangaMapping.malId === malId}"""
+      .queryOf(MalMangaMapping.mangaId)
       .option
 
 private object Tokens extends TableDefinition("tokens"):
