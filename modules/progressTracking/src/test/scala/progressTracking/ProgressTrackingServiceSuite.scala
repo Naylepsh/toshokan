@@ -11,14 +11,13 @@ import db.{Config, Path}
 import doobie.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
+import library.category.domain.{CategoryName, NewCategory}
 import library.category.{CategoryRepository, CategoryService}
 import library.domain.{AssetId, AssetTitle, NewAsset}
 import library.{AssetRepository, AssetService}
 import progressTracking.domain.*
 import progressTracking.mal.*
 import sttp.model.Uri
-import library.category.domain.NewCategory
-import library.category.domain.CategoryName
 
 class ProgressTrackingServiceSuite extends munit.CatsEffectSuite:
   import ProgressTrackingServiceSuite.*
