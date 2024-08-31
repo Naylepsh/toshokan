@@ -13,7 +13,8 @@ val commonDependencies = Seq(
   Dependencies.validator,
   Dependencies.scribe,
   Dependencies.scribeCats,
-  Dependencies.munit % Test
+  Dependencies.munit % Test,
+  Dependencies.munitCatsEffect % Test
 )
 
 lazy val core = project

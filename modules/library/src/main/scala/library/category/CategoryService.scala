@@ -1,17 +1,19 @@
 package library.category
 
-import cats.Functor
-import cats.syntax.functor.*
-
 import domain.*
+import cats.Monad
+import cats.syntax.all.*
 
 trait CategoryService[F[_]]:
   def find(id: CategoryId): F[Option[ExistingCategory]]
   def find(ids: List[CategoryId]): F[List[ExistingCategory]]
   def findAll: F[List[ExistingCategory]]
+  def add(
+      newCategory: NewCategory
+  ): F[Either[AddCategoryError, ExistingCategory]]
 
 object CategoryService:
-  def make[F[_]: Functor](
+  def make[F[_]: Monad](
       repository: CategoryRepository[F]
   ): CategoryService[F] = new:
 
@@ -24,3 +26,12 @@ object CategoryService:
           ids.contains(category.id)
 
     override def findAll: F[List[ExistingCategory]] = repository.findAll
+
+    override def add(
+        newCategory: NewCategory
+    ): F[Either[AddCategoryError, ExistingCategory]] =
+      repository.findAll.flatMap: categories =>
+        categories
+          .find(_.name.eqv(newCategory.name))
+          .fold(repository.add(newCategory).map(_.asRight)): _ =>
+            AddCategoryError.CategoryAlreadyExists.asLeft.pure
