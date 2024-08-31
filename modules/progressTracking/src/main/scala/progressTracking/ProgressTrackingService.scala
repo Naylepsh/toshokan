@@ -127,9 +127,9 @@ object ProgressTrackingService:
           ).tupled
             .transact(xa)
             .flatMap:
-              case (Some(_), _) =>
-                ExternalIdAlreadyInUse.asLeft.pure
               case (_, Some(_)) =>
+                ExternalIdAlreadyInUse.asLeft.pure
+              case (Some(_), _) =>
                 MangaAlreadyHasExternalIdAssigned.asLeft.pure
               case (None, None) =>
                 MalMangaSql

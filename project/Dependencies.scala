@@ -1,4 +1,4 @@
-import sbt._
+import sbt.*
 
 object Dependencies {
   val catsCore     = "org.typelevel"           %% "cats-core"         % "2.12.0"
@@ -34,5 +34,6 @@ object Dependencies {
   val scribeCats = "com.outr" %% "scribe-cats"  % scribe.revision
 
   // Tests
-  val munit = "org.scalameta" %% "munit" % "1.0.0"
+  val munit           = "org.scalameta" %% "munit"             % "1.0.0"
+  val munitCatsEffect = "org.typelevel" %% "munit-cats-effect" % "2.0.0"
 }
