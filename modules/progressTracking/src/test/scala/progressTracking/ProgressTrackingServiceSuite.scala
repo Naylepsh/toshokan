@@ -1,7 +1,9 @@
 package progressTracking
 
+import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+import java.time.LocalDate
 
 import cats.data.EitherT
 import cats.effect.IO
@@ -13,19 +15,11 @@ import doobie.implicits.*
 import doobie.util.transactor.Transactor
 import library.category.domain.{CategoryName, NewCategory}
 import library.category.{CategoryRepository, CategoryService}
-import library.domain.{AssetId, AssetTitle, NewAsset}
+import library.domain.*
 import library.{AssetRepository, AssetService}
 import progressTracking.domain.*
 import progressTracking.mal.*
 import sttp.model.Uri
-import library.domain.EntryNo
-import library.domain.ExistingAssetEntry
-import library.domain.EntryId
-import library.domain.EntryUri
-import java.net.URI
-import library.domain.WasEntrySeen
-import library.domain.DateUploaded
-import java.time.LocalDate
 
 class ProgressTrackingServiceSuite extends munit.CatsEffectSuite:
   import ProgressTrackingServiceSuite.*
