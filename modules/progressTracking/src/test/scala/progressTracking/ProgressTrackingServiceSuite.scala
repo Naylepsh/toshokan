@@ -18,6 +18,14 @@ import library.{AssetRepository, AssetService}
 import progressTracking.domain.*
 import progressTracking.mal.*
 import sttp.model.Uri
+import library.domain.EntryNo
+import library.domain.ExistingAssetEntry
+import library.domain.EntryId
+import library.domain.EntryUri
+import java.net.URI
+import library.domain.WasEntrySeen
+import library.domain.DateUploaded
+import java.time.LocalDate
 
 class ProgressTrackingServiceSuite extends munit.CatsEffectSuite:
   import ProgressTrackingServiceSuite.*
@@ -106,8 +114,66 @@ class ProgressTrackingServiceSuite extends munit.CatsEffectSuite:
 
     assertIO(result.value, Left(ExternalIdAlreadyInUse))
 
+  test("isLatestEntry is false for non-numeric"):
+    assertEquals(
+      ProgressTrackingService
+        .isLatestEntry(EntryNo("The last chapter"), entries),
+      false
+    )
+
+  test("isLatestEntry is false for fractional"):
+    assertEquals(
+      ProgressTrackingService.isLatestEntry(EntryNo("42.5"), entries),
+      false
+    )
+
+  test("isLatestEntry is false for middle entry"):
+    assertEquals(
+      ProgressTrackingService.isLatestEntry(EntryNo("2"), entries),
+      false
+    )
+
+  test("isLatestEntry is false when there are no entries to compare to"):
+    assertEquals(
+      ProgressTrackingService.isLatestEntry(EntryNo("2"), List.empty),
+      false
+    )
+
+  test("isLatestEntry is true when the entry exactly that of the latest"):
+    assertEquals(
+      ProgressTrackingService.isLatestEntry(EntryNo("3"), entries),
+      true
+    )
+
 object ProgressTrackingServiceSuite:
   val externalMangaId = ExternalMangaId(1)
+
+  val entries = List(
+    ExistingAssetEntry(
+      EntryId(1),
+      EntryNo("1"),
+      EntryUri(new URI("http://localhost:8080/foo/1")),
+      WasEntrySeen(false),
+      DateUploaded(LocalDate.now()),
+      AssetId(1)
+    ),
+    ExistingAssetEntry(
+      EntryId(1),
+      EntryNo("2"),
+      EntryUri(new URI("http://localhost:8080/foo/2")),
+      WasEntrySeen(false),
+      DateUploaded(LocalDate.now()),
+      AssetId(1)
+    ),
+    ExistingAssetEntry(
+      EntryId(1),
+      EntryNo("3"),
+      EntryUri(new URI("http://localhost:8080/foo/2")),
+      WasEntrySeen(false),
+      DateUploaded(LocalDate.now()),
+      AssetId(1)
+    )
+  )
 
   val inMemoryTransactor =
     makeSqliteTransactorResource[IO](Config.forSqlite(Path("sqlite::memory:")))
