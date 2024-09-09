@@ -242,17 +242,21 @@ object ProgressTrackingService:
   /** EntryNo can be just a number, but it can also be a full chapter title. It
     * would probably make sense to force a split into separate EntryTitle and
     * EntryNo (which could default to 1 in the case of extraction failure)
+    *
+    * Any EntryNo with fractional number should not be considered latest, as we
+    * don't known whether there are any more entries within the same integer
+    * mark
     */
   def isLatestEntry(
       no: EntryNo,
       allEntries: List[ExistingAssetEntry]
   ): Boolean =
-    no.value.toDoubleOption
+    no.value.toIntOption
       .map: noNumeric =>
         allEntries
-          .mapFilter(_.no.value.toDoubleOption)
+          .mapFilter(_.no.value.toIntOption)
           .pipe(NonEmptyList.fromList)
-          .fold(true)(_.maximum < noNumeric)
+          .fold(false)(_.maximum == noNumeric)
       .getOrElse(false)
 
 private object MalMangaMapping extends TableDefinition("mal_manga_mapping"):
