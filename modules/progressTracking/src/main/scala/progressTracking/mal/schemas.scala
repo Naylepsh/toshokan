@@ -1,7 +1,7 @@
 package progressTracking.mal
 
 import core.Newtype
-import io.circe.derivation.{Configuration, ConfiguredDecoder, ConfiguredEncoder}
+import io.circe.derivation.{Configuration, ConfiguredDecoder}
 import io.circe.{Decoder, Encoder}
 
 given Configuration = Configuration.default.withSnakeCaseMemberNames
@@ -15,11 +15,9 @@ case class GetMangaListSuccess(data: List[GetMangaListData])
 
 enum MangaStatus:
   case Reading, Completed, OnHold, Dropped, PlanToRead
-object MangaStatus:
-  given Encoder[MangaStatus] = Encoder.AsObject.derivedConfigured
 
-case class UpdateMangaStatusBody(status: MangaStatus, numChaptersRead: Int)
-    derives ConfiguredEncoder
+  val urlEncoded: String = Configuration.default.withSnakeCaseConstructorNames
+    .transformConstructorNames(this.toString)
 
 type RefreshToken = RefreshToken.Type
 object RefreshToken extends Newtype[String]

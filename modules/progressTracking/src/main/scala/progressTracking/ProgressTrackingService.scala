@@ -56,11 +56,16 @@ trait ProgressTrackingService[F[_]]:
       externalId: ExternalMangaId,
       internalId: AssetId
   ): F[Either[AssignExternalIdToMangaError, Unit]]
-  def updateProgress(assetId: AssetId, no: EntryNo): F[Either[Throwable, Unit]]
+  def updateProgress(
+      assetId: AssetId,
+      entryId: EntryId,
+      wasEntrySeen: WasEntrySeen
+  ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]]
   def acquireToken(code: String): F[Either[Throwable, Unit]]
-  def prepareForTokenAcqusition: F[Uri]
+  def prepareForTokenAcquisition: F[Uri]
+  def findNotSeenReleases: F[List[Releases]]
 
-type EitherThrowable[A] = Either[Throwable, A]
+private type Result[A] = Either[Throwable, A]
 
 object ProgressTrackingService:
   def make[F[_]: Sync: Parallel](
@@ -94,10 +99,13 @@ object ProgressTrackingService:
     ): F[Either[Throwable, List[Manga]]] =
       withToken: token =>
         Functor[F]
-          .compose[EitherThrowable]
+          .compose[Result]
           .map(malClient.searchManga(token, term)): body =>
-            body.data.map: d =>
-              Manga(ExternalMangaId(d.node.id), MangaTitle(d.node.title))
+            body.data.map: mangaData =>
+              Manga(
+                ExternalMangaId(mangaData.node.id),
+                MangaTitle(mangaData.node.title)
+              )
 
     override def assignExternalIdToManga(
         externalId: ExternalMangaId,
@@ -112,9 +120,9 @@ object ProgressTrackingService:
           asset.categoryId.traverse(categoryService.find).map(_.flatten),
           CategoryNotFound
         )
-        mangaId <- EitherT.fromEither(
-          Either
-            .fromOption(MangaId(asset.id, category.name), AssetIsNotManga)
+        mangaId <- EitherT.fromOption(
+          MangaId(asset.id, category.name),
+          AssetIsNotManga
         )
       yield mangaId
 
@@ -139,28 +147,33 @@ object ProgressTrackingService:
 
     override def updateProgress(
         assetId: AssetId,
-        no: EntryNo
-    ): F[Either[Throwable, Unit]] =
-      withToken: token =>
-        val getMangaId = for
-          (asset, entries) <- OptionT(assetService.find(assetId))
-          category <- asset.categoryId
-            .traverse(categoryService.find)
-            .map(_.flatten)
-            .pipe(OptionT(_))
-          mangaId <- Option
-            .when(isLatestEntry(no, entries))(MangaId(asset.id, category.name))
-            .flatten
-            .pipe(OptionT.fromOption(_))
-        yield mangaId
+        entryId: EntryId,
+        wasEntrySeen: WasEntrySeen
+    ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]] =
+      assetService
+        .find(assetId)
+        .flatMap:
+          case None => UpdateEntryError.AssetDoesNotExists.asLeft.pure
+          case Some(asset, entries) =>
+            (
+              // TODO: entry management (setSeen) should be moved to progress tracking?
+              // Probably as a separate database entity (separate from entry)
+              assetService.setSeen(assetId, entryId, wasEntrySeen),
+              if wasEntrySeen
+              then
+                entries
+                  .find(_.id.eqv(entryId))
+                  .fold(Sync[F].unit): entry =>
+                    updateProgressOnMal(asset, entries, entry.no).flatMap:
+                      result =>
+                        result.fold(
+                          error => scribe.cats[F].error(error.toString),
+                          _ => Sync[F].unit
+                        )
+              else Sync[F].unit
+            ).mapN((a, _) => a)
 
-        getMangaId.value
-          .map((_, LatestChapter(no)).tupled)
-          .flatMap(
-            _.fold(Either.unit.pure)(malClient.updateStatus(token, _, _))
-          )
-
-    override val prepareForTokenAcqusition: F[Uri] =
+    override val prepareForTokenAcquisition: F[Uri] =
       for
         codeChallenge <- malClient.generateCodeChallenge
         authLink = malClient.createAuthorizationLink(codeChallenge)
@@ -176,12 +189,14 @@ object ProgressTrackingService:
             .flatTap(_ => codeChallengeRef.set(None))
       )
 
+    override def findNotSeenReleases: F[List[Releases]] =
+      // TODO: Move the AssetService's logic here and remove this method from it?
+      assetService.findNotSeenReleases
+
     private def withToken[A](f: AuthToken => F[Either[Throwable, A]]) =
       tokenRef.get
         .flatMap(_.fold(getOrRefreshToken)(_.some.pure))
-        .flatMap(
-          _.fold(NoAuthToken.asLeft.pure)(f)
-        )
+        .flatMap(_.fold(NoAuthToken.asLeft.pure)(f))
 
     private val getOrRefreshToken: F[Option[AuthToken]] =
       getMalToken
@@ -225,19 +240,40 @@ object ProgressTrackingService:
         val refreshTokenExpiresAt = nowMillis + (token.expiresIn * 1000) * 3
         val accessTokenExpiresAt  = nowMillis + (token.expiresIn * 1000)
 
-        val program = for
-          _ <- TokensSql.upsertToken(
-            "mal-access-token",
-            token.accessToken,
-            accessTokenExpiresAt
-          )
-          _ <- TokensSql.upsertToken(
-            "mal-refresh-token",
-            token.refreshToken,
-            refreshTokenExpiresAt
-          )
-        yield ()
-        program.transact(xa)
+        val saveAccessToken = TokensSql.upsertToken(
+          "mal-access-token",
+          token.accessToken,
+          accessTokenExpiresAt
+        )
+        val saveRefreshToken = TokensSql.upsertToken(
+          "mal-refresh-token",
+          token.refreshToken,
+          refreshTokenExpiresAt
+        )
+
+        (saveAccessToken *> saveRefreshToken).transact(xa)
+
+    private def updateProgressOnMal(
+        asset: ExistingAsset,
+        entries: List[ExistingAssetEntry],
+        no: EntryNo
+    ): F[Either[Throwable, Unit]] =
+      val getMalId = for
+        category <- asset.categoryId
+          .traverse(categoryService.find)
+          .map(_.flatten)
+          .pipe(OptionT(_))
+        mangaId <- Option
+          .when(isLatestEntry(no, entries))(MangaId(asset.id, category.name))
+          .flatten
+          .pipe(OptionT.fromOption(_))
+          malId <- OptionT(MalMangaSql.findMalId(mangaId).transact(xa))
+      yield malId
+
+      getMalId.value
+        .map((_, LatestChapter(no)).tupled)
+        .flatMap(_.fold(Either.unit.pure): (malId, latestChapter) =>
+          withToken(malClient.updateStatus(_, malId, latestChapter)))
 
   /** EntryNo can be just a number, but it can also be a full chapter title. It
     * would probably make sense to force a split into separate EntryTitle and

@@ -1,17 +1,21 @@
 package progressTracking
 
-import cats.effect.{MonadCancelThrow, Concurrent}
+import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
-import library.AssetController.AssetIdVar
+import library.AssetController.{AssetIdVar, EntryIdVar}
 import library.AssetService
-import library.domain.AssetId
+import library.domain.{AssetId, UpdateEntryError}
 import org.http4s.*
-import org.http4s.dsl.impl.QueryParamDecoderMatcher
+import org.http4s.dsl.impl.{
+  OptionalQueryParamDecoderMatcher,
+  QueryParamDecoderMatcher
+}
 import org.http4s.headers.*
 import org.http4s.server.Router
 
 import domain.Term
 import schemas.{*, given}
+import viewComponents.Pagination
 
 class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
     assetService: AssetService[F],
@@ -21,7 +25,7 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
   import http.Controller.given
 
   private val httpRoutes = HttpRoutes.of[F]:
-    case GET -> Root / AssetIdVar(id) :? TermQueryParam(term) =>
+    case GET -> Root / "search" / AssetIdVar(id) :? TermQueryParam(term) =>
       service
         .searchForManga(term)
         .flatMap:
@@ -32,7 +36,7 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
               `Content-Type`(MediaType.text.html)
             )
 
-    case GET -> Root / AssetIdVar(id) =>
+    case GET -> Root / "search" / AssetIdVar(id) =>
       assetService
         .find(id)
         .flatMap:
@@ -43,6 +47,47 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
               `Content-Type`(MediaType.text.html)
             )
 
+    case GET -> Root / "releases" :? OptionalPageQueryParam(page) =>
+      service.findNotSeenReleases.attempt.flatMap:
+        case Left(reason) =>
+          InternalServerError("Something went wrong")
+        case Right(releases) =>
+          val (items, pagination) =
+            Pagination.paginate(releases, page.getOrElse(1))
+          Ok(
+            view.renderReleases(items, pagination).toString,
+            `Content-Type`(MediaType.text.html)
+          )
+
+    case GET -> Root / "partials" / "releases" :? OptionalPageQueryParam(
+          page
+        ) =>
+      service.findNotSeenReleases.attempt.flatMap:
+        case Left(reason) =>
+          InternalServerError("Something went wrong")
+        case Right(releases) =>
+          val (items, pagination) =
+            Pagination.paginate(releases, page.getOrElse(1))
+          Ok(
+            view.releasesPartial(items, pagination).toString,
+            `Content-Type`(MediaType.text.html)
+          )
+
+    case req @ PUT -> Root
+        / "partials"
+        / "releases"
+        / AssetIdVar(assetId)
+        / EntryIdVar(entryId) =>
+      withJsonErrorsHandled[UpdateProgressDTO](req): dto =>
+        service
+          .updateProgress(assetId, entryId, dto.wasEntrySeen)
+          .flatMap:
+            case Left(UpdateEntryError.AssetDoesNotExists) =>
+              NotFound("Asset does not exist")
+            case Left(UpdateEntryError.EntryDoesNotExist) =>
+              NotFound("Entry does not exist")
+            case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
+
     case req @ POST -> Root / "mal" / "manga-mapping" =>
       withJsonErrorsHandled[NewMalMangaMappingDTO](req): newMalLinking =>
         service
@@ -51,12 +96,14 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
             case Left(AssetNotFound) => NotFound("Asset not found")
             case Left(CategoryNotFound | AssetIsNotManga) =>
               BadRequest("Asset illegible for MAL integration")
-            case Left(ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned) =>
+            case Left(
+                  ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned
+                ) =>
               Conflict("Duplicate mangaId / externalId assignment")
             case Right(_) => Ok("")
 
     case POST -> Root / "mal" =>
-      service.prepareForTokenAcqusition.flatMap(uri => Ok(uri.toString))
+      service.prepareForTokenAcquisition.flatMap(uri => Ok(uri.toString))
 
     case GET -> Root / "mal" :? CodeQueryParamMatcher(code) =>
       service
@@ -71,3 +118,6 @@ private object TermQueryParam extends QueryParamDecoderMatcher[Term]("term")
 
 private object CodeQueryParamMatcher
     extends QueryParamDecoderMatcher[String]("code")
+
+private object OptionalPageQueryParam
+    extends OptionalQueryParamDecoderMatcher[Int]("page")

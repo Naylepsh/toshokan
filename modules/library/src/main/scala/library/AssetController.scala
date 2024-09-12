@@ -7,7 +7,6 @@ import library.category.CategoryService
 import library.domain.*
 import org.http4s.*
 import org.http4s.circe.*
-import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
@@ -71,45 +70,6 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
     case DELETE -> Root / AssetIdVar(id) =>
       assetService.delete(id) *> Ok()
 
-    case req @ PATCH -> Root
-        / AssetIdVar(assetId)
-        / "entries"
-        / EntryIdVar(entryId) =>
-      withJsonErrorsHandled[PartialAssetEntry](req): assetEntry =>
-        assetEntry.wasSeen
-          .map: wasSeen =>
-            assetService
-              .setSeen(assetId, entryId, wasSeen)
-              .flatMap:
-                case Left(reason)        => BadRequest("Oops")
-                case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
-          .getOrElse(Ok(""))
-
-    case GET -> Root / "entries-by-release-date" =>
-      assetService.findNotSeenReleases.attempt.flatMap:
-        case Left(reason) =>
-          InternalServerError("Something went wrong")
-        case Right(releases) =>
-          val (items, pagination) = Pagination.paginate(releases, page = 1)
-          Ok(
-            view.renderReleases(items, pagination),
-            `Content-Type`(MediaType.text.html)
-          )
-
-    case GET -> Root / "partials" / "entries-by-release-date" :? OptionalPageQueryParam(
-          page
-        ) =>
-      assetService.findNotSeenReleases.attempt.flatMap:
-        case Left(reason) =>
-          InternalServerError("Something went wrong")
-        case Right(releases) =>
-          val (items, pagination) =
-            Pagination.paginate(releases, page.getOrElse(1))
-          Ok(
-            view.releasesPartial(items, pagination).toString,
-            `Content-Type`(MediaType.text.html)
-          )
-
   val routes = Router("assets" -> httpRoutes)
 
 object AssetController:
@@ -120,9 +80,6 @@ object AssetController:
   object EntryIdVar:
     def unapply(str: String): Option[EntryId] =
       str.toIntOption.map(EntryId(_))
-
-  object OptionalPageQueryParam
-      extends OptionalQueryParamDecoderMatcher[Int]("page")
 
   case class PartialAssetEntry(
       wasSeen: Option[WasEntrySeen]

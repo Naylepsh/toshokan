@@ -11,7 +11,7 @@ import sttp.client3.circe.*
 import sttp.client3.{SttpBackend, UriContext, basicRequest}
 import sttp.model.Uri
 
-import domain.{MangaId, LatestChapter, Term}
+import domain.{LatestChapter, Term, ExternalMangaId}
 
 case class MalAuth(clientId: String, clientSecret: String, redirectUri: URI)
 
@@ -22,7 +22,7 @@ trait MyAnimeListClient[F[_]]:
   ): F[Either[Throwable, GetMangaListSuccess]]
   def updateStatus(
       token: AuthToken,
-      mangaId: MangaId,
+      mangaId: ExternalMangaId,
       latestChapter: LatestChapter
   ): F[Either[Throwable, Unit]]
   def refreshAuthToken(token: RefreshToken): F[Either[Throwable, AuthToken]]
@@ -55,18 +55,23 @@ object MyAnimeListClient:
 
     override def updateStatus(
         token: AuthToken,
-        mangaId: MangaId,
+        mangaId: ExternalMangaId,
         latestChapter: LatestChapter
     ): F[Either[Throwable, Unit]] =
       val url =
         uri"https://api.myanimelist.net/v2/manga/$mangaId/my_list_status"
-      basicRequest
+      val req = basicRequest
         .patch(url)
-        .body(UpdateMangaStatusBody(MangaStatus.Reading, latestChapter))
-        .auth
+        .body(
+          "status"            -> MangaStatus.Reading.urlEncoded,
+          "num_chapters_read" -> latestChapter.value.toString
+        )
+      println(s"[request] $req")
+      req.auth
         .bearer(token.accessToken)
         .send(backend)
         .map: response =>
+          println(s"[response] $response")
           response.body.void.leftMap(new RuntimeException(_))
 
     override def refreshAuthToken(

@@ -1,4 +1,5 @@
-package library
+package progressTracking
+package viewComponents
 
 case class Pagination(current: Int, last: Int):
   import Pagination.*
