@@ -1,4 +1,5 @@
-package library
+package progressTracking
+package viewComponents
 
 class PaginationSuite extends munit.FunSuite:
   List(

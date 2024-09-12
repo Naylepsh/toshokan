@@ -28,7 +28,7 @@ def load[F[_]](using F: Sync[F]) =
     val malAuth = MalAuth(malClientId, malSecret, malRedirectUrl)
     val navBarItems = List(
       NavBarItem("Assets", "/assets"),
-      NavBarItem("New releases", "/assets/entries-by-release-date"),
+      NavBarItem("New releases", "/progress-tracking/releases"),
       NavBarItem("Scraping", "/asset-scraping"),
       NavBarItem("Shutdown", "/shutdown")
     )
