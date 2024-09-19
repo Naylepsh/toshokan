@@ -25,28 +25,6 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
   import http.Controller.given
 
   private val httpRoutes = HttpRoutes.of[F]:
-    case GET -> Root / "search" / AssetIdVar(id) :? TermQueryParam(term) =>
-      service
-        .searchForManga(term)
-        .flatMap:
-          case Left(error) => MonadCancelThrow[F].raiseError(error)
-          case Right(mangaMatches) =>
-            Ok(
-              view.mangaMatchesPartial(id, mangaMatches),
-              `Content-Type`(MediaType.text.html)
-            )
-
-    case GET -> Root / "search" / AssetIdVar(id) =>
-      assetService
-        .find(id)
-        .flatMap:
-          case None => NotFound(s"No manga with id=$id found")
-          case Some(asset, _) =>
-            Ok(
-              view.renderMangaSearch(asset.title, asset.id),
-              `Content-Type`(MediaType.text.html)
-            )
-
     case GET -> Root / "releases" :? OptionalPageQueryParam(page) =>
       service.findNotSeenReleases.attempt.flatMap:
         case Left(reason) =>
@@ -87,6 +65,29 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
             case Left(UpdateEntryError.EntryDoesNotExist) =>
               NotFound("Entry does not exist")
             case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
+
+    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id) =>
+      assetService
+        .find(id)
+        .flatMap:
+          case None => NotFound(s"No manga with id=$id found")
+          case Some(asset, _) =>
+            Ok(
+              view.renderMangaSearch(asset.title, asset.id),
+              `Content-Type`(MediaType.text.html)
+            )
+
+    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id)
+        / "search" :? TermQueryParam(term) =>
+      service
+        .searchForManga(term)
+        .flatMap:
+          case Left(error) => MonadCancelThrow[F].raiseError(error)
+          case Right(mangaMatches) =>
+            Ok(
+              view.mangaMatchesPartial(id, mangaMatches),
+              `Content-Type`(MediaType.text.html)
+            )
 
     case req @ POST -> Root / "mal" / "manga-mapping" =>
       withJsonErrorsHandled[NewMalMangaMappingDTO](req): newMalLinking =>

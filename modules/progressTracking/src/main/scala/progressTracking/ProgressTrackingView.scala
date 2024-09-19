@@ -132,7 +132,9 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
       then ("", i(cls := "fa-solid fa-xmark"), false)
       else ("font-bold", i(cls := "fa-solid fa-check"), true)
     val markingAction = button(
-      attr("hx-put")  := s"/progress-tracking/partials/releases/${asset.id}/${entry.id}",
+      attr(
+        "hx-put"
+      ) := s"/progress-tracking/partials/releases/${asset.id}/${entry.id}",
       attr("hx-vals")   := s"{\"wasEntrySeen\": ${newState}}",
       attr("hx-ext")    := "json-enc",
       attr("hx-target") := "closest .entry",
@@ -149,12 +151,12 @@ object ProgressTrackingView:
     div(
       cls := "container",
       h2(
-        cls := "font-semibold mx-auto mt-3",
+        cls := "font-semibold text-center mt-3",
         s"""Search for corresponding MAL entry for "${mangaTitle}""""
       ),
       form(
         cls             := "mt-3",
-        attr("hx-get")  := s"/progress-tracking/search/${mangaId.value}",
+        attr("hx-get")  := s"/progress-tracking/mal/manga-mapping/${mangaId.value}/search",
         attr("hx-swap") := "outerHTML",
         div(
           cls := "flex mx-auto max-w-xl",
@@ -174,7 +176,7 @@ object ProgressTrackingView:
 
   private def paginationButtonModifiers(page: String) =
     List(
-      attr("hx-get") := s"/progress-tracking/partials/releases?page=$page",
+      attr("hx-get")    := s"/progress-tracking/partials/releases?page=$page",
       attr("hx-target") := "#releases"
     )
 

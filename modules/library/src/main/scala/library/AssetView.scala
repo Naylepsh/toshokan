@@ -83,6 +83,7 @@ class AssetView(navBarItems: List[NavBarItem]):
       div(
         cls := "mt-5 flex flex-col justify-center w-1/2 mx-auto",
         form(
+          cls            := "mb-0",
           hxMethod       := url,
           attr("hx-ext") := "json-enc",
           div(
@@ -112,8 +113,16 @@ class AssetView(navBarItems: List[NavBarItem]):
           .map: asset =>
             a(
               href := s"/asset-scraping/assets/${asset.id}/configs",
-              cls  := "btn btn-secondary",
+              cls  := "btn btn-secondary mt-3",
               "Scraping configs"
+            )
+          .getOrElse(div()),
+        asset
+          .map: asset =>
+            a(
+              href := s"/progress-tracking/mal/manga-mapping/${asset.id}",
+              cls  := "btn btn-secondary mt-3",
+              "MyAnimeList mapping"
             )
           .getOrElse(div())
       ),
