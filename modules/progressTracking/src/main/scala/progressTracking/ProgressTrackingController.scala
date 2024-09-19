@@ -66,7 +66,7 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
               NotFound("Entry does not exist")
             case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
 
-    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id) =>
+    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id) / "search" =>
       assetService
         .find(id)
         .flatMap:
@@ -89,6 +89,26 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
               `Content-Type`(MediaType.text.html)
             )
 
+    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id) =>
+      service
+        .findAssetWithMalMapping(id)
+        .flatMap:
+          case Left(error) =>
+            MonadCancelThrow[F].raiseError(error)
+          case Right(None) =>
+            SeeOther(
+              Location(
+                Uri.unsafeFromString(
+                  s"/progress-tracking/mal/manga-mapping/${id}/search"
+                )
+              )
+            )
+          case Right(Some(asset, mapping)) =>
+            Ok(
+              view.renderMangaMalMapping(asset, mapping),
+              `Content-Type`(MediaType.text.html)
+            )
+
     case req @ POST -> Root / "mal" / "manga-mapping" =>
       withJsonErrorsHandled[NewMalMangaMappingDTO](req): newMalLinking =>
         service
@@ -102,6 +122,9 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
                 ) =>
               Conflict("Duplicate mangaId / externalId assignment")
             case Right(_) => Ok("")
+
+    case DELETE -> Root / "mal" / "manga-mapping" / AssetIdVar(id) =>
+      service.deleteMapping(id) *> Ok("")
 
     case POST -> Root / "mal" =>
       service.prepareForTokenAcquisition.flatMap(uri => Ok(uri.toString))

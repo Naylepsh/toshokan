@@ -19,6 +19,7 @@ import sttp.model.Uri
 import util.chaining.*
 import util.control.NoStackTrace
 import domain.*
+import core.Tuples
 
 case object NoAuthToken extends NoStackTrace
 type NoAuthToken = NoAuthToken.type
@@ -44,6 +45,7 @@ type MangaAlreadyHasExternalIdAssigned = MangaAlreadyHasExternalIdAssigned.type
 type AssignExternalIdToMangaError = AssetNotFound | CategoryNotFound |
   AssetIsNotManga | ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned
 
+type FindMalMappingError = AssetNotFound | CategoryNotFound | AssetIsNotManga
 /*
  * ProgressTracking module should probably sit on top of the library module?
  * Then the `wasSeen` should be probably moved from there to this module as well?
@@ -52,6 +54,12 @@ type AssignExternalIdToMangaError = AssetNotFound | CategoryNotFound |
 
 trait ProgressTrackingService[F[_]]:
   def searchForManga(term: Term): F[Either[Throwable, List[Manga]]]
+  def findAssetWithMalMapping(
+      assetId: AssetId
+  ): F[Either[FindMalMappingError, Option[
+    (ExistingAsset, ExistingMalMangaMapping)
+  ]]]
+  def deleteMapping(id: AssetId): F[Unit]
   def assignExternalIdToManga(
       externalId: ExternalMangaId,
       internalId: AssetId
@@ -106,6 +114,37 @@ object ProgressTrackingService:
                 ExternalMangaId(mangaData.node.id),
                 MangaTitle(mangaData.node.title)
               )
+
+    override def findAssetWithMalMapping(
+        assetId: AssetId
+    ): F[Either[FindMalMappingError, Option[
+      (ExistingAsset, ExistingMalMangaMapping)
+    ]]] =
+      (for
+        (asset, _) <- EitherT.fromOptionF(
+          assetService.find(assetId),
+          AssetNotFound: FindMalMappingError
+        )
+        categoryId <- EitherT.fromOption(asset.categoryId, CategoryNotFound)
+        category <- EitherT.fromOptionF(
+          categoryService.find(categoryId),
+          CategoryNotFound
+        )
+        mangaId <- EitherT.fromOption(
+          MangaId(asset.id, category.name),
+          AssetIsNotManga
+        )
+        mapping <- EitherT.liftF(MalMangaSql.findMapping(mangaId).transact(xa))
+      yield mapping.map(asset -> _)).value
+
+    override def deleteMapping(assetId: AssetId): F[Unit] =
+      (for
+        (asset, _) <- OptionT(assetService.find(assetId))
+        categoryId <- OptionT.fromOption(asset.categoryId)
+        category   <- OptionT(categoryService.find(categoryId))
+        mangaId    <- OptionT.fromOption(MangaId(assetId, category.name))
+        _          <- OptionT.liftF(MalMangaSql.delete(mangaId).transact(xa))
+      yield ()).value.void
 
     override def assignExternalIdToManga(
         externalId: ExternalMangaId,
@@ -267,7 +306,7 @@ object ProgressTrackingService:
           .when(isLatestEntry(no, entries))(MangaId(asset.id, category.name))
           .flatten
           .pipe(OptionT.fromOption(_))
-          malId <- OptionT(MalMangaSql.findMalId(mangaId).transact(xa))
+        malId <- OptionT(MalMangaSql.findMalId(mangaId).transact(xa))
       yield malId
 
       getMalId.value
@@ -295,10 +334,12 @@ object ProgressTrackingService:
           .fold(false)(_.maximum == noNumeric)
       .getOrElse(false)
 
-private object MalMangaMapping extends TableDefinition("mal_manga_mapping"):
-  val id      = Column[Long]("id")
+private object MalMangaMappings extends TableDefinition("mal_manga_mapping"):
+  val id      = Column[MalMangaMappingId]("id")
   val mangaId = Column[MangaId]("manga_id")
   val malId   = Column[ExternalMangaId]("mal_id")
+
+  val * = Columns(id, mangaId, malId)
 
 private object MalMangaSql:
   def assignMalIdToManga(
@@ -306,7 +347,7 @@ private object MalMangaSql:
       internalId: MangaId
   ): ConnectionIO[Unit] =
     insertInto(
-      MalMangaMapping,
+      MalMangaMappings,
       NonEmptyList.of(_.mangaId --> internalId, _.malId --> externalId)
     ).update.run.void
 
@@ -314,19 +355,37 @@ private object MalMangaSql:
       mangaId: MangaId
   ): ConnectionIO[Option[ExternalMangaId]] =
     sql"""
-    SELECT ${MalMangaMapping.malId}
-    FROM ${MalMangaMapping}
-    WHERE ${MalMangaMapping.mangaId === mangaId}"""
-      .queryOf(MalMangaMapping.malId)
+    SELECT ${MalMangaMappings.malId}
+    FROM ${MalMangaMappings}
+    WHERE ${MalMangaMappings.mangaId === mangaId}"""
+      .queryOf(MalMangaMappings.malId)
       .option
 
   def findMangaId(malId: ExternalMangaId): ConnectionIO[Option[MangaId]] =
     sql"""
-    SELECT ${MalMangaMapping.mangaId}
-    FROM ${MalMangaMapping}
-    WHERE ${MalMangaMapping.malId === malId}"""
-      .queryOf(MalMangaMapping.mangaId)
+    SELECT ${MalMangaMappings.mangaId}
+    FROM ${MalMangaMappings}
+    WHERE ${MalMangaMappings.malId === malId}"""
+      .queryOf(MalMangaMappings.mangaId)
       .option
+
+  def findMapping(
+      mangaId: MangaId
+  ): ConnectionIO[Option[ExistingMalMangaMapping]] =
+    sql"""
+    SELECT ${MalMangaMappings.*}
+    FROM ${MalMangaMappings}
+    WHERE ${MalMangaMappings.mangaId === mangaId}
+    """
+      .queryOf(MalMangaMappings.*)
+      .option
+      .map(_.map(Tuples.from[ExistingMalMangaMapping](_)))
+
+  def delete(mangaId: MangaId) =
+    sql"""
+    DELETE FROM ${MalMangaMappings}
+    WHERE ${MalMangaMappings.mangaId === mangaId}
+    """.update.run.void
 
 private object Tokens extends TableDefinition("tokens"):
   val id        = Column[Long]("id")

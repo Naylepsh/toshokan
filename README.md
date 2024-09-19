@@ -9,8 +9,8 @@ For more information on the sbt-dotty plugin, see the
 
 ## TODO
 
-- [ ] Add integration with anilist/mal
 - [ ] Split `EntryNo` into `EntryTitle` and `EntryNo`. `EntryNo` could default to `1` in case of parsing failure. `EntryTitle` could default to `None` in case of failure?
+- [ ] Split authors within `Assets` into a separate entity. Figure out the scraping domain for that
 - [ ] Add view for category management
   - [ ] Add category
   - [ ] Edit category

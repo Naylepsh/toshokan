@@ -10,6 +10,7 @@ import scalatags.Text.all.*
 import domain.Manga
 import schemas.NewMalMangaMappingDTO
 import viewComponents.Pagination
+import progressTracking.domain.ExistingMalMangaMapping
 
 class ProgressTrackingView(navbarItems: List[NavBarItem]):
   def renderMangaSearch(
@@ -19,6 +20,16 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
     layout(
       mangaTitle.show.some,
       ProgressTrackingView.searchMangaByTerm(mangaId, mangaTitle),
+      navbarItems
+    )
+
+  def renderMangaMalMapping(
+      asset: ExistingAsset,
+      mapping: ExistingMalMangaMapping
+  ): TypedTag[String] =
+    layout(
+      asset.title.show.some,
+      ProgressTrackingView.mangaMalMapping(asset, mapping),
       navbarItems
     )
 
@@ -155,8 +166,10 @@ object ProgressTrackingView:
         s"""Search for corresponding MAL entry for "${mangaTitle}""""
       ),
       form(
-        cls             := "mt-3",
-        attr("hx-get")  := s"/progress-tracking/mal/manga-mapping/${mangaId.value}/search",
+        cls := "mt-3",
+        attr(
+          "hx-get"
+        ) := s"/progress-tracking/mal/manga-mapping/${mangaId.value}/search",
         attr("hx-swap") := "outerHTML",
         div(
           cls := "flex mx-auto max-w-xl",
@@ -182,3 +195,43 @@ object ProgressTrackingView:
 
   private def noReleasesPartial =
     h2(cls := "text-center font-semibold", "No releases found")
+
+  private def mangaMalMapping(
+      asset: ExistingAsset,
+      mapping: ExistingMalMangaMapping
+  ) =
+    val externalUrl = s"https://myanimelist.net/manga/${mapping.externalId}"
+    div(
+      cls := "container",
+      h2(
+        cls := "font-semibold text-center mt-3",
+        s"${asset.title.show}'s MAL Mapping"
+      ),
+      div(
+        cls := "mx-auto max-w-2xl",
+        table(
+          cls := "table table-zebra",
+          thead(
+            tr(
+              th("External Id"),
+              th("External Url"),
+              th("")
+            )
+          ),
+          tbody(
+            tr(
+              th(mapping.externalId.show),
+              td(a(href := externalUrl, externalUrl)),
+              td(
+                button(
+                  attr(
+                    "hx-delete"
+                  ) := s"/progress-tracking/mal/manga-mapping/${mapping.internalId}",
+                  "Delete"
+                )
+              )
+            )
+          )
+        )
+      )
+    )

@@ -27,3 +27,12 @@ type Term = Term.Type
 object Term extends Newtype[String]
 
 case class Manga(id: ExternalMangaId, title: MangaTitle)
+
+type MalMangaMappingId = MalMangaMappingId.Type
+object MalMangaMappingId extends Newtype[Long]
+
+case class ExistingMalMangaMapping(
+    id: MalMangaMappingId,
+    internalId: MangaId,
+    externalId: ExternalMangaId
+)

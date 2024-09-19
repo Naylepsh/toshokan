@@ -214,7 +214,7 @@ object ProgressTrackingServiceSuite:
     ): IO[Either[Throwable, GetMangaListSuccess]] = ???
     override def updateStatus(
         token: AuthToken,
-        mangaId: MangaId,
+        mangaId: ExternalMangaId,
         latestChapter: LatestChapter
     ): IO[Either[Throwable, Unit]] = ???
 
