@@ -136,7 +136,7 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
   ): TypedTag[String] =
     val linkToEntry = a(
       href := s"${entry.uri}",
-      p(s"Ch. ${entry.no.value}")
+      p(s"[${entry.no.show}] ${entry.title.show}")
     )
     val (headerClass, icon, newState) =
       if entry.wasSeen

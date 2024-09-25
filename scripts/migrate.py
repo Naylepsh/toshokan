@@ -1,45 +1,35 @@
 import os
 import sqlite3
-import requests
 
 toshokan_db = os.environ["DATABASE_URL"].removeprefix("sqlite://")
-manggregator_db = os.environ["MANGGREGATOR_URL"].removeprefix("sqlite://")
 
 
 toshokan = sqlite3.connect(toshokan_db)
-manggregator = sqlite3.connect(manggregator_db)
 
-# get assets from manggregator
-assets: list[tuple[str, str]] = manggregator.execute(
-    "SELECT id, name FROM asset WHERE enabled = 1").fetchall()
+asset_ids: list[tuple[int]] = toshokan.execute("""
+SELECT assets.id
+FROM assets
+JOIN categories ON categories.id = assets.category_id
+WHERE categories.name = 'doujinshi'
+""").fetchall()
+ids = [id for id, *_ in asset_ids]
 
-for id, name in assets:
-    print(f'Migrating {name}...')
-    toshokan_asset_id, * \
-        _ = toshokan.execute(
-            f"INSERT INTO assets (title) VALUES ('{name}') RETURNING id"
-        ).fetchone()
-    toshokan.commit()
+toshokan.execute(f"""
+UPDATE asset_entries
+SET no = '1'
+WHERE asset_id IN ({', '.join('?' for _ in ids)})
+""", ids)
 
-    pages: list[tuple[str, str]] = manggregator.execute(
-        f"SELECT site, url FROM chapters_page WHERE assetId = '{id}'"
-    ).fetchall()
+toshokan.commit()
 
-    for site, uri in pages:
-        res = requests.post(
-            f'http://localhost:8080/asset-scraping/assets/{toshokan_asset_id}/configs',
-            json={
-                'site': site.capitalize(),
-                'isEnabled': True,
-                'uri': uri
-            }
-        )
-        try:
-            res.raise_for_status()
-        except Exception:
-            print(res.content)
-            raise
-    print(f'Done with {name}')
-
+# for id, name in assets:
+#     print(f'Migrating {name}...')
+#     toshokan_asset_id, * \
+#         _ = toshokan.execute(
+#             f"INSERT INTO assets (title) VALUES ('{name}') RETURNING id"
+#         ).fetchone()
+#     toshokan.commit()
+#
+#     print(f'Done with {name}')
+#
 toshokan.close()
-manggregator.close()

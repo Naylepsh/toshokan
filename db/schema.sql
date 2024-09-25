@@ -1,8 +1,4 @@
 CREATE TABLE IF NOT EXISTS "schema_migrations" (version varchar(128) primary key);
-CREATE TABLE categories (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
-);
 CREATE TABLE assets (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL UNIQUE
@@ -14,7 +10,7 @@ CREATE TABLE asset_entries (
     uri TEXT NOT NULL,
     was_seen INTEGER NOT NULL DEFAULT 0,
     date_uploaded TEXT NOT NULL,
-    asset_id INTEGER NOT NULL,
+    asset_id INTEGER NOT NULL, title TEXT NOT NULL DEFAULT '',
 
     CONSTRAINT fk_asset_id
         FOREIGN KEY (asset_id)
@@ -32,6 +28,10 @@ CREATE TABLE asset_scraping_configs (
         FOREIGN KEY (asset_id)
         REFERENCES assets (id)
         ON DELETE CASCADE
+);
+CREATE TABLE categories (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
 );
 CREATE TABLE scraping_schedules (
     id INTEGER PRIMARY KEY,
@@ -66,4 +66,5 @@ INSERT INTO "schema_migrations" (version) VALUES
   ('20240529124324'),
   ('20240529175125'),
   ('20240712124302'),
-  ('20240824174343');
+  ('20240824174343'),
+  ('20240925081137');

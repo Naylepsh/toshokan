@@ -107,6 +107,7 @@ object AssetScrapingService:
         .flatMap: (label, entries) =>
           entries.map: entry =>
             NewAssetEntry.make(
+              EntryTitle(entry.no.value),
               EntryNo(entry.no.value),
               EntryUri(entry.uri.value),
               DateUploaded(entry.dateUploaded.value),

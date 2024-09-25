@@ -17,9 +17,10 @@ import library.category.domain.{CategoryName, NewCategory}
 import library.category.{CategoryRepository, CategoryService}
 import library.domain.*
 import library.{AssetRepository, AssetService}
-import progressTracking.domain.*
-import progressTracking.mal.*
 import sttp.model.Uri
+
+import domain.*
+import mal.*
 
 class ProgressTrackingServiceSuite extends munit.CatsEffectSuite:
   import ProgressTrackingServiceSuite.*
@@ -145,6 +146,7 @@ object ProgressTrackingServiceSuite:
   val entries = List(
     ExistingAssetEntry(
       EntryId(1),
+      EntryTitle("The End of the Adventure"),
       EntryNo("1"),
       EntryUri(new URI("http://localhost:8080/foo/1")),
       WasEntrySeen(false),
@@ -153,6 +155,7 @@ object ProgressTrackingServiceSuite:
     ),
     ExistingAssetEntry(
       EntryId(1),
+      EntryTitle("The Priest's Lie"),
       EntryNo("2"),
       EntryUri(new URI("http://localhost:8080/foo/2")),
       WasEntrySeen(false),
@@ -161,6 +164,7 @@ object ProgressTrackingServiceSuite:
     ),
     ExistingAssetEntry(
       EntryId(1),
+      EntryTitle("Blue Moonweed"),
       EntryNo("3"),
       EntryUri(new URI("http://localhost:8080/foo/2")),
       WasEntrySeen(false),
@@ -231,6 +235,7 @@ object ProgressTrackingServiceSuite:
         .toList
         .filterNot(_.isBlank)
         .traverse: statement =>
+          println(statement)
           Fragment.const(statement).update.run
         .transact(xa)
         .void

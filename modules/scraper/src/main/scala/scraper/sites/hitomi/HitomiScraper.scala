@@ -89,12 +89,13 @@ object HitomiScraper:
 
   private def parse(entry: Element): Option[EntryFound] =
     val titleElem = entry >> element(".lillie > a")
-    val no        = EntryNo(titleElem.text)
+    val title     = EntryTitle(titleElem.text)
+    val no        = EntryNo("")
     val href      = titleElem >> attr("href")
     val uri       = EntryUri(makeUri(href))
     parseDate(entry >> element("p.date") >> attr("data-posted")).map: date =>
       val dateUploaded = DateUploaded(date)
-      EntryFound(no, uri, dateUploaded)
+      EntryFound(title, no, uri, dateUploaded)
 
   private val languageInHrefRegex = ".*index-(.+).html".r
   private def parseLanguage(entry: Element): Either[ScrapeError, String] =

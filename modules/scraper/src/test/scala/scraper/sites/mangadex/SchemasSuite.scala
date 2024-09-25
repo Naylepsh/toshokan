@@ -25,7 +25,7 @@ object SchemasSuite:
            "attributes":{
               "volume":null,
               "chapter":"7",
-              "title":"Un lugar para alguien especial ",
+              "title":"Un lugar para alguien especial",
               "translatedLanguage":"es-la",
               "externalUrl":null,
               "publishAt":"2024-02-13T02:28:41+00:00",
@@ -45,6 +45,7 @@ object SchemasSuite:
     Chapter(
       id = "a61ca907-11b4-4b11-842f-6c8406f90cec",
       attributes = ChapterAttributes(
+        title = "Un lugar para alguien especial",
         chapter = "7",
         externalUrl = None,
         CreatedAt(LocalDate.parse("2024-02-13"))

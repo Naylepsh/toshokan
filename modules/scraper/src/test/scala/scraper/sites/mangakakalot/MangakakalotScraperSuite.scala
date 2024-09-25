@@ -54,6 +54,7 @@ object MangakakalotScraperSuite:
     """.stripMargin)
   val expectedMangakakalotEntries = List(
     EntryFound(
+      EntryTitle("Vol.5 Chapter 28"),
       EntryNo("28"),
       EntryUri(
         URI("https://mangakakalot.com/chapter/ot927321/chapter_28")
@@ -61,6 +62,7 @@ object MangakakalotScraperSuite:
       DateUploaded(LocalDateTime.now().minusHours(1).toLocalDate)
     ),
     EntryFound(
+      EntryTitle("Vol.5 Chapter 27"),
       EntryNo("27"),
       EntryUri(
         URI("https://mangakakalot.com/chapter/ot927321/chapter_27")
@@ -68,6 +70,7 @@ object MangakakalotScraperSuite:
       DateUploaded(LocalDate.of(2022, 9, 25))
     ),
     EntryFound(
+      EntryTitle("Bonus"),
       EntryNo("26.1"),
       EntryUri(
         URI("https://mangakakalot.com/chapter/ot927321/chapter_26.1")
@@ -120,6 +123,7 @@ object MangakakalotScraperSuite:
     |</ul>""".stripMargin)
   val expectedManganatoEntries = List(
     EntryFound(
+      EntryTitle("Chapter 40: Dancing Maiden"),
       EntryNo("40"),
       EntryUri(
         URI("https://chapmanganato.to/manga-ib986110/chapter-40")
@@ -127,6 +131,7 @@ object MangakakalotScraperSuite:
       DateUploaded(LocalDate.of(2024, 2, 17))
     ),
     EntryFound(
+      EntryTitle("Chapter 39: What's Your Name?"),
       EntryNo("39"),
       EntryUri(
         URI("https://chapmanganato.to/manga-ib986110/chapter-39")
@@ -134,6 +139,7 @@ object MangakakalotScraperSuite:
       DateUploaded(LocalDate.of(2024, 1, 19))
     ),
     EntryFound(
+      EntryTitle("Extra"),
       EntryNo("38.1"),
       EntryUri(
         URI("https://chapmanganato.to/manga-ib986110/chapter-38.1")

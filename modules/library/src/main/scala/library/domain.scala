@@ -43,6 +43,9 @@ enum AddAssetError:
 type EntryId = EntryId.Type
 object EntryId extends Newtype[Long]
 
+type EntryTitle = EntryTitle.Type
+object EntryTitle extends Newtype[String]
+
 type EntryNo = EntryNo.Type
 object EntryNo extends Newtype[String]
 
@@ -56,6 +59,7 @@ type DateUploaded = DateUploaded.Type
 object DateUploaded extends Newtype[LocalDate]
 
 case class NewAssetEntry(
+    title: EntryTitle,
     no: EntryNo,
     uri: EntryUri,
     dateUploaded: DateUploaded,
@@ -63,15 +67,17 @@ case class NewAssetEntry(
 )
 object NewAssetEntry:
   def make(
+      title: EntryTitle,
       no: EntryNo,
       uri: EntryUri,
       dateUploaded: DateUploaded,
       assetId: AssetId
   ): NewAssetEntry =
-    NewAssetEntry(no, uri, dateUploaded, assetId)
+    NewAssetEntry(title, no, uri, dateUploaded, assetId)
 
 case class ExistingAssetEntry(
     id: EntryId,
+    title: EntryTitle,
     no: EntryNo,
     uri: EntryUri,
     wasSeen: WasEntrySeen,

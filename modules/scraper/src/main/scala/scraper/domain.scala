@@ -10,6 +10,9 @@ import org.typelevel.cats.time.*
 type EntryNo = EntryNo.Type
 object EntryNo extends Newtype[String]
 
+type EntryTitle = EntryTitle.Type
+object EntryTitle extends Newtype[String]
+
 type EntryUri = EntryUri.Type
 object EntryUri extends Newtype[URI]:
   def apply(value: String): Either[String, EntryUri] =
@@ -18,7 +21,12 @@ object EntryUri extends Newtype[URI]:
 type DateUploaded = DateUploaded.Type
 object DateUploaded extends Newtype[LocalDate]
 
-case class EntryFound(no: EntryNo, uri: EntryUri, dateUploaded: DateUploaded)
+case class EntryFound(
+    title: EntryTitle,
+    no: EntryNo,
+    uri: EntryUri,
+    dateUploaded: DateUploaded
+)
 
 type JobLabel = JobLabel.Type
 object JobLabel extends Newtype[Long]

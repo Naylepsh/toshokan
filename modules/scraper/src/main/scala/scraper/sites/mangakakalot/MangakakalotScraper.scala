@@ -45,10 +45,13 @@ object MangakakalotScraper:
               .Other(s"Invalid chapter selector ${selectors.chapterName}")
               .asLeft
           case Some(nameElem) =>
+            val title        = extractTitle(nameElem)
             val no           = extractNo(nameElem)
             val uri          = extractUri(nameElem)
             val dateUploaded = extractDateUploaded(chapterElem, selectors)
-            (no, uri, dateUploaded).tupled.map(EntryFound(_, _, _))
+            (no, uri, dateUploaded).tupled.map(EntryFound(title, _, _, _))
+
+  private def extractTitle(nameElem: Element) = EntryTitle(nameElem.text)
 
   private val chapterNoPattern = ".*chapter[-_]([0-9]+[.]?[0-9]?).*".r
   private def extractNo(nameElem: Element) =

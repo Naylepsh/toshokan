@@ -27,6 +27,7 @@ class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
           chapter.url.getHost != "viz.com"
         .map: chapter =>
           EntryFound(
+            EntryTitle(chapter.attributes.title),
             EntryNo(chapter.attributes.chapter),
             EntryUri(chapter.url),
             DateUploaded(chapter.attributes.createdAt.value)

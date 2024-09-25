@@ -39,6 +39,7 @@ object AssetRepository:
       A(_.title),
       A(_.categoryId),
       AE(_.id).option,
+      AE(_.title).option,
       AE(_.no).option,
       AE(_.uri).option,
       AE(_.wasSeen).option,
@@ -70,6 +71,7 @@ object AssetRepository:
                     record._6,
                     record._7,
                     record._8,
+                    record._9,
                     id.some
                   ).tupled
                     .map(Tuples.from[ExistingAssetEntry](_))
@@ -205,6 +207,7 @@ object AssetRepository:
       insertIntoReturning(
         AssetEntries,
         NonEmptyList.of(
+          _.title --> entry.title,
           _.no --> entry.no,
           _.uri --> entry.uri,
           _.wasSeen --> WasEntrySeen(false),
@@ -248,10 +251,11 @@ private object Assets extends TableDefinition("assets"):
 
 private object AssetEntries extends TableDefinition("asset_entries"):
   val id           = Column[EntryId]("id")
+  val title        = Column[EntryTitle]("title")
   val no           = Column[EntryNo]("no")
   val uri          = Column[EntryUri]("uri")
   val wasSeen      = Column[WasEntrySeen]("was_seen")
   val dateUploaded = Column[DateUploaded]("date_uploaded")
   val assetId      = Column[AssetId]("asset_id")
 
-  val * = Columns((id, no, uri, wasSeen, dateUploaded, assetId))
+  val * = Columns((id, title, no, uri, wasSeen, dateUploaded, assetId))
