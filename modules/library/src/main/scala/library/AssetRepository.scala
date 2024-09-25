@@ -207,7 +207,7 @@ object AssetRepository:
         NonEmptyList.of(
           _.no --> entry.no,
           _.uri --> entry.uri,
-          _.wasSeen --> entry.wasSeen,
+          _.wasSeen --> WasEntrySeen(false),
           _.dateUploaded --> entry.dateUploaded,
           _.assetId --> entry.assetId
         ),
