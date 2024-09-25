@@ -235,7 +235,6 @@ object ProgressTrackingServiceSuite:
         .toList
         .filterNot(_.isBlank)
         .traverse: statement =>
-          println(statement)
           Fragment.const(statement).update.run
         .transact(xa)
         .void
