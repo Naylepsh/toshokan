@@ -66,17 +66,6 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
               NotFound("Entry does not exist")
             case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
 
-    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id) / "search" =>
-      assetService
-        .find(id)
-        .flatMap:
-          case None => NotFound(s"No manga with id=$id found")
-          case Some(asset, _) =>
-            Ok(
-              view.renderMangaSearch(asset.title, asset.id),
-              `Content-Type`(MediaType.text.html)
-            )
-
     case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id)
         / "search" :? TermQueryParam(term) =>
       service
@@ -86,6 +75,17 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
           case Right(mangaMatches) =>
             Ok(
               view.mangaMatchesPartial(id, mangaMatches),
+              `Content-Type`(MediaType.text.html)
+            )
+
+    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id) / "search" =>
+      assetService
+        .find(id)
+        .flatMap:
+          case None => NotFound(s"No manga with id=$id found")
+          case Some(asset, _) =>
+            Ok(
+              view.renderMangaSearch(asset.title, asset.id),
               `Content-Type`(MediaType.text.html)
             )
 
