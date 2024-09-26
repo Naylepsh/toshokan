@@ -20,7 +20,7 @@ object CreatedAt extends Newt[LocalDate]:
       .leftMap(_.toString)
 
 case class ChapterAttributes(
-    title: String,
+    title: Option[String],
     chapter: String,
     externalUrl: Option[String],
     createdAt: CreatedAt
