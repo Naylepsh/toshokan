@@ -45,7 +45,7 @@ object SchemasSuite:
     Chapter(
       id = "a61ca907-11b4-4b11-842f-6c8406f90cec",
       attributes = ChapterAttributes(
-        title = "Un lugar para alguien especial",
+        title = Some("Un lugar para alguien especial"),
         chapter = "7",
         externalUrl = None,
         CreatedAt(LocalDate.parse("2024-02-13"))

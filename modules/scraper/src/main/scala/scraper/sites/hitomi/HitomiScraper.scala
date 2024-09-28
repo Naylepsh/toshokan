@@ -45,11 +45,9 @@ class HitomiScraper[F[_]: MonadCancelThrow: Sync](
         case Right(_) => ().asRight
 
   private def parse(page: Page): Either[ScrapeError, List[EntryFound]] =
-    val parser  = JsoupBrowser()
-    val html    = parser.parseString(page.content())
-    val entries = html >> elementList(".gallery-content > div")
+    val html = JsoupBrowser().parseString(page.content())
     HitomiScraper
-      .parse(entries)
+      .parse(html >> elementList(".gallery-content > div"))
       .flatMap:
         case Nil => ScrapeError.NoEntriesFound.asLeft
         case entries =>
