@@ -66,7 +66,6 @@ object MyAnimeListClient:
           "status"            -> MangaStatus.Reading.urlEncoded,
           "num_chapters_read" -> latestChapter.value.toString
         )
-      println(s"[request] $req")
       req.auth
         .bearer(token.accessToken)
         .send(backend)
