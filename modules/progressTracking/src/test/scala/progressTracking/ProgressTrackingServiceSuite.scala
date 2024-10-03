@@ -216,6 +216,10 @@ object ProgressTrackingServiceSuite:
         token: AuthToken,
         term: Term
     ): IO[Either[Throwable, GetMangaListSuccess]] = ???
+    override def find(
+        token: AuthToken,
+        mangaId: ExternalMangaId
+    ): IO[Either[Throwable, Option[mal.Manga]]] = ???
     override def updateStatus(
         token: AuthToken,
         mangaId: ExternalMangaId,

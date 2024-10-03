@@ -46,11 +46,6 @@ type AssignExternalIdToMangaError = AssetNotFound | CategoryNotFound |
   AssetIsNotManga | ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned
 
 type FindMalMappingError = AssetNotFound | CategoryNotFound | AssetIsNotManga
-/*
- * ProgressTracking module should probably sit on top of the library module?
- * Then the `wasSeen` should be probably moved from there to this module as well?
- * Thus this module needs a controller for handling these updates as well
- */
 
 trait ProgressTrackingService[F[_]]:
   def searchForManga(term: Term): F[Either[Throwable, List[Manga]]]
@@ -106,14 +101,25 @@ object ProgressTrackingService:
         term: Term
     ): F[Either[Throwable, List[Manga]]] =
       withToken: token =>
-        Functor[F]
-          .compose[Result]
-          .map(malClient.searchManga(token, term)): body =>
-            body.data.map: mangaData =>
-              Manga(
-                ExternalMangaId(mangaData.node.id),
-                MangaTitle(mangaData.node.title)
-              )
+        term match
+          case Term.Id(id) =>
+            Functor[F]
+              .compose[Result]
+              .map(malClient.find(token, id)):
+                case None => List.empty
+                case Some(manga) =>
+                  List(
+                    Manga(ExternalMangaId(manga.id), MangaTitle(manga.title))
+                  )
+          case name @ Term.Name(_) =>
+            Functor[F]
+              .compose[Result]
+              .map(malClient.searchManga(token, name)): body =>
+                body.data.map: mangaData =>
+                  Manga(
+                    ExternalMangaId(mangaData.node.id),
+                    MangaTitle(mangaData.node.title)
+                  )
 
     override def findAssetWithMalMapping(
         assetId: AssetId

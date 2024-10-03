@@ -4,13 +4,14 @@ import cats.syntax.all.*
 import http.View.{NavBarItem, layout}
 import io.circe.syntax.*
 import library.domain.*
+import progressTracking.domain.ExistingMalMangaMapping
+import progressTracking.mal.MyAnimeListClient
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
 import domain.Manga
 import schemas.NewMalMangaMappingDTO
 import viewComponents.Pagination
-import progressTracking.domain.ExistingMalMangaMapping
 
 class ProgressTrackingView(navbarItems: List[NavBarItem]):
   def renderMangaSearch(
@@ -45,6 +46,7 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
           tr(
             th("External Id"),
             th("Title"),
+            th("Url"),
             th("")
           )
         ),
@@ -53,6 +55,7 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
             tr(
               th(manga.id.show),
               td(manga.title.show),
+              td(MyAnimeListClient.makeUrl(manga.id)),
               td(
                 button(
                   attr("hx-post") := "/progress-tracking/mal/manga-mapping",
@@ -176,7 +179,7 @@ object ProgressTrackingView:
           input(
             cls         := "input input-bordered w-full",
             name        := "term",
-            placeholder := "Manga term"
+            placeholder := "Manga term (prefix with # to search by id)"
           ),
           button(
             `type` := "submit",
@@ -200,7 +203,7 @@ object ProgressTrackingView:
       asset: ExistingAsset,
       mapping: ExistingMalMangaMapping
   ) =
-    val externalUrl = s"https://myanimelist.net/manga/${mapping.externalId}"
+    val externalUrl = MyAnimeListClient.makeUrl(mapping.externalId)
     div(
       cls := "container",
       h2(

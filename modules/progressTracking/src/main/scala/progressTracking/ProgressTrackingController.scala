@@ -136,7 +136,7 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
 
   val routes = Router("progress-tracking" -> httpRoutes)
 
-given QueryParamDecoder[Term] = QueryParamDecoder[String].map(Term(_))
+given QueryParamDecoder[Term] = QueryParamDecoder[String].map(Term.apply)
 
 private object TermQueryParam extends QueryParamDecoderMatcher[Term]("term")
 

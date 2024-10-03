@@ -9,7 +9,7 @@ import cats.syntax.all.*
 import sttp.capabilities.WebSockets
 import sttp.client3.circe.*
 import sttp.client3.{SttpBackend, UriContext, basicRequest}
-import sttp.model.Uri
+import sttp.model.{StatusCode, Uri}
 
 import domain.{LatestChapter, Term, ExternalMangaId}
 
@@ -18,8 +18,12 @@ case class MalAuth(clientId: String, clientSecret: String, redirectUri: URI)
 trait MyAnimeListClient[F[_]]:
   def searchManga(
       token: AuthToken,
-      term: Term
+      term: Term.Name
   ): F[Either[Throwable, GetMangaListSuccess]]
+  def find(
+      token: AuthToken,
+      mangaId: ExternalMangaId
+  ): F[Either[Throwable, Option[Manga]]]
   def updateStatus(
       token: AuthToken,
       mangaId: ExternalMangaId,
@@ -41,7 +45,7 @@ object MyAnimeListClient:
   ): MyAnimeListClient[F] = new:
     override def searchManga(
         token: AuthToken,
-        term: Term
+        term: Term.Name
     ): F[Either[Throwable, GetMangaListSuccess]] =
       val url = uri"https://api.myanimelist.net/v2/manga?q=$term"
       basicRequest
@@ -53,6 +57,22 @@ object MyAnimeListClient:
         .map(_.body)
         .handleError(_.asLeft)
 
+    override def find(
+        token: AuthToken,
+        mangaId: ExternalMangaId
+    ): F[Either[Throwable, Option[Manga]]] =
+      val url = uri"https://api.myanimelist.net/v2/manga/$mangaId"
+      basicRequest
+        .get(url)
+        .auth
+        .bearer(token.accessToken)
+        .response(asJson[Manga])
+        .send(backend)
+        .map: response =>
+          response.code match
+            case StatusCode.NotFound => None.asRight
+            case _ => response.body.map(_.some).leftMap(new RuntimeException(_))
+
     override def updateStatus(
         token: AuthToken,
         mangaId: ExternalMangaId,
@@ -60,17 +80,16 @@ object MyAnimeListClient:
     ): F[Either[Throwable, Unit]] =
       val url =
         uri"https://api.myanimelist.net/v2/manga/$mangaId/my_list_status"
-      val req = basicRequest
+      basicRequest
         .patch(url)
         .body(
           "status"            -> MangaStatus.Reading.urlEncoded,
           "num_chapters_read" -> latestChapter.value.toString
         )
-      req.auth
+        .auth
         .bearer(token.accessToken)
         .send(backend)
         .map: response =>
-          println(s"[response] $response")
           response.body.void.leftMap(new RuntimeException(_))
 
     override def refreshAuthToken(
@@ -130,3 +149,6 @@ object MyAnimeListClient:
       (1 to 50).toList
         .traverse(_ => random.nextAlphaNumeric)
         .map(_.mkString)
+
+  def makeUrl(mangaId: ExternalMangaId): String =
+    s"https://myanimelist.net/manga/${mangaId}"
