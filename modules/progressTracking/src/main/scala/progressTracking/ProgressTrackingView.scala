@@ -39,7 +39,7 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
       matches: List[Manga]
   ): TypedTag[String] =
     div(
-      cls := "mx-auto max-w-96",
+      cls := "mx-auto max-w-2xl",
       table(
         cls := "table table-zebra",
         thead(
@@ -52,10 +52,11 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
         ),
         tbody(
           matches.map: manga =>
+            val externalUrl = MyAnimeListClient.makeUrl(manga.id)
             tr(
               th(manga.id.show),
               td(manga.title.show),
-              td(MyAnimeListClient.makeUrl(manga.id)),
+              td(a(href := externalUrl, externalUrl)),
               td(
                 button(
                   attr("hx-post") := "/progress-tracking/mal/manga-mapping",
