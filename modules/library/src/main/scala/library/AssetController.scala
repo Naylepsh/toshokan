@@ -34,7 +34,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
           `Content-Type`(MediaType.text.html)
         )
 
-    case GET -> Root / "edit" / AssetIdVar(id) =>
+    case GET -> Root / AssetIdVar(id) =>
       (assetService.find(id), categoryService.findAll).tupled.flatMap:
         case (None, _) => NotFound(s"Asset ${id} not found")
         case (Some(asset, _), categories) =>
@@ -55,7 +55,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
                 asset.id.value.toString,
                 addRedirectHeaderIfHtmxRequest(
                   req,
-                  s"/assets/edit/${asset.id}"
+                  s"/assets/${asset.id}"
                 )
               )
 

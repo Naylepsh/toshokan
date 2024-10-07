@@ -100,7 +100,7 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
         ),
         div(
           cls := "collapse-title text-xl font-medium",
-          dateUploaded.value.toString
+          dateUploaded.show
         ),
         div(
           cls := "collapse-content",
@@ -157,7 +157,10 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
     )
     div(
       cls := "entry justify-start w-full",
-      h5(cls  := headerClass, asset.title.value),
+      a(
+        href := s"/assets/${asset.id}",
+        h5(cls := headerClass, asset.title.show)
+      ),
       div(cls := "flex gap-2 items-center", markingAction, linkToEntry)
     )
 

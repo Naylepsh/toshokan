@@ -21,6 +21,7 @@ import sttp.model.Uri
 
 import domain.*
 import mal.*
+import progressTracking.domain.Term.Name
 
 class ProgressTrackingServiceSuite extends munit.CatsEffectSuite:
   import ProgressTrackingServiceSuite.*
@@ -214,7 +215,7 @@ object ProgressTrackingServiceSuite:
     )
     override def searchManga(
         token: AuthToken,
-        term: Term
+        term: Name
     ): IO[Either[Throwable, GetMangaListSuccess]] = ???
     override def find(
         token: AuthToken,

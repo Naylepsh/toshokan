@@ -49,7 +49,7 @@ class AssetView(navBarItems: List[NavBarItem]):
                     cls := "d-flex space-x-2",
                     a(
                       cls  := "text-light",
-                      href := s"/assets/edit/${asset.id}",
+                      href := s"/assets/${asset.id}",
                       i(cls := "fa-solid fa-pen-to-square")
                     ),
                     a(
