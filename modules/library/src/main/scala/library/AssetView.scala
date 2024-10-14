@@ -70,61 +70,23 @@ class AssetView(navBarItems: List[NavBarItem]):
       navBarItems
     )
 
-  def renderForm(
-      asset: Option[ExistingAsset],
+  def renderAsset(
+      asset: ExistingAsset,
+      entries: List[ExistingAssetEntry],
       categories: List[ExistingCategory]
-  ) =
-    val titleId = "title"
-    val (hxMethod, url) = asset
-      .map(asset => (attr("hx-put"), s"/assets/${asset.id}"))
-      .getOrElse((attr("hx-post"), "/assets"))
+  ): TypedTag[String] =
     layout(
-      asset.map(_.title.value).getOrElse("New Asset").some,
+      asset.title.show.some,
+      assetDetailesPartial(asset, entries, categories),
+      navBarItems
+    )
+
+  def renderForm(categories: List[ExistingCategory]): TypedTag[String] =
+    layout(
+      "New Asset".some,
       div(
         cls := "mt-5 flex flex-col justify-center w-1/2 mx-auto",
-        form(
-          cls            := "mb-0",
-          hxMethod       := url,
-          attr("hx-ext") := "json-enc",
-          div(
-            label(
-              `for` := titleId,
-              cls   := "form-control w-full",
-              div(cls := "label", span(cls := "label-text", "Title")),
-              input(
-                cls   := "input input-bordered w-full",
-                id    := titleId,
-                name  := "title",
-                value := asset.map(_.title.value).getOrElse("")
-              )
-            )
-          ),
-          div(
-            cls := "mt-3",
-            categorySelectionPartial(categories, asset.flatMap(_.categoryId))
-          ),
-          button(
-            `type` := "submit",
-            cls    := "btn btn-primary w-full mt-3",
-            "Submit"
-          )
-        ),
-        asset
-          .map: asset =>
-            a(
-              href := s"/asset-scraping/assets/${asset.id}/configs",
-              cls  := "btn btn-secondary mt-3",
-              "Scraping configs"
-            )
-          .getOrElse(div()),
-        asset
-          .map: asset =>
-            a(
-              href := s"/progress-tracking/mal/manga-mapping/${asset.id}",
-              cls  := "btn btn-secondary mt-3",
-              "MyAnimeList mapping"
-            )
-          .getOrElse(div())
+        formPartial(None, categories)
       ),
       navBarItems
     )
@@ -163,3 +125,82 @@ object AssetView:
               )
           )
         )
+
+  private def assetDetailesPartial(
+      asset: ExistingAsset,
+      entries: List[ExistingAssetEntry],
+      categories: List[ExistingCategory]
+  ): TypedTag[String] =
+    div(
+      cls := "mt-5 flex flex-col justify-center w-1/2 mx-auto",
+      formPartial(asset.some, categories),
+      a(
+        href := s"/asset-scraping/assets/${asset.id}/configs",
+        cls  := "btn btn-secondary mt-3",
+        "Scraping configs"
+      ),
+      a(
+        href := s"/progress-tracking/mal/manga-mapping/${asset.id}",
+        cls  := "btn btn-secondary mt-3",
+        "MyAnimeList mapping"
+      ),
+      div(
+        cls := "mt-3",
+        table(
+          cls := "table table-zebra",
+          thead(
+            tr(
+              th("Id"),
+              th("No"),
+              th("Title"),
+              th("Url")
+            )
+          ),
+          tbody(
+            entries.map: entry =>
+              tr(
+                th(entry.id.show),
+                td(entry.no.show),
+                td(entry.title.show),
+                td(a(href := entry.uri.show, entry.uri.show))
+              )
+          )
+        )
+      )
+    )
+
+  private def formPartial(
+      asset: Option[ExistingAsset],
+      categories: List[ExistingCategory]
+  ): TypedTag[String] =
+    val titleId = "title"
+    val (hxMethod, url) = asset
+      .map(asset => (attr("hx-put"), s"/assets/${asset.id}"))
+      .getOrElse((attr("hx-post"), "/assets"))
+    form(
+      cls            := "mb-0",
+      hxMethod       := url,
+      attr("hx-ext") := "json-enc",
+      div(
+        label(
+          `for` := titleId,
+          cls   := "form-control w-full",
+          div(cls := "label", span(cls := "label-text", "Title")),
+          input(
+            cls   := "input input-bordered w-full",
+            id    := titleId,
+            name  := "title",
+            value := asset.map(_.title.value).getOrElse("")
+          )
+        )
+      ),
+      div(
+        cls := "mt-3",
+        categorySelectionPartial(categories, asset.flatMap(_.categoryId))
+      ),
+      button(
+        `type` := "submit",
+        cls    := "btn btn-primary w-full mt-3",
+        "Submit"
+      )
+    )

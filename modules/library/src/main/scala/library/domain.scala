@@ -47,7 +47,14 @@ type EntryTitle = EntryTitle.Type
 object EntryTitle extends Newtype[String]
 
 type EntryNo = EntryNo.Type
-object EntryNo extends Newtype[String]
+object EntryNo extends Newtype[String]:
+  given Ordering[EntryNo] with
+    override def compare(x: EntryNo, y: EntryNo): Int =
+      (x.value.toDoubleOption, y.value.toDoubleOption) match
+        case (Some(xNo), Some(yNo)) => xNo.compareTo(yNo)
+        case (Some(xNo), None)      => 1
+        case (None, Some(yNo))      => -1
+        case (None, None)           => 0
 
 type EntryUri = EntryUri.Type
 object EntryUri extends Newtype[URI]
@@ -56,7 +63,10 @@ type WasEntrySeen = WasEntrySeen.Type
 object WasEntrySeen extends Newtype[Boolean]
 
 type DateUploaded = DateUploaded.Type
-object DateUploaded extends Newtype[LocalDate]
+object DateUploaded extends Newtype[LocalDate]:
+  given Ordering[DateUploaded] with
+    override def compare(x: DateUploaded, y: DateUploaded): Int =
+      x.value.compareTo(y.value)
 
 case class NewAssetEntry(
     title: EntryTitle,

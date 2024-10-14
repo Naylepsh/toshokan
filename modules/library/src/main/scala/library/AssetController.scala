@@ -30,16 +30,22 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
     case GET -> Root / "new" =>
       categoryService.findAll.flatMap: categories =>
         Ok(
-          view.renderForm(None, categories),
+          view.renderForm(categories),
           `Content-Type`(MediaType.text.html)
         )
 
     case GET -> Root / AssetIdVar(id) =>
       (assetService.find(id), categoryService.findAll).tupled.flatMap:
         case (None, _) => NotFound(s"Asset ${id} not found")
-        case (Some(asset, _), categories) =>
+        case (Some(asset, entries), categories) =>
           Ok(
-            view.renderForm(asset.some, categories),
+            view.renderAsset(
+              asset,
+              entries.sortBy(entry => (entry.no, entry.dateUploaded))(using
+                Ordering[(EntryNo, DateUploaded)].reverse
+              ),
+              categories
+            ),
             `Content-Type`(MediaType.text.html)
           )
 
