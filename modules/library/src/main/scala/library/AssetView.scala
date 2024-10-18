@@ -140,9 +140,9 @@ object AssetView:
         "Scraping configs"
       ),
       a(
-        href := s"/progress-tracking/mal/manga-mapping/${asset.id}",
+        href := s"/asset-mapping/${asset.id}",
         cls  := "btn btn-secondary mt-3",
-        "MyAnimeList mapping"
+        "Mapping to external services"
       ),
       div(
         cls := "mt-3",

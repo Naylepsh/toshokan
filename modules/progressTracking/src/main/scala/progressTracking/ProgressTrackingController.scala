@@ -3,7 +3,6 @@ package progressTracking
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
 import library.AssetController.{AssetIdVar, EntryIdVar}
-import library.AssetService
 import library.domain.{AssetId, UpdateEntryError}
 import org.http4s.*
 import org.http4s.dsl.impl.{
@@ -18,7 +17,6 @@ import schemas.{*, given}
 import viewComponents.Pagination
 
 class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
-    assetService: AssetService[F],
     service: ProgressTrackingService[F],
     view: ProgressTrackingView
 ) extends http.Controller[F]:
@@ -65,74 +63,6 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
             case Left(UpdateEntryError.EntryDoesNotExist) =>
               NotFound("Entry does not exist")
             case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
-
-    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id)
-        / "search" :? TermQueryParam(term) =>
-      service
-        .searchForManga(term)
-        .flatMap:
-          case Left(error) => MonadCancelThrow[F].raiseError(error)
-          case Right(mangaMatches) =>
-            Ok(
-              view.mangaMatchesPartial(id, mangaMatches),
-              `Content-Type`(MediaType.text.html)
-            )
-
-    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id) / "search" =>
-      assetService
-        .find(id)
-        .flatMap:
-          case None => NotFound(s"No manga with id=$id found")
-          case Some(asset, _) =>
-            Ok(
-              view.renderMangaSearch(asset.title, asset.id),
-              `Content-Type`(MediaType.text.html)
-            )
-
-    case GET -> Root / "mal" / "manga-mapping" / AssetIdVar(id) =>
-      service
-        .findAssetWithMalMapping(id)
-        .flatMap:
-          case Left(error) =>
-            MonadCancelThrow[F].raiseError(error)
-          case Right(None) =>
-            SeeOther(
-              Location(
-                Uri.unsafeFromString(
-                  s"/progress-tracking/mal/manga-mapping/${id}/search"
-                )
-              )
-            )
-          case Right(Some(asset, mapping)) =>
-            Ok(
-              view.renderMangaMalMapping(asset, mapping),
-              `Content-Type`(MediaType.text.html)
-            )
-
-    case req @ POST -> Root / "mal" / "manga-mapping" =>
-      withJsonErrorsHandled[NewMalMangaMappingDTO](req): newMalLinking =>
-        service
-          .assignExternalIdToManga(newMalLinking.malId, newMalLinking.assetId)
-          .flatMap:
-            case Left(AssetNotFound) => NotFound("Asset not found")
-            case Left(CategoryNotFound | AssetIsNotManga) =>
-              BadRequest("Asset illegible for MAL integration")
-            case Left(
-                  ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned
-                ) =>
-              Conflict("Duplicate mangaId / externalId assignment")
-            case Right(_) => Ok("")
-
-    case DELETE -> Root / "mal" / "manga-mapping" / AssetIdVar(id) =>
-      service.deleteMapping(id) *> Ok("")
-
-    case POST -> Root / "mal" =>
-      service.prepareForTokenAcquisition.flatMap(uri => Ok(uri.toString))
-
-    case GET -> Root / "mal" :? CodeQueryParamMatcher(code) =>
-      service
-        .acquireToken(code)
-        .flatMap(_.fold(MonadCancelThrow[F].raiseError, _ => Ok("")))
 
   val routes = Router("progress-tracking" -> httpRoutes)
 

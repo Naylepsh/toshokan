@@ -2,76 +2,13 @@ package progressTracking
 
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout}
-import io.circe.syntax.*
 import library.domain.*
-import progressTracking.domain.ExistingMalMangaMapping
-import progressTracking.mal.MyAnimeListClient
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
-import domain.Manga
-import schemas.NewMalMangaMappingDTO
 import viewComponents.Pagination
 
 class ProgressTrackingView(navbarItems: List[NavBarItem]):
-  def renderMangaSearch(
-      mangaTitle: AssetTitle,
-      mangaId: AssetId
-  ): TypedTag[String] =
-    layout(
-      mangaTitle.show.some,
-      ProgressTrackingView.searchMangaByTerm(mangaId, mangaTitle),
-      navbarItems
-    )
-
-  def renderMangaMalMapping(
-      asset: ExistingAsset,
-      mapping: ExistingMalMangaMapping
-  ): TypedTag[String] =
-    layout(
-      asset.title.show.some,
-      ProgressTrackingView.mangaMalMapping(asset, mapping),
-      navbarItems
-    )
-
-  def mangaMatchesPartial(
-      assetId: AssetId,
-      matches: List[Manga]
-  ): TypedTag[String] =
-    div(
-      cls := "mx-auto max-w-2xl",
-      table(
-        cls := "table table-zebra",
-        thead(
-          tr(
-            th("External Id"),
-            th("Title"),
-            th("Url"),
-            th("")
-          )
-        ),
-        tbody(
-          matches.map: manga =>
-            val externalUrl = MyAnimeListClient.makeUrl(manga.id)
-            tr(
-              th(manga.id.show),
-              td(manga.title.show),
-              td(a(href := externalUrl, externalUrl)),
-              td(
-                button(
-                  attr("hx-post") := "/progress-tracking/mal/manga-mapping",
-                  attr(
-                    "hx-vals"
-                  ) := NewMalMangaMappingDTO(assetId, manga.id).asJson.toString,
-                  attr("hx-ext") := "json-enc",
-                  "Commit"
-                )
-              )
-            ),
-        )
-      )
-    )
-
   def renderReleases(
       releases: List[Releases],
       pagination: Pagination
@@ -165,35 +102,6 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
     )
 
 object ProgressTrackingView:
-  private def searchMangaByTerm(mangaId: AssetId, mangaTitle: AssetTitle) =
-    div(
-      cls := "container",
-      h2(
-        cls := "font-semibold text-center mt-3",
-        s"""Search for corresponding MAL entry for "${mangaTitle}""""
-      ),
-      form(
-        cls := "mt-3",
-        attr(
-          "hx-get"
-        ) := s"/progress-tracking/mal/manga-mapping/${mangaId.value}/search",
-        attr("hx-swap") := "outerHTML",
-        div(
-          cls := "flex mx-auto max-w-xl",
-          input(
-            cls         := "input input-bordered w-full",
-            name        := "term",
-            placeholder := "Manga term (prefix with # to search by id)"
-          ),
-          button(
-            `type` := "submit",
-            cls    := "btn ml-2",
-            "Search"
-          )
-        )
-      )
-    )
-
   private def paginationButtonModifiers(page: String) =
     List(
       attr("hx-get")    := s"/progress-tracking/partials/releases?page=$page",
@@ -202,43 +110,3 @@ object ProgressTrackingView:
 
   private def noReleasesPartial =
     h2(cls := "text-center font-semibold", "No releases found")
-
-  private def mangaMalMapping(
-      asset: ExistingAsset,
-      mapping: ExistingMalMangaMapping
-  ) =
-    val externalUrl = MyAnimeListClient.makeUrl(mapping.externalId)
-    div(
-      cls := "container",
-      h2(
-        cls := "font-semibold text-center mt-3",
-        s"${asset.title.show}'s MAL Mapping"
-      ),
-      div(
-        cls := "mx-auto max-w-2xl",
-        table(
-          cls := "table table-zebra",
-          thead(
-            tr(
-              th("External Id"),
-              th("External Url"),
-              th("")
-            )
-          ),
-          tbody(
-            tr(
-              th(mapping.externalId.show),
-              td(a(href := externalUrl, externalUrl)),
-              td(
-                button(
-                  attr(
-                    "hx-delete"
-                  ) := s"/progress-tracking/mal/manga-mapping/${mapping.internalId}",
-                  "Delete"
-                )
-              )
-            )
-          )
-        )
-      )
-    )

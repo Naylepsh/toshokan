@@ -12,7 +12,12 @@ import http.Routed
 import http.View.NavBarItem
 import org.http4s.HttpRoutes
 import org.http4s.syntax.all.*
-import progressTracking.mal.{MalAuth, MyAnimeListClient}
+import progressTracking.assetMapping.{
+  AssetMappingController,
+  AssetMappingService,
+  AssetMappingView
+}
+import progressTracking.mal.*
 import progressTracking.{
   ProgressTrackingController,
   ProgressTrackingService,
@@ -117,12 +122,29 @@ object Main extends IOApp.Simple:
     )
 
     val malClient = MyAnimeListClient.make[IO](httpBackend, malAuth, random)
-    ProgressTrackingService
-      .make(xa, malClient, assetService, categoryService)
-      .map: progressTrackingService =>
+    MyAnimeListService
+      .make[IO](xa, malClient)
+      .map: malService =>
+        val myAnimeListController = MyAnimeListController(malService)
+        val assetMappingService =
+          AssetMappingService(assetService, categoryService, malService, xa)
+        val assetMappingView = AssetMappingView(navBarItems)
+        val assetMappingController = AssetMappingController(
+          assetMappingService,
+          assetService,
+          assetMappingView
+        )
+        val progressTrackingService = ProgressTrackingService
+          .make(
+            xa,
+            malService,
+            assetService,
+            assetMappingService,
+            categoryService
+          )
+
         val progressTrackingView = ProgressTrackingView(navBarItems)
         val progressTrackingController = ProgressTrackingController(
-          assetService,
           progressTrackingService,
           progressTrackingView
         )
@@ -135,6 +157,8 @@ object Main extends IOApp.Simple:
           assetScrapingController,
           assetScrapingConfigController,
           scheduleController,
+          myAnimeListController,
+          assetMappingController,
           progressTrackingController,
           publicController,
           shutdownController
