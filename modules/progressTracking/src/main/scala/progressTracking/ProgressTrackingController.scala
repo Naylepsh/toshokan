@@ -64,6 +64,9 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
               NotFound("Entry does not exist")
             case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
 
+    case PATCH -> Root / "partials" / "releases" / AssetIdVar(assetId) =>
+      service.binge(assetId) *> Ok("Binged")
+
   val routes = Router("progress-tracking" -> httpRoutes)
 
 given QueryParamDecoder[Term] = QueryParamDecoder[String].map(Term.apply)

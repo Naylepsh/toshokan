@@ -20,6 +20,7 @@ trait ProgressTrackingService[F[_]]:
       entryId: EntryId,
       wasEntrySeen: WasEntrySeen
   ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]]
+  def binge(assetId: AssetId): F[Unit]
   def findNotSeenReleases: F[List[Releases]]
 
 object ProgressTrackingService:
@@ -58,6 +59,32 @@ object ProgressTrackingService:
               else Sync[F].unit
             ).mapN((a, _) => a)
 
+    override def binge(assetId: AssetId): F[Unit] =
+      assetService
+        .find(assetId)
+        .flatMap:
+          case None =>
+            scribe.cats[F].error(s"No asset with id=${assetId} found")
+          case Some(asset, entries) =>
+            val updateEntries = entries.traverse(entry =>
+              assetService
+                .setSeen(asset.id, entry.id, WasEntrySeen(true))
+                .map(
+                  _.fold(error => scribe.error(error.toString), identity)
+                )
+                .void
+            )
+            val updateLatestEntryExternally = pickLatestEntry(entries).fold(
+              scribe
+                .cats[F]
+                .warn(
+                  s"Asset ${asset.title} has no entry applicable for updating externally"
+                )
+            ): no =>
+              updateProgressExternally(asset, entries, no)
+                .map(_.fold(error => scribe.error(error.getMessage), identity))
+            (updateEntries <* updateLatestEntryExternally).void
+
     override def findNotSeenReleases: F[List[Releases]] =
       // TODO: Move the AssetService's logic here and remove this method from it?
       assetService.findNotSeenReleases
@@ -75,11 +102,7 @@ object ProgressTrackingService:
             .as(Either.unit)
         case _ => Either.unit.pure
 
-  /** EntryNo can be just a number, but it can also be a full chapter title. It
-    * would probably make sense to force a split into separate EntryTitle and
-    * EntryNo (which could default to 1 in the case of extraction failure)
-    *
-    * Any EntryNo with fractional number should not be considered latest, as we
+  /** Any EntryNo with fractional number should not be considered latest, as we
     * don't known whether there are any more entries within the same integer
     * mark
     */
@@ -94,3 +117,23 @@ object ProgressTrackingService:
           .pipe(NonEmptyList.fromList)
           .fold(false)(_.maximum == noNumeric)
       .getOrElse(false)
+
+  def pickLatestEntry(
+      entries: List[ExistingAssetEntry]
+  ): Option[EntryNo] =
+    entries
+      .sortBy(_.no.value.toIntOption)(using Ordering[Option[Int]].reverse)
+      .pipe(pickLatestEntryInternals)
+
+  /** Assumes that entries are sorted by `entry.no` descending
+    */
+  @scala.annotation.tailrec
+  private def pickLatestEntryInternals(
+      entries: List[ExistingAssetEntry]
+  ): Option[EntryNo] =
+    entries match
+      case Nil => None
+      case entry :: tail =>
+        LatestChapter(entry.no) match
+          case None    => pickLatestEntryInternals(tail)
+          case Some(_) => entry.no.some

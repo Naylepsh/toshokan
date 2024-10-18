@@ -146,6 +146,16 @@ object AssetView:
       ),
       div(
         cls := "mt-3",
+        div(
+          cls := "flex justify-end",
+          button(
+            cls := "btn btn-primary btn-wide mt-3",
+            attr(
+              "hx-patch"
+            ) := s"/progress-tracking/partials/releases/${asset.id}",
+            "Binge"
+          )
+        ),
         table(
           cls := "table table-zebra",
           thead(
