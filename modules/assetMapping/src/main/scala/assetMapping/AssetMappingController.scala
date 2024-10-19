@@ -1,4 +1,3 @@
-package progressTracking
 package assetMapping
 
 import cats.effect.{Concurrent, MonadCancelThrow}
@@ -6,11 +5,12 @@ import cats.syntax.all.*
 import library.AssetController.AssetIdVar
 import library.AssetService
 import library.domain.AssetId
+import myAnimeList.domain.Term
 import org.http4s.*
+import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.headers.*
 import org.http4s.server.Router
 
-import domain.Term
 import schemas.{*, given}
 
 class AssetMappingController[F[_]: MonadCancelThrow: Concurrent](
@@ -82,3 +82,8 @@ class AssetMappingController[F[_]: MonadCancelThrow: Concurrent](
       service.deleteMapping(id) *> Ok("")
 
   val routes = Router("asset-mapping" -> httpRoutes)
+
+private given QueryParamDecoder[Term] =
+  QueryParamDecoder[String].map(Term.apply)
+
+private object TermQueryParam extends QueryParamDecoderMatcher[Term]("term")

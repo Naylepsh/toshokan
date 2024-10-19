@@ -10,17 +10,19 @@ import doobie.util.transactor.Transactor
 import library.category.{CategoryRepository, CategoryService}
 import library.domain.*
 import library.{AssetRepository, AssetService}
-import progressTracking.assetMapping.AssetMappingService
+import myAnimeList.MyAnimeListService
+import myAnimeList.domain.ExternalMangaId
+import assetMapping.AssetMappingService
+import db.transactors.inMemoryTransactor
+import db.migrations.applyMigrations
 
-import domain.*
-import mal.*
 import testUtils.*
 
 class ProgressTrackingServiceSuite extends munit.CatsEffectSuite:
   import ProgressTrackingServiceSuite.*
 
   val withServices = ResourceFunFixture(
-    inMemoryTransactor.evalTap(applyMigrations).evalMap(makeService)
+    inMemoryTransactor[IO].evalTap(applyMigrations).evalMap(makeService)
   )
 
   test("isLatestEntry is false for non-numeric"):

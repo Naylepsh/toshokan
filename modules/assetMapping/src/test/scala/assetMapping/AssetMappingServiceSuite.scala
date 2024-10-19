@@ -1,4 +1,3 @@
-package progressTracking
 package assetMapping
 
 import java.net.URI
@@ -7,22 +6,24 @@ import java.time.LocalDate
 import cats.data.EitherT
 import cats.effect.IO
 import cats.syntax.all.*
+import db.migrations.applyMigrations
+import db.transactors.inMemoryTransactor
 import doobie.*
 import doobie.util.transactor.Transactor
 import library.category.domain.{CategoryName, NewCategory}
 import library.category.{CategoryRepository, CategoryService}
 import library.domain.*
 import library.{AssetRepository, AssetService}
+import myAnimeList.MyAnimeListService
+import myAnimeList.domain.ExternalMangaId
 
-import domain.*
-import mal.*
-import testUtils.*
+import testUtils.noopMalClient
 
 class AssetMappingServiceSuite extends munit.CatsEffectSuite:
   import AssetMappingServiceSuite.*
 
   val withServices = ResourceFunFixture(
-    inMemoryTransactor.evalTap(applyMigrations).evalMap(makeService)
+    inMemoryTransactor[IO].evalTap(applyMigrations).evalMap(makeService)
   )
 
   withServices.test(

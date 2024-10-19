@@ -1,11 +1,12 @@
 package app
 package config
 
+import java.net.URI
+
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import http.View.NavBarItem
-import progressTracking.mal.MalAuth
-import java.net.URI
+import myAnimeList.MalAuth
 
 def load[F[_]](using F: Sync[F]) =
   F.delay:

@@ -3,9 +3,10 @@ package app
 import assetScraping.configs.domain.Site
 import cats.effect.kernel.Sync
 import com.microsoft.playwright.Browser
+import mangadex.MangadexApi
 import scraper.domain.SiteScraper
 import scraper.sites.hitomi.HitomiScraper
-import scraper.sites.mangadex.{MangadexApi, MangadexScraper}
+import scraper.sites.mangadex.MangadexScraper
 import scraper.sites.mangakakalot.MangakakalotScraper
 import scraper.sites.yatta.YattaScraper
 import sttp.capabilities.WebSockets

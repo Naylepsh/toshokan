@@ -1,4 +1,4 @@
-package scraper.sites.mangadex
+package mangadex.schemas
 
 import java.time.LocalDate
 

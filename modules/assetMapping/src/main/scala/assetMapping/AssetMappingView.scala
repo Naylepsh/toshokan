@@ -1,15 +1,15 @@
-package progressTracking
 package assetMapping
 
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout}
 import io.circe.syntax.*
 import library.domain.*
+import myAnimeList.MyAnimeListClient
+import myAnimeList.domain.Manga
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
-import domain.{Manga, ExistingMalMangaMapping}
-import mal.MyAnimeListClient
+import domain.ExistingMalMangaMapping
 import schemas.NewMalMangaMappingDTO
 
 class AssetMappingView(navBarItems: List[NavBarItem]):

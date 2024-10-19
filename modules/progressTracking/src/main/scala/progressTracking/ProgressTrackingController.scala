@@ -4,6 +4,7 @@ import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
 import library.AssetController.{AssetIdVar, EntryIdVar}
 import library.domain.{AssetId, UpdateEntryError}
+import myAnimeList.domain.Term
 import org.http4s.*
 import org.http4s.dsl.impl.{
   OptionalQueryParamDecoderMatcher,
@@ -12,7 +13,6 @@ import org.http4s.dsl.impl.{
 import org.http4s.headers.*
 import org.http4s.server.Router
 
-import domain.Term
 import schemas.{*, given}
 import viewComponents.Pagination
 

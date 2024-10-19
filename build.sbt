@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion      := "3.4.2"
+ThisBuild / scalaVersion := "3.4.2"
 // ThisBuild / semanticdbEnabled := true
 // ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
@@ -13,7 +13,7 @@ val commonDependencies = Seq(
   Dependencies.validator,
   Dependencies.scribe,
   Dependencies.scribeCats,
-  Dependencies.munit % Test,
+  Dependencies.munit           % Test,
   Dependencies.munitCatsEffect % Test
 )
 
@@ -54,6 +54,32 @@ lazy val http = project
   )
   .dependsOn(core)
 
+lazy val mangadex = project
+  .in(file("modules/mangadex"))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.sttp,
+      Dependencies.sttpCats,
+      Dependencies.sttpCirce
+    )
+  )
+  .dependsOn(core)
+
+lazy val myAnimeList = project
+  .in(file("modules/myAnimeList"))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.sttp,
+      Dependencies.sttpCats,
+      Dependencies.sttpCirce,
+      Dependencies.http4sDsl,
+      Dependencies.http4sServer
+    )
+  )
+  .dependsOn(core, doobiex, http)
+
 lazy val library = project
   .in(file("modules/library"))
   .disablePlugins(RevolverPlugin)
@@ -78,13 +104,21 @@ lazy val scraper = project
       Dependencies.playwright
     )
   )
-  .dependsOn(core)
+  .dependsOn(core, mangadex)
 
 lazy val assetScraping = project
   .in(file("modules/assetScraping"))
   .disablePlugins(RevolverPlugin)
   .settings(libraryDependencies ++= commonDependencies)
   .dependsOn(core, library, scraper)
+
+lazy val assetMapping = project
+  .in(file("modules/assetMapping"))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies
+  )
+  .dependsOn(core, doobiex, db, library, myAnimeList, myAnimeList)
 
 lazy val snapshot = project
   .in(file("modules/snapshot"))
@@ -102,7 +136,7 @@ lazy val progressTracking = project
       Dependencies.sttpCirce
     )
   )
-  .dependsOn(core, doobiex, db, library)
+  .dependsOn(core, doobiex, db, library, myAnimeList, assetMapping)
 
 lazy val app = project
   .in(file("modules/app"))

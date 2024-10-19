@@ -1,5 +1,4 @@
-package progressTracking
-package mal
+package myAnimeList
 
 import java.net.URI
 
@@ -12,6 +11,7 @@ import sttp.client3.{SttpBackend, UriContext, basicRequest}
 import sttp.model.{StatusCode, Uri}
 
 import domain.{LatestChapter, Term, ExternalMangaId}
+import schemas.*
 
 case class MalAuth(clientId: String, clientSecret: String, redirectUri: URI)
 

@@ -1,4 +1,4 @@
-package progressTracking
+package assetMapping
 package testUtils
 
 import cats.effect.IO

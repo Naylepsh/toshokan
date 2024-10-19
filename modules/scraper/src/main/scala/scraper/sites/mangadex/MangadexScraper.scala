@@ -4,6 +4,8 @@ import java.net.URI
 
 import cats.Monad
 import cats.syntax.all.*
+import mangadex.MangadexApi
+import mangadex.schemas.feed.GetMangaFeedResponse
 import scraper.domain.*
 
 class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:

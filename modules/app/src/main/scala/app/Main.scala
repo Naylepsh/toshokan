@@ -10,14 +10,14 @@ import com.microsoft.playwright.Browser
 import doobie.Transactor
 import http.Routed
 import http.View.NavBarItem
+import myAnimeList.*
 import org.http4s.HttpRoutes
 import org.http4s.syntax.all.*
-import progressTracking.assetMapping.{
+import assetMapping.{
   AssetMappingController,
   AssetMappingService,
   AssetMappingView
 }
-import progressTracking.mal.*
 import progressTracking.{
   ProgressTrackingController,
   ProgressTrackingService,

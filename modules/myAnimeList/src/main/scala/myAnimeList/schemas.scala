@@ -1,4 +1,5 @@
-package progressTracking.mal
+package myAnimeList
+package schemas
 
 import core.Newtype
 import io.circe.derivation.{Configuration, ConfiguredDecoder}

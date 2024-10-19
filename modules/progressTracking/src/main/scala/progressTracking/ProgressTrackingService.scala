@@ -1,5 +1,6 @@
 package progressTracking
 
+import assetMapping.AssetMappingService
 import cats.Parallel
 import cats.data.NonEmptyList
 import cats.effect.*
@@ -8,11 +9,10 @@ import doobie.util.transactor.Transactor
 import library.AssetService
 import library.category.CategoryService
 import library.domain.*
-import progressTracking.mal.{Manga as _, *}
+import myAnimeList.MyAnimeListService
 
 import util.chaining.*
 import domain.*
-import assetMapping.AssetMappingService
 
 trait ProgressTrackingService[F[_]]:
   def updateProgress(
@@ -94,7 +94,7 @@ object ProgressTrackingService:
         entries: List[ExistingAssetEntry],
         no: EntryNo
     ): F[Either[Throwable, Unit]] =
-      (isLatestEntry(no, entries), LatestChapter(no)) match
+      (isLatestEntry(no, entries), no.asLatestChapter) match
         case (true, Some(latestChapter)) =>
           assetMappingService
             .findExternalId(asset)
@@ -134,6 +134,6 @@ object ProgressTrackingService:
     entries match
       case Nil => None
       case entry :: tail =>
-        LatestChapter(entry.no) match
+        entry.no.asLatestChapter match
           case None    => pickLatestEntryInternals(tail)
           case Some(_) => entry.no.some

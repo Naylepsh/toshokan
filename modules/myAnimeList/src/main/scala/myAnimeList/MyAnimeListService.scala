@@ -1,5 +1,4 @@
-package progressTracking
-package mal
+package myAnimeList
 
 import cats.data.NonEmptyList
 import cats.effect.*
@@ -10,11 +9,11 @@ import doobie.implicits.*
 import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import doobiex.*
-import progressTracking.mal.{Manga as _, *}
 import sttp.model.Uri
 
 import util.control.NoStackTrace
 import domain.*
+import schemas.{Manga as _, *}
 
 case object NoAuthToken extends NoStackTrace
 type NoAuthToken = NoAuthToken.type

@@ -1,4 +1,3 @@
-package progressTracking
 package assetMapping
 
 import cats.Parallel
@@ -15,7 +14,8 @@ import doobiex.*
 import library.AssetService
 import library.category.CategoryService
 import library.domain.*
-import progressTracking.mal.{Manga as _, *}
+import myAnimeList.MyAnimeListService
+import myAnimeList.domain.{ExternalMangaId, Manga, Term}
 
 import util.control.NoStackTrace
 import domain.*
