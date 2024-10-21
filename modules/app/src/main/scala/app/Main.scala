@@ -30,6 +30,10 @@ import sttp.client3.SttpBackend
 import sttp.client3.httpclient.cats.HttpClientCatsBackend
 
 import middleware.logErrors
+import assetImporting.AssetImportingController
+import assetImporting.AssetImportingView
+import assetImporting.AssetImportingService
+import mangadex.MangadexApi
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
@@ -126,6 +130,7 @@ object Main extends IOApp.Simple:
       .make[IO](xa, malClient)
       .map: malService =>
         val myAnimeListController = MyAnimeListController(malService)
+
         val assetMappingService =
           AssetMappingService(assetService, categoryService, malService, xa)
         val assetMappingView = AssetMappingView(navBarItems)
@@ -134,6 +139,18 @@ object Main extends IOApp.Simple:
           assetService,
           assetMappingView
         )
+
+        val assetImportingView = AssetImportingView(navBarItems)
+        val assetImportingService = AssetImportingService(
+          assetService,
+          categoryService,
+          assetMappingService,
+          assetScrapingConfigService,
+          MangadexApi.make(httpBackend)
+        )
+        val assetImportingController =
+          AssetImportingController(assetImportingService, assetImportingView)
+
         val progressTrackingService = ProgressTrackingService
           .make(
             xa,
@@ -159,6 +176,7 @@ object Main extends IOApp.Simple:
           scheduleController,
           myAnimeListController,
           assetMappingController,
+          assetImportingController,
           progressTrackingController,
           publicController,
           shutdownController

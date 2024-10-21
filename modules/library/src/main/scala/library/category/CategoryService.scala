@@ -8,6 +8,7 @@ trait CategoryService[F[_]]:
   def find(id: CategoryId): F[Option[ExistingCategory]]
   def find(ids: List[CategoryId]): F[List[ExistingCategory]]
   def findAll: F[List[ExistingCategory]]
+  def findManga: F[Option[ExistingCategory]]
   def add(
       newCategory: NewCategory
   ): F[Either[AddCategoryError, ExistingCategory]]
@@ -26,6 +27,9 @@ object CategoryService:
           ids.contains(category.id)
 
     override def findAll: F[List[ExistingCategory]] = repository.findAll
+
+    override def findManga: F[Option[ExistingCategory]] =
+      findAll.map(_.find(_.name.eqv(CategoryName("manga"))))
 
     override def add(
         newCategory: NewCategory

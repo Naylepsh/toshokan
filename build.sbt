@@ -118,7 +118,19 @@ lazy val assetMapping = project
   .settings(
     libraryDependencies ++= commonDependencies
   )
-  .dependsOn(core, doobiex, db, library, myAnimeList, myAnimeList)
+  .dependsOn(core, doobiex, db, library, myAnimeList)
+
+lazy val assetImporting = project
+  .in(file("modules/assetImporting"))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.http4sCirce,
+      Dependencies.http4sDsl,
+      Dependencies.http4sServer
+    )
+  )
+  .dependsOn(core, library, assetScraping, assetMapping, mangadex, http)
 
 lazy val snapshot = project
   .in(file("modules/snapshot"))
@@ -144,8 +156,24 @@ lazy val app = project
     name := "app",
     libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
   )
-  .aggregate(core, library, scraper, assetScraping, snapshot, progressTracking)
-  .dependsOn(core, library, scraper, assetScraping, snapshot, progressTracking)
+  .aggregate(
+    core,
+    library,
+    scraper,
+    assetScraping,
+    assetImporting,
+    snapshot,
+    progressTracking
+  )
+  .dependsOn(
+    core,
+    library,
+    scraper,
+    assetScraping,
+    assetImporting,
+    snapshot,
+    progressTracking
+  )
   .disablePlugins(RevolverPlugin)
 
 lazy val root = project

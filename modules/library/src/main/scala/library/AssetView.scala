@@ -25,6 +25,11 @@ class AssetView(navBarItems: List[NavBarItem]):
         cls := "mt-5",
         a(
           cls  := "btn btn-primary float-end",
+          href := "/asset-importing",
+          "Import asset"
+        ),
+        a(
+          cls  := "btn btn-primary float-end mr-2",
           href := "/assets/new",
           "New Asset"
         ),

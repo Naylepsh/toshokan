@@ -98,7 +98,7 @@ object AssetRepository:
 
     override def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
       doesAssetExist(asset.title).flatMap:
-        case true  => AddAssetError.AssetAlreadyExists.asLeft.pure
+        case true  => AssetAlreadyExists.asLeft.pure
         case false => addWithoutChecking(asset).map(_.asRight)
 
     override def add(

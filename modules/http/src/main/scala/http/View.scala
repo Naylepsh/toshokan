@@ -53,7 +53,7 @@ object View:
     */
   def navBar(items: List[NavBarItem]) =
     div(
-      cls := "navbar bg-accent sticky top-0 z-10",
+      cls := "navbar bg-neutral text-neutral-content sticky top-0 z-10",
       div(
         cls := "navbar-start",
         a(cls := "btn btn-ghost text-xl", "Toshokan"),

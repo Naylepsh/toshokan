@@ -12,6 +12,7 @@ import doobie.util.Read
 import io.circe.{Decoder, Encoder}
 import io.github.arainko.ducktape.*
 import org.typelevel.cats.time.*
+import util.control.NoStackTrace
 
 import category.domain.CategoryId
 
@@ -34,8 +35,10 @@ case class ExistingAsset(
     categoryId: Option[CategoryId]
 )
 
-enum AddAssetError:
-  case AssetAlreadyExists
+case object AssetAlreadyExists extends NoStackTrace
+type AssetAlreadyExists = AssetAlreadyExists.type
+
+type AddAssetError = AssetAlreadyExists
 
 /** Asset Entry
   */

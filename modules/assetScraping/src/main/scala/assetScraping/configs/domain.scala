@@ -47,7 +47,7 @@ case class NewAssetScrapingConfig(
 
 object NewAssetScrapingConfig:
   private val mangadexUriWithTitleRegex =
-    "^https://mangadex.org/title/([-a-zA-z0-9]+)/(.+)$".r
+    "^https://mangadex.org/title/([-a-zA-z0-9]+)/(.+)/?$".r
   private val mangadexUriWithoutTitleRegex =
     "^https://mangadex.org/title/([-a-zA-z0-9]+)/?$".r
   /*

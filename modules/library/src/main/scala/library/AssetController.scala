@@ -54,7 +54,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
         assetService
           .add(newAsset)
           .flatMap:
-            case Left(AddAssetError.AssetAlreadyExists) =>
+            case Left(AssetAlreadyExists) =>
               Conflict(s"${newAsset.title} already exists")
             case Right(asset) =>
               Ok(

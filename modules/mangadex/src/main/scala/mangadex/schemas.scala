@@ -39,7 +39,10 @@ object feed:
 object manga:
   case class MangaLinks(mal: Option[String]) derives Decoder
 
-  case class MangaAttributes(links: MangaLinks) derives Decoder
+  case class MangaTitle(en: String) derives Decoder
+
+  case class MangaAttributes(title: MangaTitle, links: MangaLinks)
+      derives Decoder
 
   case class Manga(attributes: MangaAttributes) derives Decoder
 
