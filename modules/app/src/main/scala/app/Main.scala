@@ -75,7 +75,7 @@ object Main extends IOApp.Simple:
       xa: Transactor[IO],
       httpBackend: SttpBackend[IO, WebSockets],
       browser: Browser,
-      malAuth: MalAuth,
+      malAuth: Option[MalAuth],
       shutdownSignal: Deferred[IO, Unit],
       navBarItems: List[NavBarItem],
       random: Random[IO]
@@ -125,7 +125,8 @@ object Main extends IOApp.Simple:
       assetScrapingView
     )
 
-    val malClient = MyAnimeListClient.make[IO](httpBackend, malAuth, random)
+    val malClient =
+      malAuth.map(MyAnimeListClient.make[IO](httpBackend, _, random))
     MyAnimeListService
       .make[IO](xa, malClient)
       .map: malService =>

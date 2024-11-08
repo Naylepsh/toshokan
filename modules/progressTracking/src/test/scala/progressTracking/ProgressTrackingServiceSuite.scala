@@ -10,7 +10,7 @@ import doobie.util.transactor.Transactor
 import library.category.{CategoryRepository, CategoryService}
 import library.domain.*
 import library.{AssetRepository, AssetService}
-import myAnimeList.MyAnimeListService
+import myAnimeList.MyAnimeListServiceImpl
 import myAnimeList.domain.ExternalMangaId
 import assetMapping.AssetMappingService
 import db.transactors.inMemoryTransactor
@@ -94,7 +94,7 @@ object ProgressTrackingServiceSuite:
   ): IO[(ProgressTrackingService[IO], AssetService[IO], CategoryService[IO])] =
     val assetService    = AssetService.make(AssetRepository.make(xa))
     val categoryService = CategoryService.make(CategoryRepository.make(xa))
-    MyAnimeListService
+    MyAnimeListServiceImpl
       .make(xa, noopMalClient)
       .map: malService =>
         val assetMappingService =

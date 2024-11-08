@@ -14,6 +14,7 @@ import sttp.model.Uri
 import util.control.NoStackTrace
 import domain.*
 import schemas.{Manga as _, *}
+import cats.Applicative
 
 case object NoAuthToken extends NoStackTrace
 type NoAuthToken = NoAuthToken.type
@@ -23,13 +24,48 @@ type NoCodeChallenge = NoCodeChallenge.type
 
 private type Result[A] = Either[Throwable, A]
 
-class MyAnimeListService[F[_]: Sync: Parallel](
+trait MyAnimeListService[F[_]]:
+  def searchForManga(term: Term): F[Either[Throwable, List[Manga]]]
+  def updateProgress(
+      malId: ExternalMangaId,
+      chapter: LatestChapter
+  ): F[Either[Throwable, Unit]]
+  def acquireToken(code: String): F[Either[Throwable, Unit]]
+  def prepareForTokenAcquisition: F[Uri]
+
+object MyAnimeListService:
+  def make[F[_]: Sync: Parallel](
+      xa: Transactor[F],
+      malClient: Option[MyAnimeListClient[F]]
+  ): F[MyAnimeListService[F]] =
+    malClient.fold(new MyAnimeListServiceNoop().pure): client =>
+      /** I have no clue why the compiler complains that
+        * F[MyAnimeListServiceImpl[F]] is not a valid F[MyAnimeListService[F]]
+        */
+      MyAnimeListServiceImpl
+        .make[F](xa, client)
+        .map(_.asInstanceOf[MyAnimeListService[F]])
+
+class MyAnimeListServiceNoop[F[_]: Applicative] extends MyAnimeListService[F]:
+  override def searchForManga(term: Term): F[Either[Throwable, List[Manga]]] =
+    List.empty.asRight.pure
+  override def updateProgress(
+      malId: ExternalMangaId,
+      chapter: LatestChapter
+  ): F[Either[Throwable, Unit]] = Either.unit.pure
+  override def prepareForTokenAcquisition: F[Uri] = Uri(
+    "http://localhost:8080/doesnt-matter"
+  ).pure
+  override def acquireToken(code: String): F[Either[Throwable, Unit]] =
+    Either.unit.pure
+
+class MyAnimeListServiceImpl[F[_]: Sync: Parallel](
     xa: Transactor[F],
     malClient: MyAnimeListClient[F],
     tokenRef: Ref[F, Option[AuthToken]],
     codeChallengeRef: Ref[F, Option[String]]
-):
-  def searchForManga(
+) extends MyAnimeListService[F]:
+  override def searchForManga(
       term: Term
   ): F[Either[Throwable, List[Manga]]] =
     withToken: token =>
@@ -53,20 +89,20 @@ class MyAnimeListService[F[_]: Sync: Parallel](
                   MangaTitle(mangaData.node.title)
                 )
 
-  def updateProgress(
+  override def updateProgress(
       malId: ExternalMangaId,
       chapter: LatestChapter
   ): F[Either[Throwable, Unit]] =
     withToken(malClient.updateStatus(_, malId, chapter))
 
-  val prepareForTokenAcquisition: F[Uri] =
+  override val prepareForTokenAcquisition: F[Uri] =
     for
       codeChallenge <- malClient.generateCodeChallenge
       authLink = malClient.createAuthorizationLink(codeChallenge)
       _ <- codeChallengeRef.set(codeChallenge.some)
     yield authLink
 
-  def acquireToken(code: String): F[Either[Throwable, Unit]] =
+  override def acquireToken(code: String): F[Either[Throwable, Unit]] =
     codeChallengeRef.get.flatMap(_.fold(NoCodeChallenge.asLeft.pure):
       codeChallenge =>
         malClient
@@ -135,15 +171,15 @@ class MyAnimeListService[F[_]: Sync: Parallel](
 
       (saveAccessToken *> saveRefreshToken).transact(xa)
 
-object MyAnimeListService:
+object MyAnimeListServiceImpl:
   def make[F[_]: Sync: Parallel](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F]
-  ): F[MyAnimeListService[F]] =
+  ): F[MyAnimeListServiceImpl[F]] =
     for
       token         <- Ref.of[F, Option[AuthToken]](None)
       codeChallenge <- Ref.of[F, Option[String]](None)
-    yield MyAnimeListService(xa, malClient, token, codeChallenge)
+    yield MyAnimeListServiceImpl[F](xa, malClient, token, codeChallenge)
 
 private object Tokens extends TableDefinition("tokens"):
   val id        = Column[Long]("id")

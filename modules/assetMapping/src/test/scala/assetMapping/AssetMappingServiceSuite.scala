@@ -14,7 +14,7 @@ import library.category.domain.{CategoryName, NewCategory}
 import library.category.{CategoryRepository, CategoryService}
 import library.domain.*
 import library.{AssetRepository, AssetService}
-import myAnimeList.MyAnimeListService
+import myAnimeList.MyAnimeListServiceImpl
 import myAnimeList.domain.ExternalMangaId
 
 import testUtils.noopMalClient
@@ -144,7 +144,7 @@ object AssetMappingServiceSuite:
   ): IO[(AssetMappingService[IO], AssetService[IO], CategoryService[IO])] =
     val assetService    = AssetService.make(AssetRepository.make(xa))
     val categoryService = CategoryService.make(CategoryRepository.make(xa))
-    MyAnimeListService
+    MyAnimeListServiceImpl
       .make(xa, noopMalClient)
       .map: malService =>
         val service =
