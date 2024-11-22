@@ -91,7 +91,7 @@ object MangakakalotScraper:
           case Some(dateUploaded) => DateUploaded(dateUploaded).asRight
 
   private val minutesAgoPattern = ".*([0-9]+) mins ago.*".r
-  private val hoursAgoPattern   = ".*([0-9]+) hour ago.*".r
+  private val hoursAgoPattern   = ".*([0-9]+) hours? ago.*".r
   private val daysAgoPattern    = ".*([0-9]+) day ago.*".r
   private val mangakakalotDatePattern =
     ".*([A-Za-z]{3})-([0-9]{2})-([0-9]{2}).*".r

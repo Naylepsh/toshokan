@@ -91,7 +91,7 @@ object MangakakalotScraperSuite:
     |    >
     |    <span class="chapter-view text-nowrap">26.7K</span>
     |    <span class="chapter-time text-nowrap" title="Feb 17,2024 22:02"
-    |      >Feb 17,24</span
+    |      >3 hours ago</span
     |    >
     |  </li>
     |  <li class="a-h">
@@ -128,7 +128,7 @@ object MangakakalotScraperSuite:
       EntryUri(
         URI("https://chapmanganato.to/manga-ib986110/chapter-40")
       ),
-      DateUploaded(LocalDate.of(2024, 2, 17))
+      DateUploaded(LocalDateTime.now().minusHours(3).toLocalDate)
     ),
     EntryFound(
       EntryTitle("Chapter 39: What's Your Name?"),
