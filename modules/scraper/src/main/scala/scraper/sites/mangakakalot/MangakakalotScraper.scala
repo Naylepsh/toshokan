@@ -96,7 +96,7 @@ object MangakakalotScraper:
   private val mangakakalotDatePattern =
     ".*([A-Za-z]{3})-([0-9]{2})-([0-9]{2}).*".r
   private val manganatoDatePattern =
-    ".*([A-Za-z]{3}) ([0-9]{2}),([0-9]{2}).*".r
+    ".*([A-Za-z]{3}) ([0-9]{2}),([0-9]{4}).*".r
   private def parseDateReleasedFromTimeUploaded(
       timeUploaded: String
   ): Option[LocalDate] =
@@ -126,7 +126,8 @@ object MangakakalotScraper:
     for
       m <- monthWordToInt(month)
       d <- day.toIntOption
-      y <- year.toIntOption.map(_ + 2000)
+      y <- year.toIntOption.map: year =>
+        if year >= 100 then year else 2000 + year
     yield LocalDate.of(y, m, d)
 
   private val months = List(
