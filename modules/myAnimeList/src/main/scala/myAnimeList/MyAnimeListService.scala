@@ -128,16 +128,17 @@ class MyAnimeListServiceImpl[F[_]: Sync: Parallel](
         tokenRef.set(token).as(token)
 
   private def getToken: F[(Option[AccessToken], Option[RefreshToken])] =
-    (
-      TokensSql
+    for
+      access <- TokensSql
         .getToken("mal-access-token")
         .transact(xa)
-        .map(_.map(AccessToken(_))),
-      TokensSql
-        .getToken("mal-refresh-token")
-        .transact(xa)
-        .map(_.map(RefreshToken(_)))
-    ).parTupled
+        .map(_.map(AccessToken(_)))
+      refresh <-
+        TokensSql
+          .getToken("mal-refresh-token")
+          .transact(xa)
+          .map(_.map(RefreshToken(_)))
+    yield (access, refresh)
 
   private def updateToken(token: RefreshToken): F[Option[AuthToken]] =
     malClient
