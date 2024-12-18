@@ -1,6 +1,6 @@
 package assetImporting
 
-import assetImporting.domain.{CategoryDoesNotExist, NoMalIdAvailable}
+import assetImporting.domain.*
 import assetMapping.AssetMappingService
 import assetScraping.configs.AssetScrapingConfigService
 import assetScraping.configs.domain.*
@@ -16,7 +16,6 @@ import mangadex.schemas.manga.GetMangaResponse
 import myAnimeList.domain.ExternalMangaId
 
 import domain.MangadexMangaUri
-import assetImporting.domain.MangadexId
 
 class AssetImportingService[F[_]: Monad: Parallel](
     assetService: AssetService[F],
@@ -53,15 +52,18 @@ class AssetImportingService[F[_]: Monad: Parallel](
   private def createAsset(
       mangaResponse: GetMangaResponse,
       manga: ExistingCategory
-  ) =
-    EitherT(
-      assetService.add(
-        NewAsset(
-          AssetTitle(mangaResponse.data.attributes.title.en),
-          manga.id.some
-        )
+  ): EitherT[F, Throwable, ExistingAsset] =
+    for
+      title <- EitherT.fromOption(
+        mangaResponse.data.attributes.title.preferred,
+        NoTitleTranslation
       )
-    )
+      result <- EitherT(
+        assetService
+          .add(NewAsset(AssetTitle(title), manga.id.some))
+          .map(_.leftWiden)
+      )
+    yield result
 
   private def createScrapingConfig(
       asset: ExistingAsset,
