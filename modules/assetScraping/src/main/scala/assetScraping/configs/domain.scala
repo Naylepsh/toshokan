@@ -18,23 +18,26 @@ type IsConfigEnabled = IsConfigEnabled.Type
 object IsConfigEnabled extends Newtype[Boolean]
 
 enum Site:
-  case Mangakakalot, Mangadex, Yatta, Hitomi
+  case Mangakakalot, Mangadex, Yatta, Hitomi, Empik
 object Site:
   given Read[Site] = Read[String].map:
     case "mangadex"     => Mangadex
     case "mangakakalot" => Mangakakalot
     case "yatta"        => Yatta
     case "hitomi"       => Hitomi
+    case "empik"        => Empik
   given Write[Site] = Write[String].contramap:
     case Mangadex     => "mangadex"
     case Mangakakalot => "mangakakalot"
     case Yatta        => "yatta"
     case Hitomi       => "hitomi"
+    case Empik        => "empik"
   given Decoder[Site] = Decoder[String].emap:
     case "Mangadex"     => Mangadex.asRight
     case "Mangakakalot" => Mangakakalot.asRight
     case "Yatta"        => Yatta.asRight
     case "Hitomi"       => Hitomi.asRight
+    case "Empik"        => Empik.asRight
     case other          => s"'$other' is not a valid site".asLeft
   given Encoder[Site] = Encoder[String].contramap(_.toString)
 
@@ -59,6 +62,7 @@ object NewAssetScrapingConfig:
     "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com)/.+".r
   private val yattaUri  = "^https://yatta.pl/.+".r
   private val hitomiUri = "^https://hitomi.la/artist/(.+).html$".r
+  private val empikUri  = "^https://www.empik.com/ksiazki/komiks/manga.+".r
 
   def apply(
       uri: ScrapingConfigUri,
@@ -96,12 +100,17 @@ object NewAssetScrapingConfig:
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.Yatta =>
         uri.value.toString match
-          case yattaUri(_) => uri.asRight
+          case yattaUri() => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.Hitomi =>
         uri.value.toString match
           case hitomiUri(_) => uri.asRight
+          case other =>
+            s"Uri: $other is not a valid config uri of site: $site".asLeft
+      case Site.Empik =>
+        uri.value.toString match
+          case empikUri() => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
     normalizedUri.map: uri =>

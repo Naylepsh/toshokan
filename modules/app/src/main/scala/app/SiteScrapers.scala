@@ -5,6 +5,7 @@ import cats.effect.kernel.Sync
 import com.microsoft.playwright.Browser
 import mangadex.MangadexApi
 import scraper.domain.SiteScraper
+import scraper.sites.empik.EmpikScraper
 import scraper.sites.hitomi.HitomiScraper
 import scraper.sites.mangadex.MangadexScraper
 import scraper.sites.mangakakalot.MangakakalotScraper
@@ -22,11 +23,13 @@ object SiteScrapers:
     val mangakakalotScraper = MangakakalotScraper[F]()
     val yattaScraper        = YattaScraper[F]()
     val hitomiScraper       = HitomiScraper[F](browser, timeout = 10_000)
+    val empikScraper        = EmpikScraper[F]()
 
     val pickSiteScraper: Site => SiteScraper[F] =
       case Site.Mangadex     => mangadexScraper
       case Site.Mangakakalot => mangakakalotScraper
       case Site.Yatta        => yattaScraper
       case Site.Hitomi       => hitomiScraper
+      case Site.Empik        => empikScraper
 
     pickSiteScraper
