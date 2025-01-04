@@ -39,12 +39,10 @@ object MyAnimeListService:
       malClient: Option[MyAnimeListClient[F]]
   ): F[MyAnimeListService[F]] =
     malClient.fold(new MyAnimeListServiceNoop().pure): client =>
-      /** I have no clue why the compiler complains that
-        * F[MyAnimeListServiceImpl[F]] is not a valid F[MyAnimeListService[F]]
+      /** `identity`'s here so that `MyAnimeListServiceImpl[F]` can be converted
+        * to `MyAnimeListService[F]`
         */
-      MyAnimeListServiceImpl
-        .make[F](xa, client)
-        .map(_.asInstanceOf[MyAnimeListService[F]])
+      MyAnimeListServiceImpl.make[F](xa, client).map(identity)
 
 class MyAnimeListServiceNoop[F[_]: Applicative] extends MyAnimeListService[F]:
   override def searchForManga(term: Term): F[Either[Throwable, List[Manga]]] =
