@@ -62,7 +62,7 @@ object NewAssetScrapingConfig:
     "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com)/.+".r
   private val yattaUri  = "^https://yatta.pl/.+".r
   private val hitomiUri = "^https://hitomi.la/artist/(.+).html$".r
-  private val empikUri  = "^https://www.empik.com/ksiazki/komiks/manga.+".r
+  private val empikUri  = "^https://www.empik.com/ksiazki.+".r
 
   def apply(
       uri: ScrapingConfigUri,
