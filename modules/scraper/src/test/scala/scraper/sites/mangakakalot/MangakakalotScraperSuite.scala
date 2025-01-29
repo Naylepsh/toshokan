@@ -104,7 +104,7 @@ object MangakakalotScraperSuite:
     |    >
     |    <span class="chapter-view text-nowrap">28.9K</span>
     |    <span class="chapter-time text-nowrap" title="Jan 19,2024 06:01"
-    |      >Jan 19,24</span
+    |      >Jan 19,2024</span
     |    >
     |  </li>
     |  <li class="a-h">
@@ -117,7 +117,7 @@ object MangakakalotScraperSuite:
     |    >
     |    <span class="chapter-view text-nowrap">28.9K</span>
     |    <span class="chapter-time text-nowrap" title="Jan 19,2024 06:01"
-    |      >Jan 19,24</span
+    |      >Jan 19,2024</span
     |    >
     |  </li>
     |</ul>""".stripMargin)
