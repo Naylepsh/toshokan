@@ -61,8 +61,13 @@ class HitomiScraper[F[_]: MonadCancelThrow: Sync](
 object HitomiScraper:
   private val allowedLanguages = List("english", "japanese", "chinese", "N/A")
 
+  private val uriPattern = "^/(.*)/.*-([0-9]+).html$".r
+
   private def makeUri(href: String): URI =
-    new URI("https", "hitomi.la", href, null)
+    href match
+      case uriPattern(entryType, id) =>
+        new URI(s"https://hitomi.la/$entryType/$id")
+      case _ => new URI("https", "hitomi.la", href, null)
 
   private def parse(
       entries: List[Element]
