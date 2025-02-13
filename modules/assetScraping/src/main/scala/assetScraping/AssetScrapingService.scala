@@ -21,6 +21,7 @@ import scrapes.domain.ScrapingSummary
 
 trait AssetScrapingService[F[_]]:
   def getNewReleases: F[ScrapingSummary]
+  def getNewReleases(assetId: AssetId): F[ScrapingSummary]
   def getNewReleasesAccordingToSchedule: F[ScrapingSummary]
   def getNewReleasesOfCategory(
       categoryId: CategoryId
@@ -37,6 +38,14 @@ object AssetScrapingService:
     override def getNewReleases: F[ScrapingSummary] =
       for
         configs <- configService.findAllEnabled
+        instructions = makeInstructions(configs)
+        results <- getNewReleases(instructions)
+      yield results
+
+    override def getNewReleases(assetId: AssetId): F[ScrapingSummary] =
+      for
+        results <- configService.findByAssetId(assetId)
+        configs      = results.map(_._2).getOrElse(List.empty)
         instructions = makeInstructions(configs)
         results <- getNewReleases(instructions)
       yield results

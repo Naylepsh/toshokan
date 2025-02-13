@@ -2,6 +2,7 @@ package assetScraping
 
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
+import library.AssetController.AssetIdVar
 import library.category.CategoryService
 import library.category.schemas.CategoryIdVar
 import org.http4s.*
@@ -47,6 +48,15 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
               view.scrapingSummaryPartial(summary),
               `Content-Type`(MediaType.text.html)
             )
+
+    case POST -> Root / "asset" / AssetIdVar(assetId) =>
+      service
+        .getNewReleases(assetId)
+        .flatMap: summary =>
+          Ok(
+            view.scrapingSummaryPartial(summary),
+            `Content-Type`(MediaType.text.html)
+          )
 
   val routes = Router("asset-scraping" -> httpRoutes)
 

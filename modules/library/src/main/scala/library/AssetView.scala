@@ -153,6 +153,13 @@ object AssetView:
         cls := "mt-3",
         div(
           cls := "flex justify-end",
+          a(
+            cls             := "btn btn-primary btn-wide mt-3 mr-3",
+            attr("hx-post") := s"/asset-scraping/asset/${asset.id}",
+            attr("hx-swap") := "none",
+            attr("hx-on::after-request") := "window.location.reload()",
+            "Get new releases"
+          ),
           button(
             cls := "btn btn-primary btn-wide mt-3",
             attr(
