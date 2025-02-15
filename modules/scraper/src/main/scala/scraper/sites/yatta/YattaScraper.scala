@@ -43,4 +43,4 @@ object YattaScraper:
       case Left(error) => ScrapeError.Other(error).asLeft
       case Right(Nil)  => ScrapeError.NoEntriesFound.asLeft
       case Right(entries) =>
-        entries.filter(!_.no.startsWith("Prenumerata")).asRight
+        entries.filter(!_.title.startsWith("Prenumerata")).asRight
