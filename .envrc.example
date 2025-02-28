@@ -1,0 +1,6 @@
+export DATABASE_URL=sqlite:///path/to/db.sqlite
+export MAL_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+export MAL_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+export MAL_REDIRECT_URL=http://localhost:8080/myanimelist
+export SNAPSHOT_PATH=/optional/path/to/local/github/repository/db.sqlite.bk
+export SNAPSHOT_RECENCY_THRESHOLD=7

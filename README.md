@@ -1,16 +1,3 @@
 ## sbt project compiled with Scala 3
 
-### Usage
-
-This is a normal sbt project. You can compile code with `sbt compile`, run it with `sbt run`, and `sbt console` will start a Scala 3 REPL.
-
-For more information on the sbt-dotty plugin, see the
-[scala3-example-project](https://github.com/scala/scala3-example-project/blob/main/README.md).
-
-## TODO
-
-- [ ] Split authors within `Assets` into a separate entity. Figure out the scraping domain for that
-- [ ] Add view for category management
-  - [ ] Add category
-  - [ ] Edit category
-  - [ ] Delete category
+An over-engineered full-stack application that scrapes multiple manga & doujinshi websites to provide user with updates on the latest releases while tracking their reading progres.
