@@ -53,10 +53,11 @@ object MangakakalotScraper:
 
   private def extractTitle(nameElem: Element) = EntryTitle(nameElem.text)
 
-  private val chapterNoPattern = ".*chapter[-_]([0-9]+[.]?[0-9]?).*".r
+  private val chapterNoPattern = ".*chapter[-_]([0-9]+[-]?[0-9]?).*".r
   private def extractNo(nameElem: Element) =
     (nameElem >?> attr("href")).map(_.split("/").last) match
-      case Some(chapterNoPattern(name)) => EntryNo(name).asRight
+      case Some(chapterNoPattern(name)) =>
+        EntryNo(name.replaceAll("-", ".")).asRight
       case Some(chapterUrlResource) =>
         ScrapeError
           .Other(
@@ -75,7 +76,9 @@ object MangakakalotScraper:
       case Some(href) => EntryUri(href).leftMap(ScrapeError.Other(_))
 
   private def extractDateUploaded(chapterElem: Element, selectors: Selectors) =
-    chapterElem >?> text(selectors.chapterTimeUploaded) match
+    (chapterElem
+      >?> element(selectors.chapterTimeUploaded)
+      >?> attr("title")).flatten match
       case None =>
         ScrapeError
           .Other(s"Selected chapter has no time uploaded")
@@ -94,7 +97,7 @@ object MangakakalotScraper:
   private val hoursAgoPattern   = ".*([0-9]+) hours? ago.*".r
   private val daysAgoPattern    = ".*([0-9]+) day ago.*".r
   private val mangakakalotDatePattern =
-    ".*([A-Za-z]{3})-([0-9]{2})-([0-9]{2}).*".r
+    ".*([A-Za-z]{3})-([0-9]{2})-([0-9]{4}).*".r
   private val manganatoDatePattern =
     ".*([A-Za-z]{3}) ([0-9]{2}),([0-9]{4}).*".r
   private def parseDateReleasedFromTimeUploaded(

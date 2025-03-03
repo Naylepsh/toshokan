@@ -65,7 +65,7 @@ object NewAssetScrapingConfig:
    * Hence a simple domain check will do
    */
   private val mangakakalotUri =
-    "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com)/.+".r
+    "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com|www.mangakakalot.gg)/.+".r
   private val yattaUri        = "^https://yatta.pl/.+".r
   private val hitomiUri       = "^https://hitomi.la/artist/(.+).html$".r
   private val empikUri        = "^https://www.empik.com/ksiazki.+".r
