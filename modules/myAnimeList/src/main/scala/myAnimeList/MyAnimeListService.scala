@@ -3,7 +3,7 @@ package myAnimeList
 import cats.data.NonEmptyList
 import cats.effect.*
 import cats.syntax.all.*
-import cats.{Functor, Parallel}
+import cats.{Applicative, Functor, Parallel}
 import doobie.ConnectionIO
 import doobie.implicits.*
 import doobie.util.fragment.Fragment
@@ -14,7 +14,6 @@ import sttp.model.Uri
 import util.control.NoStackTrace
 import domain.*
 import schemas.{Manga as _, *}
-import cats.Applicative
 
 case object NoAuthToken extends NoStackTrace
 type NoAuthToken = NoAuthToken.type
@@ -120,7 +119,8 @@ class MyAnimeListServiceImpl[F[_]: Sync: Parallel](
         case (Some(accessToken), Some(refreshToken)) =>
           AuthToken(0L, refreshToken, accessToken).some.pure
         case (None, Some(refreshToken)) =>
-          updateToken(refreshToken)
+          scribe.cats[F].info("Access token expired, refreshing...")
+            *> updateToken(refreshToken)
         case _ => None.pure
       .flatMap: token =>
         tokenRef.set(token).as(token)
@@ -210,5 +210,6 @@ private object TokensSql:
           _.expiresAt --> expiresAt
         )
       )}
-    ON CONFLICT (${Tokens.name_}) DO UPDATE SET ${Tokens.value === value}
+    ON CONFLICT (${Tokens.name_})
+    DO UPDATE SET ${Tokens.value === value}, ${Tokens.expiresAt === expiresAt}
     """.update.run.void
