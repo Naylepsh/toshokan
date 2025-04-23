@@ -25,7 +25,7 @@ object MangadexApi:
         mangaId: String
     ): F[Either[Throwable, feed.GetMangaFeedResponse]] =
       val url =
-        uri"https://api.mangadex.org/manga/$mangaId/feed?order[chapter]=desc&translatedLanguage[]=en"
+        uri"https://api.mangadex.org/manga/$mangaId/feed?order[chapter]=desc&translatedLanguage[]=en&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic"
 
       basicRequest
         .get(url)
