@@ -5,10 +5,8 @@ import java.time.LocalDate
 
 import cats.data.EitherT
 import cats.effect.IO
-import cats.syntax.all.*
 import db.migrations.applyMigrations
 import db.transactors.inMemoryTransactor
-import doobie.*
 import doobie.util.transactor.Transactor
 import library.category.domain.{CategoryName, NewCategory}
 import library.category.{CategoryRepository, CategoryService}

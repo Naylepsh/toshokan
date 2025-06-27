@@ -3,18 +3,16 @@ package progressTracking
 import java.net.URI
 import java.time.LocalDate
 
+import assetMapping.AssetMappingService
 import cats.effect.IO
-import cats.syntax.all.*
-import doobie.*
+import db.migrations.applyMigrations
+import db.transactors.inMemoryTransactor
 import doobie.util.transactor.Transactor
 import library.category.{CategoryRepository, CategoryService}
 import library.domain.*
 import library.{AssetRepository, AssetService}
 import myAnimeList.MyAnimeListServiceImpl
 import myAnimeList.domain.ExternalMangaId
-import assetMapping.AssetMappingService
-import db.transactors.inMemoryTransactor
-import db.migrations.applyMigrations
 
 import testUtils.*
 
@@ -101,10 +99,8 @@ object ProgressTrackingServiceSuite:
           AssetMappingService(assetService, categoryService, malService, xa)
         val service = ProgressTrackingService
           .make[IO](
-            xa,
             malService,
             assetService,
-            assetMappingService,
-            categoryService
+            assetMappingService
           )
         (service, assetService, categoryService)

@@ -2,7 +2,6 @@ package assetMapping
 package testUtils
 
 import cats.effect.IO
-import cats.syntax.all.*
 import myAnimeList.*
 import myAnimeList.domain.*
 import myAnimeList.schemas.*

@@ -4,6 +4,7 @@ import java.time.LocalDate
 
 import cats.syntax.all.*
 import io.circe.parser.*
+import mangadex.schemas.feed.{Chapter, ChapterAttributes, GetMangaFeedResponse}
 
 class SchemasSuite extends munit.FunSuite:
   import SchemasSuite.*
