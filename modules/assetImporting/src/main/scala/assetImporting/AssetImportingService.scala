@@ -6,7 +6,7 @@ import assetScraping.configs.AssetScrapingConfigService
 import assetScraping.configs.domain.*
 import cats.data.EitherT
 import cats.syntax.all.*
-import cats.{Monad, Parallel}
+import cats.Monad
 import library.AssetService
 import library.category.CategoryService
 import library.category.domain.ExistingCategory
@@ -17,7 +17,7 @@ import myAnimeList.domain.ExternalMangaId
 
 import domain.MangadexMangaUri
 
-class AssetImportingService[F[_]: Monad: Parallel](
+class AssetImportingService[F[_]: Monad](
     assetService: AssetService[F],
     categoryService: CategoryService[F],
     assetMappingService: AssetMappingService[F],

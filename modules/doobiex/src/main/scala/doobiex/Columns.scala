@@ -11,7 +11,6 @@ object Columns:
   given Conversion[Columns[?], SingleFragment[?]] = _.sql
 
   private def makeFragmentUnsafe(t: Tuple): Fragment =
-    import Column.*
     val frags =
       Iterable.from(t.productIterator.map(_.asInstanceOf[Column[?]].sql))
     frags.headOption

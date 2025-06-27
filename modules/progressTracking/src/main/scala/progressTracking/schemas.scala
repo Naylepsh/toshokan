@@ -2,7 +2,6 @@ package progressTracking
 package schemas
 
 import cats.effect.Concurrent
-import cats.syntax.all.*
 import io.circe.Codec
 import library.domain.{AssetId, WasEntrySeen}
 import myAnimeList.domain.ExternalMangaId

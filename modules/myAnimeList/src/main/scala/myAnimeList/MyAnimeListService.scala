@@ -3,10 +3,9 @@ package myAnimeList
 import cats.data.NonEmptyList
 import cats.effect.*
 import cats.syntax.all.*
-import cats.{Applicative, Functor, Parallel}
+import cats.{Applicative, Functor}
 import doobie.ConnectionIO
 import doobie.implicits.*
-import doobie.util.fragment.Fragment
 import doobie.util.transactor.Transactor
 import doobiex.*
 import sttp.model.Uri
@@ -33,7 +32,7 @@ trait MyAnimeListService[F[_]]:
   def prepareForTokenAcquisition: F[Uri]
 
 object MyAnimeListService:
-  def make[F[_]: Sync: Parallel](
+  def make[F[_]: Sync](
       xa: Transactor[F],
       malClient: Option[MyAnimeListClient[F]]
   ): F[MyAnimeListService[F]] =
@@ -56,7 +55,7 @@ class MyAnimeListServiceNoop[F[_]: Applicative] extends MyAnimeListService[F]:
   override def acquireToken(code: String): F[Either[Throwable, Unit]] =
     Either.unit.pure
 
-class MyAnimeListServiceImpl[F[_]: Sync: Parallel](
+class MyAnimeListServiceImpl[F[_]: Sync](
     xa: Transactor[F],
     malClient: MyAnimeListClient[F],
     tokenRef: Ref[F, Option[AuthToken]],
@@ -171,7 +170,7 @@ class MyAnimeListServiceImpl[F[_]: Sync: Parallel](
       (saveAccessToken *> saveRefreshToken).transact(xa)
 
 object MyAnimeListServiceImpl:
-  def make[F[_]: Sync: Parallel](
+  def make[F[_]: Sync](
       xa: Transactor[F],
       malClient: MyAnimeListClient[F]
   ): F[MyAnimeListServiceImpl[F]] =

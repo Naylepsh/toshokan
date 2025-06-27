@@ -1,8 +1,5 @@
 package assetScraping
 
-import java.net.URI
-
-import scala.concurrent.duration.*
 import scala.util.chaining.*
 
 import cats.effect.kernel.{Clock, Sync}
@@ -11,7 +8,7 @@ import core.Measure.*
 import library.AssetService
 import library.category.domain.CategoryId
 import library.domain.*
-import scraper.domain.{EntryFound, JobLabel, SiteScraper}
+import scraper.domain.{JobLabel, SiteScraper}
 import scraper.{Instruction, ScrapeJobSuccess, Scraper}
 
 import configs.AssetScrapingConfigService

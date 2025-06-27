@@ -46,7 +46,7 @@ object AssetService:
             .map: (key, assetsAndEntries) =>
               key -> assetsAndEntries.sortBy(_._1.id)
             .toList
-            .sorted(Ordering[Releases].reverse)
+            .sorted(using Ordering[Releases].reverse)
 
       override def find(
           id: AssetId

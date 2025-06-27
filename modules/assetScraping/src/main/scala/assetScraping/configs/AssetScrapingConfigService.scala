@@ -1,6 +1,6 @@
 package assetScraping.configs
 
-import cats.effect.kernel.{Clock, Sync}
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import library.AssetService
 import library.domain.*
@@ -22,7 +22,7 @@ trait AssetScrapingConfigService[F[_]]:
   def delete(id: AssetScrapingConfigId): F[Unit]
 
 object AssetScrapingService:
-  def make[F[_]: Sync: Clock](
+  def make[F[_]: Sync](
       repository: AssetScrapingConfigRepository[F],
       assetService: AssetService[F]
   ): AssetScrapingConfigService[F] = new:

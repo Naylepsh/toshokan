@@ -1,8 +1,17 @@
 package app
 
-import assetScraping.configs.AssetScrapingConfigController
+import assetImporting.{
+  AssetImportingController,
+  AssetImportingService,
+  AssetImportingView
+}
+import assetMapping.{
+  AssetMappingController,
+  AssetMappingService,
+  AssetMappingView
+}
+import assetScraping.AssetScrapingView
 import assetScraping.schedules.*
-import assetScraping.{AssetScrapingController, AssetScrapingView}
 import cats.effect.*
 import cats.effect.kernel.Resource
 import cats.effect.std.Random
@@ -10,14 +19,10 @@ import com.microsoft.playwright.Browser
 import doobie.Transactor
 import http.Routed
 import http.View.NavBarItem
+import mangadex.MangadexApi
 import myAnimeList.*
 import org.http4s.HttpRoutes
 import org.http4s.syntax.all.*
-import assetMapping.{
-  AssetMappingController,
-  AssetMappingService,
-  AssetMappingView
-}
 import progressTracking.{
   ProgressTrackingController,
   ProgressTrackingService,
@@ -30,10 +35,6 @@ import sttp.client3.SttpBackend
 import sttp.client3.httpclient.cats.HttpClientCatsBackend
 
 import middleware.logErrors
-import assetImporting.AssetImportingController
-import assetImporting.AssetImportingView
-import assetImporting.AssetImportingService
-import mangadex.MangadexApi
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
@@ -154,11 +155,9 @@ object Main extends IOApp.Simple:
 
         val progressTrackingService = ProgressTrackingService
           .make(
-            xa,
             malService,
             assetService,
-            assetMappingService,
-            categoryService
+            assetMappingService
           )
 
         val progressTrackingView = ProgressTrackingView(navBarItems)

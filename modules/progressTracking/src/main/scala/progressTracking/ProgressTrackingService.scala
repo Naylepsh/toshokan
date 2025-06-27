@@ -1,13 +1,10 @@
 package progressTracking
 
 import assetMapping.AssetMappingService
-import cats.Parallel
 import cats.data.NonEmptyList
 import cats.effect.*
 import cats.syntax.all.*
-import doobie.util.transactor.Transactor
 import library.AssetService
-import library.category.CategoryService
 import library.domain.*
 import myAnimeList.MyAnimeListService
 
@@ -24,12 +21,10 @@ trait ProgressTrackingService[F[_]]:
   def findNotSeenReleases: F[List[Releases]]
 
 object ProgressTrackingService:
-  def make[F[_]: Sync: Parallel](
-      xa: Transactor[F],
+  def make[F[_]: Sync](
       malService: MyAnimeListService[F],
       assetService: AssetService[F],
       assetMappingService: AssetMappingService[F],
-      categoryService: CategoryService[F]
   ): ProgressTrackingService[F] = new:
     override def updateProgress(
         assetId: AssetId,

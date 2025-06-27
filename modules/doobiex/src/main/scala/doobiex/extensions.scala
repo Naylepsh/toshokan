@@ -29,4 +29,5 @@ extension [F[_], A](fa: F[A])(using Foldable[F])
 
 extension (fragment: Fragment)
   inline def queryOf[A](col: Column[A]) = fragment.query[A](using col.read)
+  @annotation.nowarn()
   inline def queryOf[A: Read](cols: Columns[A]) = fragment.query[A]

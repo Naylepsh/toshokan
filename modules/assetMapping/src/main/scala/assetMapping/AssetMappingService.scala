@@ -1,13 +1,11 @@
 package assetMapping
 
-import cats.Parallel
 import cats.data.{EitherT, NonEmptyList, OptionT}
 import cats.effect.*
 import cats.syntax.all.*
 import core.Tuples
 import doobie.ConnectionIO
 import doobie.implicits.*
-import doobie.util.fragment.Fragment
 import doobie.util.query.Query0
 import doobie.util.transactor.Transactor
 import doobiex.*
@@ -42,7 +40,7 @@ type FindMalMappingError = AssetNotFound | CategoryNotFound | AssetIsNotManga
 
 private type Result[A] = Either[Throwable, A]
 
-class AssetMappingService[F[_]: Sync: Parallel](
+class AssetMappingService[F[_]: Sync](
     assetService: AssetService[F],
     categoryService: CategoryService[F],
     malService: MyAnimeListService[F],

@@ -5,7 +5,6 @@ import cats.effect.*
 import com.comcast.ip4s.*
 import fs2.io.net.Network
 import org.http4s.HttpApp
-import org.http4s.dsl.io.*
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Server
 import org.http4s.server.defaults.Banner

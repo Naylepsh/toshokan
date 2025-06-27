@@ -1,6 +1,6 @@
 package assetScraping
 
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
 import library.AssetController.AssetIdVar
 import library.category.CategoryService
@@ -10,7 +10,7 @@ import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 import org.http4s.headers.*
 import org.http4s.server.Router
 
-class AssetScrapingController[F[_]: MonadCancelThrow: Concurrent](
+class AssetScrapingController[F[_]: MonadCancelThrow](
     service: AssetScrapingService[F],
     categoryService: CategoryService[F],
     view: AssetScrapingView

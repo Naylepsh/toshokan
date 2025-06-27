@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "3.4.2"
+ThisBuild / scalaVersion := "3.7.1"
 // ThisBuild / semanticdbEnabled := true
 // ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 

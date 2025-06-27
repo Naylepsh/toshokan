@@ -1,12 +1,12 @@
 package myAnimeList
 
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
 import org.http4s.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.server.Router
 
-class MyAnimeListController[F[_]: MonadCancelThrow: Concurrent](
+class MyAnimeListController[F[_]: MonadCancelThrow](
     service: MyAnimeListService[F]
 ) extends http.Controller[F]:
 

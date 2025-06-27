@@ -2,9 +2,8 @@ package assetMapping
 package schemas
 
 import cats.effect.Concurrent
-import cats.syntax.all.*
 import io.circe.Codec
-import library.domain.{AssetId}
+import library.domain.AssetId
 import myAnimeList.domain.ExternalMangaId
 import org.http4s.*
 import org.http4s.circe.*

@@ -31,8 +31,8 @@ case class Column[A: Read: Write](
     write.puts.head._1.asInstanceOf[Put[A]]
 
   def option[B](using NotGiven[A =:= Option[B]]): Column[Option[A]] =
-    given Read[Option[A]]  = Read.fromGetOption(self.get)
-    given Write[Option[A]] = Write.fromPutOption(self.put)
+    given Read[Option[A]]  = Read.fromGetOption(using self.get)
+    given Write[Option[A]] = Write.fromPutOption(using self.put)
     Column[Option[A]](rawName, alias)
 
   def ===(value: Option[A]): Fragment = value match
