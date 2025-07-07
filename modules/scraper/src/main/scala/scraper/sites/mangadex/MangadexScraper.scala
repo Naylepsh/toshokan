@@ -5,13 +5,14 @@ import java.net.URI
 import cats.Monad
 import cats.syntax.all.*
 import mangadex.MangadexApi
+import mangadex.utils.extractMangaId
 import mangadex.schemas.feed.GetMangaFeedResponse
 import scraper.domain.*
 
 class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
   def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
     // TODO: Add retries
-    MangadexScraper.extractMangaId(uri) match
+    extractMangaId(uri).leftMap(ScrapeError.InvalidResource(_)) match
       case Left(error) => error.asLeft.pure
       case Right(mangaId) =>
         api
@@ -38,14 +39,3 @@ class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
             DateUploaded(chapter.attributes.createdAt.value)
           )
         .asRight
-
-object MangadexScraper:
-  private val mangaIdFromUriPattern = "^https://mangadex.org/title/(.+)$".r
-
-  def extractMangaId(uri: URI): Either[ScrapeError, String] =
-    uri.toString match
-      case mangaIdFromUriPattern(mangaId) => mangaId.asRight
-      case _ =>
-        ScrapeError
-          .InvalidResource(s"Could not extract manga id from uri:$uri")
-          .asLeft

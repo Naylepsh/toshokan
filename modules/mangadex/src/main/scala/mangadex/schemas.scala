@@ -48,3 +48,10 @@ object manga:
   case class Manga(attributes: MangaAttributes) derives Decoder
 
   case class GetMangaResponse(data: Manga) derives Decoder
+
+object server:
+  case class Chapter(hash: String, data: List[String]) derives Decoder:
+    lazy val urls: List[URI] = data.map: resource =>
+      URI(s"https://uploads.mangadex.org/data/${hash}/${resource}")
+
+  case class GetChapterFilesResponse(chapter: Chapter) derives Decoder

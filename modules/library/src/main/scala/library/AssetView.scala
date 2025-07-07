@@ -175,7 +175,8 @@ object AssetView:
               th("Id"),
               th("No"),
               th("Title"),
-              th("Url")
+              th("Url"),
+              th("Actions")
             )
           ),
           tbody(
@@ -184,7 +185,32 @@ object AssetView:
                 th(entry.id.show),
                 td(entry.no.show),
                 td(entry.title.show),
-                td(a(href := entry.uri.show, entry.uri.show))
+                td(a(href := entry.uri.show, entry.uri.show)),
+                td(
+                  div(
+                    button(
+                      attr("hx-post") := s"/asset-downloading/${entry.id}",
+                      attr("hx-swap") := "none",
+                      attr("_", raw = true) := s"""
+                        on click 
+                          add .hidden to <.download/> in me
+                          then remove .hidden from <.spinner/> in me
+                        end
+                        on htmx:afterRequest
+                          add .hidden to <.spinner/> in me
+                          then remove .hidden from <.download-success/> in me
+                        end
+                      """,
+                      i(
+                        cls := "fa-solid fa-file-import download"
+                      ),
+                      div(cls := "spinner hidden"),
+                      i(
+                        cls := "fa-solid fa-check download-success hidden"
+                      )
+                    )
+                  )
+                )
               )
           )
         )

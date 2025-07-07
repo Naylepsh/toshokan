@@ -1,13 +1,15 @@
 package mangadex
 
+import java.net.URI
+
 import cats.effect.MonadCancelThrow
 import cats.implicits.*
+import mangadex.schemas.manga.GetMangaResponse
 import sttp.capabilities.WebSockets
 import sttp.client3.circe.*
 import sttp.client3.{SttpBackend, UriContext, basicRequest}
 
 import schemas.*
-import mangadex.schemas.manga.GetMangaResponse
 
 trait MangadexApi[F[_]]:
   def getMangaFeed(
@@ -16,6 +18,7 @@ trait MangadexApi[F[_]]:
   def getManga(
       mangaId: String
   ): F[Either[Throwable, manga.GetMangaResponse]]
+  def getImages(chapterId: String): F[Either[Throwable, List[URI]]]
 
 object MangadexApi:
   def make[F[_]: MonadCancelThrow](
@@ -45,4 +48,14 @@ object MangadexApi:
         .response(asJson[manga.GetMangaResponse])
         .send(backend)
         .map(_.body)
+        .handleError(_.asLeft)
+
+    override def getImages(chapterId: String): F[Either[Throwable, List[URI]]] =
+      val url = uri"https://api.mangadex.org/at-home/server/${chapterId}"
+
+      basicRequest
+        .get(url)
+        .response(asJson[server.GetChapterFilesResponse])
+        .send(backend)
+        .map(_.body.map(_.chapter.urls))
         .handleError(_.asLeft)

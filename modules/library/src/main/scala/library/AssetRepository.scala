@@ -10,6 +10,7 @@ import doobiex.*
 
 import domain.*
 import category.domain.CategoryId
+import cats.data.OptionT
 
 trait AssetRepository[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
@@ -19,6 +20,9 @@ trait AssetRepository[F[_]]:
         List[ExistingAssetEntry]
     )
   ]]
+  def findByEntryId(
+      entryId: EntryId
+  ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
   def addToAsset(asset: ExistingAsset, category: CategoryId): F[Unit]
@@ -95,6 +99,14 @@ object AssetRepository:
         findEntries(assetId)
       ).tupled.map: (maybeAsset, entries) =>
         maybeAsset.map(asset => (asset, entries))
+
+    override def findByEntryId(
+        entryId: EntryId
+    ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
+      (for
+        assetId <- OptionT(findAssetId(entryId))
+        result  <- OptionT(findById(assetId))
+      yield result).value
 
     override def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
       doesAssetExist(asset.title).flatMap:
@@ -173,6 +185,16 @@ object AssetRepository:
         .transact(xa)
         .map: row =>
           row.map(Tuples.from[ExistingAsset](_))
+
+    private def findAssetId(entryId: EntryId): F[Option[AssetId]] =
+      sql"""
+        SELECT ${AssetEntries.assetId}
+        FROM ${AssetEntries}
+        WHERE ${AssetEntries.id === entryId}
+      """
+        .queryOf(AssetEntries.assetId)
+        .option
+        .transact(xa)
 
     private def findEntries(assetId: AssetId): F[List[ExistingAssetEntry]] =
       sql"""

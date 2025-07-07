@@ -11,6 +11,7 @@ import assetMapping.{
   AssetMappingView
 }
 import assetScraping.AssetScrapingView
+import assetScraping.downloading.domain.DownloadDir
 import assetScraping.schedules.*
 import cats.effect.*
 import cats.effect.kernel.Resource
@@ -40,7 +41,14 @@ object Main extends IOApp.Simple:
   def run: IO[Unit] =
     for
       _ <- logging.init[IO]
-      (serverConfig, dbConfig, snapshotConfig, malAuth, navBarItems) <- config
+      (
+        serverConfig,
+        dbConfig,
+        snapshotConfig,
+        malAuth,
+        downloadDir,
+        navBarItems
+      ) <- config
         .load[IO]
       random <- Random.scalaUtilRandom[IO]
       result <- setupResources(dbConfig).use:
@@ -53,6 +61,7 @@ object Main extends IOApp.Simple:
             httpBackend,
             browser,
             malAuth,
+            downloadDir,
             shutdownSignal,
             navBarItems,
             random
@@ -77,6 +86,7 @@ object Main extends IOApp.Simple:
       httpBackend: SttpBackend[IO, WebSockets],
       browser: Browser,
       malAuth: Option[MalAuth],
+      downloadDir: DownloadDir,
       shutdownSignal: Deferred[IO, Unit],
       navBarItems: List[NavBarItem],
       random: Random[IO]
@@ -126,6 +136,18 @@ object Main extends IOApp.Simple:
       assetScrapingView
     )
 
+    val mangadexApi = MangadexApi.make[IO](httpBackend)
+    val assetDownloadingService =
+      assetScraping.downloading.AssetDownloadingService
+        .make[IO](mangadexApi, httpBackend, downloadDir, assetRepo)
+    val assetDownloadingView =
+      assetScraping.downloading.AssetDownloadingView(navBarItems)
+    val assetDownloadingController =
+      assetScraping.downloading.AssetDownloadingController[IO](
+        assetDownloadingService,
+        assetDownloadingView
+      )
+
     val malClient =
       malAuth.map(MyAnimeListClient.make[IO](httpBackend, _, random))
     MyAnimeListService
@@ -148,7 +170,7 @@ object Main extends IOApp.Simple:
           categoryService,
           assetMappingService,
           assetScrapingConfigService,
-          MangadexApi.make(httpBackend)
+          mangadexApi
         )
         val assetImportingController =
           AssetImportingController(assetImportingService, assetImportingView)
@@ -173,6 +195,7 @@ object Main extends IOApp.Simple:
           assetController,
           assetScrapingController,
           assetScrapingConfigController,
+          assetDownloadingController,
           scheduleController,
           myAnimeListController,
           assetMappingController,

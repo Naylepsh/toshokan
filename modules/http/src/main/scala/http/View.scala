@@ -39,7 +39,7 @@ object View:
         ),
         script(src    := "https://unpkg.com/htmx.org@1.9.12"),
         script(src    := "https://unpkg.com/htmx.org@1.9.12/dist/ext/json-enc.js"),
-        script(src    := "https://unpkg.com/hyperscript.org@0.9.11"),
+        script(src    := "https://unpkg.com/hyperscript.org@0.9.12"),
         script(`type` := "text/javascript", src := "/public/js/index.js"),
         script(src    := "https://cdn.tailwindcss.com")
       ),

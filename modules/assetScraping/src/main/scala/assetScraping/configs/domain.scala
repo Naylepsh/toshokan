@@ -19,6 +19,7 @@ object IsConfigEnabled extends Newtype[Boolean]
 
 enum Site:
   case Mangakakalot, Mangadex, Yatta, Hitomi, Empik, DynastyScans
+
 object Site:
   // SQL
   given Read[Site] = Read[String].map:
