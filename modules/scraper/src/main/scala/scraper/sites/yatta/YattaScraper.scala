@@ -5,21 +5,17 @@ import java.time.LocalDate
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
 import net.ruippeixotog.scalascraper.model.Document
 import scraper.domain.*
+import scraper.util.requests.getHtmlContent
 
 class YattaScraper[F[_]: Sync] extends SiteScraper[F]:
   override def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
-    getContent(uri).map:
+    getHtmlContent(uri).map:
       case Left(error)    => ScrapeError.Other(error.toString).asLeft
       case Right(content) => YattaScraper.parseContent(content)
-
-  private def getContent(uri: URI): F[Either[Throwable, Document]] =
-    val browser = JsoupBrowser()
-    Sync[F].blocking(browser.get(uri.toString)).attempt
 
 object YattaScraper:
   private val entryNoPattern = """.*#(\d+)""".r

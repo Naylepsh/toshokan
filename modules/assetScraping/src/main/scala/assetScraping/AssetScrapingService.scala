@@ -42,7 +42,7 @@ object AssetScrapingService:
     override def getNewReleases(assetId: AssetId): F[ScrapingSummary] =
       for
         results <- configService.findByAssetId(assetId)
-        configs      = results.map(_._2).getOrElse(List.empty)
+        configs = results.map(_._2).getOrElse(List.empty).filter(_.isEnabled)
         instructions = makeInstructions(configs)
         results <- getNewReleases(instructions)
       yield results

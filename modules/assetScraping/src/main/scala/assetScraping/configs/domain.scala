@@ -18,7 +18,7 @@ type IsConfigEnabled = IsConfigEnabled.Type
 object IsConfigEnabled extends Newtype[Boolean]
 
 enum Site:
-  case Mangakakalot, Mangadex, Yatta, Hitomi, Empik, DynastyScans
+  case Mangakakalot, Mangadex, Yatta, Hitomi, Empik, DynastyScans, Batoto
 
 object Site:
   // SQL
@@ -29,6 +29,7 @@ object Site:
     case "hitomi"        => Hitomi
     case "empik"         => Empik
     case "dynasty-scans" => DynastyScans
+    case "batoto"        => Batoto
   given Write[Site] = Write[String].contramap:
     case Mangadex     => "mangadex"
     case Mangakakalot => "mangakakalot"
@@ -36,6 +37,7 @@ object Site:
     case Hitomi       => "hitomi"
     case Empik        => "empik"
     case DynastyScans => "dynasty-scans"
+    case Batoto       => "batoto"
 
   // JSON
   given Decoder[Site] = Decoder[String].emap:
@@ -45,6 +47,7 @@ object Site:
     case "Hitomi"       => Hitomi.asRight
     case "Empik"        => Empik.asRight
     case "DynastyScans" => DynastyScans.asRight
+    case "Batoto"       => Batoto.asRight
     case other          => s"'$other' is not a valid site".asLeft
   given Encoder[Site] = Encoder[String].contramap(_.toString)
 
@@ -67,10 +70,13 @@ object NewAssetScrapingConfig:
    */
   private val mangakakalotUri =
     "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com|www.mangakakalot.gg)/.+".r
-  private val yattaUri        = "^https://yatta.pl/.+".r
-  private val hitomiUri       = "^https://hitomi.la/artist/(.+).html$".r
-  private val empikUri        = "^https://www.empik.com/ksiazki.+".r
-  private val dynastyScansUri = "^https://dynasty-scans.com/series/.+".r
+  private val yattaUri                = "^https://yatta.pl/.+".r
+  private val hitomiUri               = "^https://hitomi.la/artist/(.+).html$".r
+  private val empikUri                = "^https://www.empik.com/ksiazki.+".r
+  private val dynastyScansUri         = "^https://dynasty-scans.com/series/.+".r
+  private val batotoUriWithTitleRegex = "^https://bato.to/series/([0-9]+)/.+$".r
+  private val batotoUriWithoutTitleRegex =
+    "^https://bato.to/series/([0-9]+)/?$".r
 
   def apply(
       uri: ScrapingConfigUri,
@@ -124,6 +130,18 @@ object NewAssetScrapingConfig:
       case Site.DynastyScans =>
         uri.value.toString match
           case dynastyScansUri() => uri.asRight
+          case other =>
+            s"Uri: $other is not a valid config uri of site: $site".asLeft
+      case Site.Batoto =>
+        uri.value.toString match
+          case batotoUriWithTitleRegex(_, title) =>
+            ScrapingConfigUri(
+              URI(uri.value.toString.replace(s"/$title", ""))
+            ).asRight
+          case batotoUriWithoutTitleRegex(mangaId) =>
+            ScrapingConfigUri(
+              URI(s"https://bato.to/series/$mangaId")
+            ).asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
 
