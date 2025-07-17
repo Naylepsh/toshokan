@@ -20,7 +20,7 @@ class BatotoScraper[F[_]: Sync] extends SiteScraper[F]:
       case Right(content) => BatotoScraper.parseContent(content)
 
 object BatotoScraper:
-  private val entryNoPattern      = """Chapter (\d+)""".r
+  private val entryNoPattern      = """.*Chapter (\d+)""".r
   private val dateReleasedPattern = """(\d+)\s+(mins|hours|days)\s+ago""".r
 
   def parseContent(document: Document): Either[ScrapeError, List[EntryFound]] =
