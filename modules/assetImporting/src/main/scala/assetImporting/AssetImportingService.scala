@@ -32,21 +32,18 @@ class AssetImportingService[F[_]: Monad](
       case Some(manga) =>
         (for
           mangaResponse <- getMangaFromMangadex(uri.id)
-          malId         <- extractMalId(mangaResponse)
-          createdAsset  <- createAsset(mangaResponse, manga)
-          _             <- createScrapingConfig(createdAsset, uri)
-          _             <- assignExternalIdToManga(createdAsset, malId)
+          malId = extractMalId(mangaResponse)
+          createdAsset <- createAsset(mangaResponse, manga)
+          _            <- createScrapingConfig(createdAsset, uri)
+          _ <- malId.traverse(assignExternalIdToManga(createdAsset, _))
         yield createdAsset).value
 
   private def getMangaFromMangadex(id: MangadexId) =
     EitherT(mangadex.getManga(id.toString))
 
   private def extractMalId(mangaResponse: GetMangaResponse) =
-    EitherT
-      .fromOption(
-        mangaResponse.data.attributes.links.mal.flatMap(_.toLongOption),
-        NoMalIdAvailable
-      )
+    mangaResponse.data.attributes.links.mal
+      .flatMap(_.toLongOption)
       .map(ExternalMangaId.apply)
 
   private def createAsset(
