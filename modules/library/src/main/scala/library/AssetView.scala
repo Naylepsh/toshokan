@@ -75,6 +75,50 @@ class AssetView(navBarItems: List[NavBarItem]):
       navBarItems
     )
 
+  def renderStaleAssets(
+      assets: List[(ExistingAsset, DateUploaded, Long)]
+  ): TypedTag[String] =
+    layout(
+      "Stale Assets".some,
+      div(
+        cls := "mt-5",
+        div(
+          cls := "mb-6",
+          h2(
+            cls := "text-2xl font-bolt text-center mb-2",
+            "Assets with no recent releases"
+          )
+        ),
+        table(
+          cls := "table table-zebra",
+          thead(
+            tr(
+              th("Title"),
+              th("Last Release"),
+              th("Days Ago"),
+              th("")
+            )
+          ),
+          tbody(
+            assets.map: (asset, lastRelease, daysAgo) =>
+              tr(
+                td(asset.title.value),
+                td(lastRelease.value.toString),
+                td(daysAgo.toString),
+                td(
+                  a(
+                    cls  := "text-light",
+                    href := s"/assets/${asset.id}",
+                    i(cls := "fa-solid fa-eye")
+                  )
+                )
+              )
+          )
+        )
+      ),
+      navBarItems
+    )
+
   def renderAsset(
       asset: ExistingAsset,
       entries: List[ExistingAssetEntry],

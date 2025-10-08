@@ -27,6 +27,13 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
           `Content-Type`(MediaType.text.html)
         )
 
+    case GET -> Root / "stale" =>
+      assetService.findStale.flatMap: assets =>
+        Ok(
+          view.renderStaleAssets(assets),
+          `Content-Type`(MediaType.text.html)
+        )
+
     case GET -> Root / "new" =>
       categoryService.findAll.flatMap: categories =>
         Ok(

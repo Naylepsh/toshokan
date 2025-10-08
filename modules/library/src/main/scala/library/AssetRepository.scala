@@ -23,6 +23,10 @@ trait AssetRepository[F[_]]:
   def findByEntryId(
       entryId: EntryId
   ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
+  def findStale(
+      // TODO: this could be enforced to be a positive number
+      daysSinceLastRelease: Int
+  ): F[List[(ExistingAsset, DateUploaded)]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
   def addToAsset(asset: ExistingAsset, category: CategoryId): F[Unit]
@@ -107,6 +111,26 @@ object AssetRepository:
         assetId <- OptionT(findAssetId(entryId))
         result  <- OptionT(findById(assetId))
       yield result).value
+
+    override def findStale(
+        daysSinceLastRelease: Int
+    ): F[List[(ExistingAsset, DateUploaded)]] =
+      // TODO: clean this workaround up
+      sql"""
+      SELECT ${A(_.*)}, MAX(${AE(_.dateUploaded)}) AS last_upload
+      FROM ${A}
+      -- ugly workaround here
+      JOIN asset_scraping_configs ON asset_scraping_configs.asset_id = a.id
+      AND asset_scraping_configs.is_enabled = 1
+      -- end of the ugly workaround
+      LEFT JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
+      GROUP BY ${A(_.id)}
+      HAVING last_upload IS NULL OR date(last_upload) < date('now', '-90 day')
+      ORDER BY last_upload ASC
+      """
+        .query[(ExistingAsset, DateUploaded)]
+        .to[List]
+        .transact(xa)
 
     override def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
       doesAssetExist(asset.title).flatMap:

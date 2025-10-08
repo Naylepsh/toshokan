@@ -33,6 +33,7 @@ def load[F[_]](using F: Sync[F]) =
       (malClientId, malSecret, malRedirectUrl).tupled.map(MalAuth.apply)
     val navBarItems = List(
       NavBarItem("Assets", "/assets"),
+      NavBarItem("Stale assets", "/assets/stale"),
       NavBarItem("New releases", "/progress-tracking/releases"),
       NavBarItem("Scraping", "/asset-scraping"),
       NavBarItem("Shutdown", "/shutdown")

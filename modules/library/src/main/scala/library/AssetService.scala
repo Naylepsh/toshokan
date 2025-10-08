@@ -1,16 +1,17 @@
 package library
 
-import cats.Monad
 import cats.data.{EitherT, NonEmptyList}
 import cats.implicits.*
 
 import domain.*
 import domain.Releases.given
 import category.domain.CategoryId
+import cats.effect.kernel.Sync
 
 trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
   def findNotSeenReleases: F[List[Releases]]
+  def findStale: F[List[(ExistingAsset, DateUploaded, Long)]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def matchCategoriesToAssets(
       categoryIds: List[CategoryId]
@@ -29,7 +30,7 @@ trait AssetService[F[_]]:
   def delete(assetId: AssetId): F[Unit]
 
 object AssetService:
-  def make[F[_]: Monad](repository: AssetRepository[F]): AssetService[F] =
+  def make[F[_]: Sync](repository: AssetRepository[F]): AssetService[F] =
     new:
       override def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
         repository.findAll
@@ -47,6 +48,13 @@ object AssetService:
               key -> assetsAndEntries.sortBy(_._1.id)
             .toList
             .sorted(using Ordering[Releases].reverse)
+
+      override def findStale: F[List[(ExistingAsset, DateUploaded, Long)]] =
+        repository
+          .findStale(daysSinceLastRelease = 90)
+          .flatMap: assets =>
+            assets.traverse: (asset, lastRelease) =>
+              lastRelease.daysAgo[F].map((asset, lastRelease, _))
 
       override def find(
           id: AssetId

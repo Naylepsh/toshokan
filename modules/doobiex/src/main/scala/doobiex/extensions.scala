@@ -31,3 +31,13 @@ extension (fragment: Fragment)
   inline def queryOf[A](col: Column[A]) = fragment.query[A](using col.read)
   @annotation.nowarn()
   inline def queryOf[A: Read](cols: Columns[A]) = fragment.query[A]
+
+  def rawSql: String =
+    /** This is very much unsafe, mostly due to the fact that doobie does not
+      * expose raw sql of fragment
+      */
+    fragment.toString
+      .replace("Fragment(\"", "")
+      .reverse
+      .replaceFirst("\\)\"", "")
+      .reverse

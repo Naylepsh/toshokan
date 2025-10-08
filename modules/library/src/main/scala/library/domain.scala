@@ -15,6 +15,7 @@ import org.typelevel.cats.time.*
 import util.control.NoStackTrace
 
 import category.domain.CategoryId
+import cats.effect.kernel.Sync
 
 /** Asset
   */
@@ -67,6 +68,12 @@ object WasEntrySeen extends Newtype[Boolean]
 
 type DateUploaded = DateUploaded.Type
 object DateUploaded extends Newtype[LocalDate]:
+  extension (self: DateUploaded)
+    def daysAgo[F[_]: Sync]: F[Long] =
+      Sync[F].delay:
+        java.time.temporal.ChronoUnit.DAYS
+          .between(self.value, java.time.LocalDate.now())
+
   given Ordering[DateUploaded] with
     override def compare(x: DateUploaded, y: DateUploaded): Int =
       x.value.compareTo(y.value)

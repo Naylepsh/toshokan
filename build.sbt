@@ -181,6 +181,7 @@ lazy val root = project
   .settings(
     name                := "toshokan",
     version             := "0.1.0",
+    fork                := true,
     Compile / mainClass := Some("app.Main"),
     Compile / run       := Some("app.Main"),
     Universal / run     := Some("app.Main")
