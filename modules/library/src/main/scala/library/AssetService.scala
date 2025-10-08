@@ -11,7 +11,7 @@ import cats.effect.kernel.Sync
 trait AssetService[F[_]]:
   def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
   def findNotSeenReleases: F[List[Releases]]
-  def findStale: F[List[(ExistingAsset, DateUploaded, Long)]]
+  def findStale: F[List[StaleAsset]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def matchCategoriesToAssets(
       categoryIds: List[CategoryId]
@@ -49,12 +49,12 @@ object AssetService:
             .toList
             .sorted(using Ordering[Releases].reverse)
 
-      override def findStale: F[List[(ExistingAsset, DateUploaded, Long)]] =
+      override def findStale: F[List[StaleAsset]] =
         repository
           .findStale(daysSinceLastRelease = 90)
           .flatMap: assets =>
             assets.traverse: (asset, lastRelease) =>
-              lastRelease.daysAgo[F].map((asset, lastRelease, _))
+              lastRelease.daysAgo[F].map(StaleAsset(asset, lastRelease, _))
 
       override def find(
           id: AssetId

@@ -41,6 +41,15 @@ type AssetAlreadyExists = AssetAlreadyExists.type
 
 type AddAssetError = AssetAlreadyExists
 
+type DaysSinceRelease = DaysSinceRelease.Type
+object DaysSinceRelease extends Newtype[Long]
+
+case class StaleAsset(
+    asset: ExistingAsset,
+    lastRelease: DateUploaded,
+    daysSinceLastRelease: DaysSinceRelease
+)
+
 /** Asset Entry
   */
 
@@ -69,10 +78,12 @@ object WasEntrySeen extends Newtype[Boolean]
 type DateUploaded = DateUploaded.Type
 object DateUploaded extends Newtype[LocalDate]:
   extension (self: DateUploaded)
-    def daysAgo[F[_]: Sync]: F[Long] =
-      Sync[F].delay:
-        java.time.temporal.ChronoUnit.DAYS
-          .between(self.value, java.time.LocalDate.now())
+    def daysAgo[F[_]: Sync]: F[DaysSinceRelease] =
+      Sync[F]
+        .delay:
+          java.time.temporal.ChronoUnit.DAYS
+            .between(self.value, java.time.LocalDate.now())
+        .map(DaysSinceRelease(_))
 
   given Ordering[DateUploaded] with
     override def compare(x: DateUploaded, y: DateUploaded): Int =

@@ -76,7 +76,7 @@ class AssetView(navBarItems: List[NavBarItem]):
     )
 
   def renderStaleAssets(
-      assets: List[(ExistingAsset, DateUploaded, Long)]
+      assets: List[StaleAsset]
   ): TypedTag[String] =
     layout(
       "Stale Assets".some,
@@ -100,15 +100,15 @@ class AssetView(navBarItems: List[NavBarItem]):
             )
           ),
           tbody(
-            assets.map: (asset, lastRelease, daysAgo) =>
+            assets.map: asset =>
               tr(
-                td(asset.title.value),
-                td(lastRelease.value.toString),
-                td(daysAgo.toString),
+                td(asset.asset.title.value),
+                td(asset.lastRelease.value.toString),
+                td(asset.daysSinceLastRelease.value.toString),
                 td(
                   a(
                     cls  := "text-light",
-                    href := s"/assets/${asset.id}",
+                    href := s"/assets/${asset.asset.id}",
                     i(cls := "fa-solid fa-eye")
                   )
                 )
