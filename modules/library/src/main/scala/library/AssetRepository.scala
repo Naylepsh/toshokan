@@ -25,7 +25,7 @@ trait AssetRepository[F[_]]:
   ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def findStale(
       // TODO: this could be enforced to be a positive number
-      daysSinceLastRelease: Int
+      minDaysToBeStale: Int
   ): F[List[(ExistingAsset, DateUploaded)]]
   def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
   def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
@@ -113,8 +113,10 @@ object AssetRepository:
       yield result).value
 
     override def findStale(
-        daysSinceLastRelease: Int
+        minDaysToBeStale: Int
     ): F[List[(ExistingAsset, DateUploaded)]] =
+      val cutoff =
+        Fragment.const0(s"""date('now', '${minDaysToBeStale} day')""")
       // TODO: clean this workaround up
       sql"""
       SELECT ${A(_.*)}, MAX(${AE(_.dateUploaded)}) AS last_upload
@@ -125,7 +127,7 @@ object AssetRepository:
       -- end of the ugly workaround
       LEFT JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
       GROUP BY ${A(_.id)}
-      HAVING last_upload IS NULL OR date(last_upload) < date('now', '-90 day')
+      HAVING last_upload IS NULL OR date(last_upload) < ${cutoff}
       ORDER BY last_upload ASC
       """
         .query[(ExistingAsset, DateUploaded)]

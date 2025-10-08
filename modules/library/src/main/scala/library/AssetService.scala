@@ -51,7 +51,7 @@ object AssetService:
 
       override def findStale: F[List[StaleAsset]] =
         repository
-          .findStale(daysSinceLastRelease = 90)
+          .findStale(minDaysToBeStale = 90)
           .flatMap: assets =>
             assets.traverse: (asset, lastRelease) =>
               lastRelease.daysAgo[F].map(StaleAsset(asset, lastRelease, _))
