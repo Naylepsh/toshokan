@@ -58,10 +58,13 @@ object AssetScrapingConfigRepository:
     def update(
         scrapingConfig: ExistingAssetScrapingConfig
     ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
-      exists(scrapingConfig.uri).flatMap: configExists =>
-        if configExists then
+      (exists(scrapingConfig.id), exists(scrapingConfig.uri)).tupled.flatMap:
+        case (true, false) =>
           updateWithoutChecking(scrapingConfig).map(_.asRight)
-        else UpdateScrapingConfigError.ConfigDoesNotExist.asLeft.pure
+        case (false, _) =>
+          UpdateScrapingConfigError.ConfigDoesNotExist.asLeft.pure
+        case (_, true) =>
+          UpdateScrapingConfigError.ConflictingConfigError.asLeft.pure
 
     def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit] =
       sql"""
@@ -74,6 +77,13 @@ object AssetScrapingConfigRepository:
         SELECT 1
         FROM ${AssetScrapingConfigs}
         WHERE ${AssetScrapingConfigs.uri === uri}
+      """.query[Int].option.transact(xa).map(_.isDefined)
+
+    private def exists(id: AssetScrapingConfigId): F[Boolean] =
+      sql"""
+        SELECT 1
+        FROM ${AssetScrapingConfigs}
+        WHERE ${AssetScrapingConfigs.id === id}
       """.query[Int].option.transact(xa).map(_.isDefined)
 
     private def addWithoutChecking(

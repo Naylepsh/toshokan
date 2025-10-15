@@ -70,13 +70,14 @@ object NewAssetScrapingConfig:
    */
   private val mangakakalotUri =
     "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com|www.mangakakalot.gg)/.+".r
-  private val yattaUri                = "^https://yatta.pl/.+".r
-  private val hitomiUri               = "^https://hitomi.la/artist/(.+).html$".r
-  private val empikUri                = "^https://www.empik.com/ksiazki.+".r
-  private val dynastyScansUri         = "^https://dynasty-scans.com/series/.+".r
-  private val batotoUriWithTitleRegex = "^https://bato.to/series/([0-9]+)/.+$".r
+  private val yattaUri        = "^https://yatta.pl/.+".r
+  private val hitomiUri       = "^https://hitomi.la/artist/(.+).html$".r
+  private val empikUri        = "^https://www.empik.com/ksiazki.+".r
+  private val dynastyScansUri = "^https://dynasty-scans.com/series/.+".r
+  private val batotoUriWithTitleRegex =
+    "^https://(bato.to|xbato.com)/series/([0-9]+)/.+$".r
   private val batotoUriWithoutTitleRegex =
-    "^https://bato.to/series/([0-9]+)/?$".r
+    "^https://(bato.to|xbato.com)/series/([0-9]+)/?$".r
 
   def apply(
       uri: ScrapingConfigUri,
@@ -138,9 +139,9 @@ object NewAssetScrapingConfig:
             ScrapingConfigUri(
               URI(uri.value.toString.replace(s"/$title", ""))
             ).asRight
-          case batotoUriWithoutTitleRegex(mangaId) =>
+          case batotoUriWithoutTitleRegex(domain, mangaId) =>
             ScrapingConfigUri(
-              URI(s"https://bato.to/series/$mangaId")
+              URI(s"https://${domain}/series/$mangaId")
             ).asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
@@ -184,3 +185,4 @@ enum AddScrapingConfigError:
 enum UpdateScrapingConfigError:
   case AssetDoesNotExists
   case ConfigDoesNotExist
+  case ConflictingConfigError

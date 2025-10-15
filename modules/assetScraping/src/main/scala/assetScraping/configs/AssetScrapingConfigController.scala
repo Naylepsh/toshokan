@@ -64,6 +64,8 @@ class AssetScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
                   BadRequest(s"Config ${configId} does not exist")
                 case Left(UpdateScrapingConfigError.AssetDoesNotExists) =>
                   BadRequest(s"Asset ${assetId} does not exist")
+                case Left(UpdateScrapingConfigError.ConflictingConfigError) =>
+                  Conflict(s"Similar config already exists")
                 case Right(config) =>
                   Ok(view.renderConfigRow(assetId, config.some))
 

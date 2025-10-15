@@ -20,17 +20,21 @@ class BatotoScraper[F[_]: Sync] extends SiteScraper[F]:
       case Right(content) => BatotoScraper.parseContent(content)
 
 object BatotoScraper:
-  private val entryNoPattern      = """.*Chapter (\d+)""".r
+  private val entryNoPattern      = """.*Chapter (\d+(?:\.\d+)?)""".r
   private val dateReleasedPattern = """(\d+)\s+(mins|hours|days)\s+ago""".r
 
   def parseContent(document: Document): Either[ScrapeError, List[EntryFound]] =
     (document >> elementList(".main > div"))
       .traverse: row =>
-        val title =
-          EntryTitle((row >> element(".chapt span")).text.stripPrefix(": "))
         val no = (row >> element(".chapt b")).text match
           case entryNoPattern(rawNo) => EntryNo(rawNo)
           case _                     => EntryNo("")
+        val title =
+          EntryTitle(
+            (row >?> element(".chapt span"))
+              .map(_.text.stripPrefix(": "))
+              .getOrElse(s"Chapter ${no.value}")
+          )
         val refLink = EntryUri(
           s"https://bato.to${(row >> element("a[href]")).attr("href")}"
         )
