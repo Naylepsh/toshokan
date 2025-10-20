@@ -4,3 +4,4 @@ export MAL_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 export MAL_REDIRECT_URL=http://localhost:8080/myanimelist
 export SNAPSHOT_PATH=/optional/path/to/local/github/repository/db.sqlite.bk
 export SNAPSHOT_RECENCY_THRESHOLD=7
+export DOWNLOAD_DIR=/path/to/download/dir

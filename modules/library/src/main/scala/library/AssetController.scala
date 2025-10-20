@@ -1,7 +1,7 @@
 package library
 
 import cats.effect.{Concurrent, MonadCancelThrow}
-import cats.syntax.all.*
+import cats.implicits.*
 import io.circe.Decoder
 import library.category.CategoryService
 import library.domain.*
@@ -21,11 +21,13 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
-      assetService.findAll.flatMap: assetsWithEntries =>
-        Ok(
-          view.renderAssets(assetsWithEntries),
-          `Content-Type`(MediaType.text.html)
-        )
+      assetService.findAll
+        .map(_.sortBy(_._1.title))
+        .flatMap: assetsWithEntries =>
+          Ok(
+            view.renderAssets(assetsWithEntries),
+            `Content-Type`(MediaType.text.html)
+          )
 
     case GET -> Root / "stale" =>
       assetService.findStale.flatMap: assets =>
