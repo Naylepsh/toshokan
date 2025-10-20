@@ -5,11 +5,12 @@ import cats.implicits.*
 
 import domain.*
 import domain.Releases.given
-import category.domain.CategoryId
+import category.domain.{CategoryId, CategoryName}
 import cats.effect.kernel.Sync
 
 trait AssetService[F[_]]:
-  def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
+  def findAll
+      : F[List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]]
   def findNotSeenReleases: F[List[Releases]]
   def findStale: F[List[StaleAsset]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
@@ -32,13 +33,15 @@ trait AssetService[F[_]]:
 object AssetService:
   def make[F[_]: Sync](repository: AssetRepository[F]): AssetService[F] =
     new:
-      override def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
+      override def findAll: F[
+        List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]
+      ] =
         repository.findAll
 
       override def findNotSeenReleases: F[List[Releases]] =
         repository.findAll.map: all =>
           all
-            .flatMap: (asset, entries) =>
+            .flatMap: (asset, _, entries) =>
               entries
                 .filter(_.wasSeen.eqv(WasEntrySeen(false)))
                 .map(entry => asset -> entry)

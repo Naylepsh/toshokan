@@ -9,11 +9,13 @@ import doobie.implicits.*
 import doobiex.*
 
 import domain.*
-import category.domain.CategoryId
+import category.domain.{CategoryId, CategoryName}
+import category.Categories
 import cats.data.OptionT
 
 trait AssetRepository[F[_]]:
-  def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]]
+  def findAll
+      : F[List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]]
   def findById(assetId: AssetId): F[Option[
     (
         ExistingAsset,
@@ -41,11 +43,13 @@ object AssetRepository:
 
   private val A  = Assets `as` "a"
   private val AE = AssetEntries `as` "ae"
+  private val C  = Categories `as` "c"
   private val findAllColumns =
     Columns(
       A(_.id),
       A(_.title),
       A(_.categoryId),
+      C(_.name_).option,
       AE(_.id).option,
       AE(_.title).option,
       AE(_.no).option,
@@ -56,10 +60,13 @@ object AssetRepository:
 
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
 
-    override def findAll: F[List[(ExistingAsset, List[ExistingAssetEntry])]] =
+    override def findAll: F[
+      List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]
+    ] =
       sql"""
           SELECT ${findAllColumns} 
           FROM ${A}
+          LEFT JOIN ${C} ON ${C(_.id)} = ${A(_.categoryId)}
           LEFT JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
           ORDER BY ${A(_.id)}
       """
@@ -68,26 +75,25 @@ object AssetRepository:
         .transact(xa)
         .map: rows =>
           rows
-            .groupBy(row => (row._1, row._2, row._3))
+            .groupBy(row => (row._1, row._2, row._3, row._4))
             .map: (asset, records) =>
-              val (id, title, categoryId) = asset
+              val (id, title, categoryId, categoryName) = asset
               val entries = records
                 .map: record =>
                   (
-                    record._4,
                     record._5,
                     record._6,
                     record._7,
                     record._8,
                     record._9,
+                    record._10,
                     id.some
                   ).tupled
                     .map(Tuples.from[ExistingAssetEntry](_))
                 .collect:
                   case Some(entry) => entry
-              ExistingAsset(id, title, categoryId) -> entries
+              (ExistingAsset(id, title, categoryId), categoryName, entries)
             .toList
-            .sortBy((asset, _) => asset.id)
 
     override def findById(assetId: AssetId): F[Option[
       (
