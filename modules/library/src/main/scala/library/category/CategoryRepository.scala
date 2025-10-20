@@ -53,7 +53,7 @@ object CategoryRepository:
           .map: rows =>
             rows.map(Tuples.from[ExistingCategory](_))
 
-private object Categories extends TableDefinition("categories"):
+private[library] object Categories extends TableDefinition("categories"):
   val id    = Column[CategoryId]("id")
   val name_ = Column[CategoryName]("name")
 

@@ -15,6 +15,7 @@ class AssetView(navBarItems: List[NavBarItem]):
       assetsViewEntries: List[
         (
             ExistingAsset,
+            Option[CategoryName],
             List[ExistingAssetEntry]
         )
       ]
@@ -39,16 +40,18 @@ class AssetView(navBarItems: List[NavBarItem]):
             tr(
               th("Id"),
               th("Title"),
+              th("Category"),
               th("")
             )
           ),
           tbody(
-            assetsViewEntries.map: (asset, _) =>
+            assetsViewEntries.map: (asset, categoryName, _) =>
               val rowId = s"asset-${asset.id}"
               tr(
                 id := rowId,
                 th(asset.id.value),
                 td(asset.title.value),
+                td(categoryName.map(_.value).getOrElse("-")),
                 td(
                   div(
                     cls := "d-flex space-x-2",
