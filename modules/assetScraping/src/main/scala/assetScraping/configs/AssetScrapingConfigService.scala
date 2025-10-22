@@ -4,21 +4,25 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import library.AssetService
 import library.domain.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 
 import domain.*
 
 trait AssetScrapingConfigService[F[_]]:
   def findAllEnabled: F[List[ExistingAssetScrapingConfig]]
-  def findByAssetId(assetId: AssetId): F[Either[
-    FindScrapingConfigError,
-    (ExistingAsset, List[ExistingAssetScrapingConfig])
-  ]]
+  def findByAssetId(assetId: AssetId): Raise[F, FindScrapingConfigError] ?=> F[
+    (
+        ExistingAsset,
+        List[ExistingAssetScrapingConfig]
+    )
+  ]
   def add(
       scrapingConfig: NewAssetScrapingConfig
-  ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
+  ): Raise[F, AddScrapingConfigError] ?=> F[ExistingAssetScrapingConfig]
   def update(
       scrapingConfig: ExistingAssetScrapingConfig
-  ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
+  ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig]
   def delete(id: AssetScrapingConfigId): F[Unit]
 
 object AssetScrapingService:
@@ -30,37 +34,40 @@ object AssetScrapingService:
     override def findAllEnabled: F[List[ExistingAssetScrapingConfig]] =
       repository.findAllEnabled
 
-    override def findByAssetId(assetId: AssetId): F[Either[
-      FindScrapingConfigError,
-      (ExistingAsset, List[ExistingAssetScrapingConfig])
-    ]] =
+    override def findByAssetId(
+        assetId: AssetId
+    ): Raise[F, FindScrapingConfigError] ?=> F[
+      (
+          ExistingAsset,
+          List[ExistingAssetScrapingConfig]
+      )
+    ] =
       assetService
         .find(assetId)
         .flatMap:
           case Some(asset, _) =>
             repository
               .findByAssetId(assetId)
-              .map: configs =>
-                (asset, configs).asRight
-          case None => FindScrapingConfigError.AssetDoesNotExists.asLeft.pure
+              .map(asset -> _)
+          case None => FindScrapingConfigError.AssetDoesNotExists.raise
 
     override def add(
         scrapingConfig: NewAssetScrapingConfig
-    ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
+    ): Raise[F, AddScrapingConfigError] ?=> F[ExistingAssetScrapingConfig] =
       assetService
         .find(scrapingConfig.assetId)
         .flatMap:
           case Some(_) => repository.add(scrapingConfig)
-          case None    => AddScrapingConfigError.AssetDoesNotExists.asLeft.pure
+          case None    => AddScrapingConfigError.AssetDoesNotExists.raise
 
     override def update(
         scrapingConfig: ExistingAssetScrapingConfig
-    ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
+    ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig] =
       assetService
         .find(scrapingConfig.assetId)
         .flatMap:
           case Some(_) => repository.update(scrapingConfig)
-          case None => UpdateScrapingConfigError.AssetDoesNotExists.asLeft.pure
+          case None    => UpdateScrapingConfigError.AssetDoesNotExists.raise
 
     override def delete(id: AssetScrapingConfigId): F[Unit] =
       repository.delete(id)

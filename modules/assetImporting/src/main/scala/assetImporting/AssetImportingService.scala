@@ -1,23 +1,23 @@
 package assetImporting
 
 import assetImporting.domain.*
-import assetMapping.AssetMappingService
+import assetMapping.{AssetMappingService, AssignExternalIdToMangaError}
 import assetScraping.configs.AssetScrapingConfigService
 import assetScraping.configs.domain.*
-import cats.data.EitherT
+import cats.effect.MonadCancelThrow
+import cats.mtl.Handle
 import cats.syntax.all.*
-import cats.Monad
 import library.AssetService
 import library.category.CategoryService
 import library.category.domain.ExistingCategory
-import library.domain.{AssetTitle, ExistingAsset, NewAsset}
+import library.domain.*
 import mangadex.MangadexApi
 import mangadex.schemas.manga.GetMangaResponse
 import myAnimeList.domain.ExternalMangaId
 
 import domain.MangadexMangaUri
 
-class AssetImportingService[F[_]: Monad](
+class AssetImportingService[F[_]: MonadCancelThrow](
     assetService: AssetService[F],
     categoryService: CategoryService[F],
     assetMappingService: AssetMappingService[F],
@@ -26,20 +26,24 @@ class AssetImportingService[F[_]: Monad](
 ):
   def importFromMangadex(
       uri: MangadexMangaUri
-  ): F[Either[Throwable, ExistingAsset]] =
+  ): F[ExistingAsset] =
+    // TODO: Handle domain errors?
     categoryService.findManga.flatMap:
-      case None => CategoryDoesNotExist.asLeft.pure
+      case None =>
+        MonadCancelThrow[F].raiseError(
+          new RuntimeException(CategoryDoesNotExist.toString)
+        )
       case Some(manga) =>
-        (for
+        for
           mangaResponse <- getMangaFromMangadex(uri.id)
           malId = extractMalId(mangaResponse)
           createdAsset <- createAsset(mangaResponse, manga)
           _            <- createScrapingConfig(createdAsset, uri)
           _ <- malId.traverse(assignExternalIdToManga(createdAsset, _))
-        yield createdAsset).value
+        yield createdAsset
 
   private def getMangaFromMangadex(id: MangadexId) =
-    EitherT(mangadex.getManga(id.toString))
+    mangadex.getManga(id.toString).rethrow
 
   private def extractMalId(mangaResponse: GetMangaResponse) =
     mangaResponse.data.attributes.links.mal
@@ -49,45 +53,46 @@ class AssetImportingService[F[_]: Monad](
   private def createAsset(
       mangaResponse: GetMangaResponse,
       manga: ExistingCategory
-  ): EitherT[F, Throwable, ExistingAsset] =
+  ) =
     for
-      title <- EitherT.fromOption(
-        mangaResponse.data.attributes.title.preferred,
-        NoTitleTranslation
-      )
-      result <- EitherT(
-        assetService
-          .add(NewAsset(AssetTitle(title), manga.id.some))
-          .map(_.leftWiden)
-      )
+      title <- mangaResponse.data.attributes.title.preferred
+        .liftTo[F](new RuntimeException(NoTitleTranslation.toString))
+      result <-
+        Handle
+          .allow[AddAssetError]:
+            assetService
+              .add(NewAsset(AssetTitle(title), manga.id.some))
+          .rescue: error =>
+            MonadCancelThrow[F].raiseError(new RuntimeException(error.toString))
     yield result
 
   private def createScrapingConfig(
       asset: ExistingAsset,
       uri: MangadexMangaUri
-  ) =
-    EitherT
-      .fromEither(
-        NewAssetScrapingConfig(
-          ScrapingConfigUri(uri),
-          Site.Mangadex,
-          IsConfigEnabled(true),
-          asset.id
-        ).leftMap(new RuntimeException(_))
-      )
-      .flatMap: config =>
-        EitherT(
-          assetScrapingConfigService
-            .add(config)
-            .map(_.leftMap(error => new RuntimeException(error.toString)))
-        )
+  ): F[Unit] =
+    for
+      config <- NewAssetScrapingConfig(
+        ScrapingConfigUri(uri),
+        Site.Mangadex,
+        IsConfigEnabled(true),
+        asset.id
+      ).leftMap(error => new RuntimeException(error.toString)).liftTo[F]
+      result <-
+        Handle
+          .allow[AddScrapingConfigError]:
+            assetScrapingConfigService.add(config).void
+          .rescue:
+            case error: AddScrapingConfigError =>
+              MonadCancelThrow[F].raiseError(
+                new RuntimeException(error.toString)
+              )
+    yield result
 
   private def assignExternalIdToManga(
       asset: ExistingAsset,
       malId: ExternalMangaId
-  ): EitherT[F, Throwable, Unit] =
-    EitherT(
-      assetMappingService
-        .assignExternalIdToManga(malId, asset.id)
-        .map(_.void)
-    )
+  ) = Handle
+    .allow[AssignExternalIdToMangaError]:
+      assetMappingService.assignExternalIdToManga(malId, asset.id)
+    .rescue:
+      case error => MonadCancelThrow[F].raiseError(error)

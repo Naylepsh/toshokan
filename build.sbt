@@ -6,6 +6,7 @@ val commonDependencies = Seq(
   Dependencies.catsCore,
   Dependencies.catsEffect,
   Dependencies.catsTime,
+  Dependencies.catsMtl,
   Dependencies.circeCore,
   Dependencies.monocle,
   Dependencies.ducktape,

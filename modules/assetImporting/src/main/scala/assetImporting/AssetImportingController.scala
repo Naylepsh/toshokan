@@ -28,17 +28,14 @@ class AssetImportingController[F[_]: MonadCancelThrow: Concurrent](
       withJsonErrorsHandled[MangadexManga](req): mangadexManga =>
         service
           .importFromMangadex(mangadexManga.uri)
-          .flatMap:
-            case Left(error) =>
-              // TODO: Split the error types and handle some of them?
-              MonadCancelThrow[F].raiseError(error)
-            case Right(asset) =>
-              Response[F]()
-                .withStatus(Status.Created)
-                .withHeaders(
-                  Header.Raw(CIString("HX-Location"), s"/assets/${asset.id}")
-                )
-                .pure
+          .flatMap: asset =>
+            // TODO: Handle domain errors?
+            Response[F]()
+              .withStatus(Status.Created)
+              .withHeaders(
+                Header.Raw(CIString("HX-Location"), s"/assets/${asset.id}")
+              )
+              .pure
 
   val routes = Router("asset-importing" -> httpRoutes)
 

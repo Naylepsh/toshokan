@@ -3,6 +3,8 @@ package progressTracking
 import assetMapping.AssetMappingService
 import cats.data.NonEmptyList
 import cats.effect.*
+import cats.mtl.syntax.all.*
+import cats.mtl.{Handle, Raise}
 import cats.syntax.all.*
 import library.AssetService
 import library.domain.*
@@ -16,7 +18,7 @@ trait ProgressTrackingService[F[_]]:
       assetId: AssetId,
       entryId: EntryId,
       wasEntrySeen: WasEntrySeen
-  ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]]
+  ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)]
   def binge(assetId: AssetId): F[Unit]
   def findNotSeenReleases: F[List[Releases]]
 
@@ -24,17 +26,17 @@ object ProgressTrackingService:
   def make[F[_]: Sync](
       malService: MyAnimeListService[F],
       assetService: AssetService[F],
-      assetMappingService: AssetMappingService[F],
+      assetMappingService: AssetMappingService[F]
   ): ProgressTrackingService[F] = new:
     override def updateProgress(
         assetId: AssetId,
         entryId: EntryId,
         wasEntrySeen: WasEntrySeen
-    ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]] =
+    ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)] =
       assetService
         .find(assetId)
         .flatMap:
-          case None => UpdateEntryError.AssetDoesNotExists.asLeft.pure
+          case None => UpdateEntryError.AssetDoesNotExists.raise
           case Some(asset, entries) =>
             (
               // TODO: entry management (setSeen) should be moved to progress tracking?
@@ -45,12 +47,9 @@ object ProgressTrackingService:
                 entries
                   .find(_.id.eqv(entryId))
                   .fold(Sync[F].unit): entry =>
-                    updateProgressExternally(asset, entries, entry.no).flatMap:
-                      result =>
-                        result.fold(
-                          error => scribe.cats[F].error(error.toString),
-                          _ => Sync[F].unit
-                        )
+                    updateProgressExternally(asset, entries, entry.no)
+                      .handleErrorWith: error =>
+                        scribe.cats[F].error(error.toString).void
               else Sync[F].unit
             ).mapN((a, _) => a)
 
@@ -61,14 +60,14 @@ object ProgressTrackingService:
           case None =>
             scribe.cats[F].error(s"No asset with id=${assetId} found")
           case Some(asset, entries) =>
-            val updateEntries = entries.traverse(entry =>
-              assetService
-                .setSeen(asset.id, entry.id, WasEntrySeen(true))
-                .map(
-                  _.fold(error => scribe.error(error.toString), identity)
-                )
-                .void
-            )
+            val updateEntries = entries.traverse: entry =>
+              Handle
+                .allow[UpdateEntryError]:
+                  assetService
+                    .setSeen(asset.id, entry.id, WasEntrySeen(true))
+                    .void
+                .rescue:
+                  case error => scribe.cats[F].error(error.toString)
             val updateLatestEntryExternally = pickLatestEntry(entries).fold(
               scribe
                 .cats[F]
@@ -77,7 +76,7 @@ object ProgressTrackingService:
                 )
             ): no =>
               updateProgressExternally(asset, entries, no)
-                .map(_.fold(error => scribe.error(error.getMessage), identity))
+                .handleError(error => scribe.error(error.getMessage))
             (updateEntries <* updateLatestEntryExternally).void
 
     override def findNotSeenReleases: F[List[Releases]] =
@@ -88,14 +87,16 @@ object ProgressTrackingService:
         asset: ExistingAsset,
         entries: List[ExistingAssetEntry],
         no: EntryNo
-    ): F[Either[Throwable, Unit]] =
+    ): F[Unit] =
       (isLatestEntry(no, entries), no.asLatestChapter) match
         case (true, Some(latestChapter)) =>
           assetMappingService
             .findExternalId(asset)
-            .flatMap(_.traverse(malService.updateProgress(_, latestChapter)))
-            .as(Either.unit)
-        case _ => Either.unit.pure
+            .flatMap:
+              case None => ().pure
+              case Some(externalId) =>
+                malService.updateProgress(externalId, latestChapter)
+        case _ => ().pure
 
   /** Any EntryNo with fractional number should not be considered latest, as we
     * don't known whether there are any more entries within the same integer

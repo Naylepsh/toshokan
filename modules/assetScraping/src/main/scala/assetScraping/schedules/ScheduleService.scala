@@ -3,6 +3,8 @@ package assetScraping.schedules
 import assetScraping.schedules.domain.UpdateScheduleError
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
+import cats.mtl.Raise
+import cats.mtl.implicits.*
 import cats.syntax.all.*
 import library.AssetService
 import library.category.CategoryService
@@ -15,8 +17,10 @@ trait ScheduleService[F[_]]:
   def findAssetsEligibleForScrape: F[List[AssetId]]
   def find(categoryId: CategoryId): F[Option[ScrapingSchedule]]
   def findCategoriesOfAllSchedules: F[List[ExistingCategory]]
-  def add(schedule: ScrapingSchedule): F[Either[AddScheduleError, Unit]]
-  def update(schedule: ScrapingSchedule): F[Either[UpdateScheduleError, Unit]]
+  def add(schedule: ScrapingSchedule): Raise[F, AddScheduleError] ?=> F[Unit]
+  def update(
+      schedule: ScrapingSchedule
+  ): Raise[F, UpdateScheduleError] ?=> F[Unit]
 
 object ScheduleService:
   def make[F[_]: Sync](
@@ -51,21 +55,21 @@ object ScheduleService:
 
     override def add(
         schedule: ScrapingSchedule
-    ): F[Either[AddScheduleError, Unit]] =
+    ): Raise[F, AddScheduleError] ?=> F[Unit] =
       categoryService
         .find(schedule.categoryId)
         .flatMap:
-          case Some(_) => repository.add(schedule).map(_.asRight)
-          case None    => AddScheduleError.CategoryDoesNotExist.asLeft.pure
+          case Some(_) => repository.add(schedule)
+          case None    => AddScheduleError.CategoryDoesNotExist.raise
 
     override def update(
         schedule: ScrapingSchedule
-    ): F[Either[UpdateScheduleError, Unit]] =
+    ): Raise[F, UpdateScheduleError] ?=> F[Unit] =
       categoryService
         .find(schedule.categoryId)
         .flatMap:
           case Some(_) => repository.update(schedule)
-          case None    => UpdateScheduleError.CategoryDoesNotExist.asLeft.pure
+          case None    => UpdateScheduleError.CategoryDoesNotExist.raise
 
   private def extractAssetsEligibleForScraping(
       schedules: List[ScrapingSchedule],

@@ -4,6 +4,7 @@ object Dependencies {
   val catsCore     = "org.typelevel"     %% "cats-core"         % "2.13.0"
   val catsEffect   = "org.typelevel"     %% "cats-effect"       % "3.6.2"
   val catsTime     = "org.typelevel"     %% "cats-time"         % "0.6.0"
+  val catsMtl      = "org.typelevel"     %% "cats-mtl"          % "1.6.0"
   val circeCore    = "io.circe"          %% "circe-core"        % "0.14.14"
   val monocle      = "dev.optics"        %% "monocle-core"      % "3.3.0"
   val ducktape     = "io.github.arainko" %% "ducktape"          % "0.2.9"

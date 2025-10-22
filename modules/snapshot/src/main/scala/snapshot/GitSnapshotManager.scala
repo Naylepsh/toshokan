@@ -8,7 +8,6 @@ import java.time.{LocalDate, ZoneId}
 
 import scala.sys.process.*
 
-import cats.data.EitherT
 import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.all.*
 import core.Newtype
@@ -20,7 +19,7 @@ type RecencyThreshold = RecencyThreshold.Type
 object RecencyThreshold extends Newtype[Long]
 
 extension [F[_]: Sync](path: Path)
-  def toFileSafe = Sync[F].delay(path.toFile).attempt
+  def toFileSafe: F[File] = Sync[F].delay(path.toFile)
 
 case class Config(
     pathToDb: db.Path,
@@ -33,7 +32,7 @@ class GitSnapshotManager[F[_]: Sync](config: Config)(using clock: Clock[F])
   private val dbPath       = Paths.get(config.pathToDb.withoutProtocol)
   private val snapshotPath = Paths.get(config.pathToSnapshot)
   private val snapshotDir =
-    EitherT(snapshotPath.toFileSafe).map(_.getParentFile)
+    snapshotPath.toFileSafe.map(_.getParentFile)
 
   def saveIfDue(): F[Unit] =
     wasSavedRecently().flatMap:
@@ -44,14 +43,14 @@ class GitSnapshotManager[F[_]: Sync](config: Config)(using clock: Clock[F])
           .cats[F]
           .info("Taking a snapshot")
           .flatMap: _ =>
-            save().flatMap:
+            save().attempt.flatMap:
               case Left(error) =>
                 scribe.cats[F].error(error.toString)
               case Right(_) =>
                 scribe.cats[F].info("Saved the snapshot")
 
-  def save(): F[Either[Throwable, Unit]] =
-    (copyDbToRepo *> addFile *> commit *> publish).value
+  def save(): F[Unit] =
+    copyDbToRepo *> addFile *> commit *> publish
 
   def wasSavedRecently(): F[Boolean] =
     for
@@ -76,10 +75,7 @@ class GitSnapshotManager[F[_]: Sync](config: Config)(using clock: Clock[F])
       .map(_.toOption)
 
   private def copyDbToRepo =
-    EitherT:
-      Sync[F]
-        .delay(Files.copy(dbPath, snapshotPath, REPLACE_EXISTING))
-        .attempt
+    Sync[F].delay(Files.copy(dbPath, snapshotPath, REPLACE_EXISTING))
 
   private def addFile = snapshotDir.flatMap: repo =>
     runCommand(List("git", "add", snapshotPath.getFileName.toString), repo)
@@ -93,14 +89,15 @@ class GitSnapshotManager[F[_]: Sync](config: Config)(using clock: Clock[F])
   private def runCommand(
       command: List[String],
       directory: File
-  ): EitherT[F, Throwable, Unit] =
-    EitherT:
-      Sync[F].delay:
-        val result = Process(command, directory).!
-        Either.cond(
+  ): F[Unit] =
+    Sync[F].defer:
+      val result = Process(command, directory).!
+      Either
+        .cond(
           result == 0,
           (),
           new RuntimeException(
             s"Error: Command '$command' failed with exit code $result"
           )
         )
+        .liftTo[F]
