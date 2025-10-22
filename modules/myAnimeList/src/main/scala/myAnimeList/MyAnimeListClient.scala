@@ -19,21 +19,21 @@ trait MyAnimeListClient[F[_]]:
   def searchManga(
       token: AuthToken,
       term: Term.Name
-  ): F[Either[Throwable, GetMangaListSuccess]]
+  ): F[GetMangaListSuccess]
   def find(
       token: AuthToken,
       mangaId: ExternalMangaId
-  ): F[Either[Throwable, Option[Manga]]]
+  ): F[Option[Manga]]
   def updateStatus(
       token: AuthToken,
       mangaId: ExternalMangaId,
       latestChapter: LatestChapter
-  ): F[Either[Throwable, Unit]]
-  def refreshAuthToken(token: RefreshToken): F[Either[Throwable, AuthToken]]
+  ): F[Unit]
+  def refreshAuthToken(token: RefreshToken): F[AuthToken]
   def acquireToken(
       code: String,
       codeChallenge: String
-  ): F[Either[Throwable, AuthToken]]
+  ): F[AuthToken]
   def generateCodeChallenge: F[String]
   def createAuthorizationLink(codeChallenge: String): Uri
 
@@ -46,7 +46,7 @@ object MyAnimeListClient:
     override def searchManga(
         token: AuthToken,
         term: Term.Name
-    ): F[Either[Throwable, GetMangaListSuccess]] =
+    ): F[GetMangaListSuccess] =
       val url = uri"https://api.myanimelist.net/v2/manga?q=$term"
       basicRequest
         .get(url)
@@ -55,12 +55,12 @@ object MyAnimeListClient:
         .response(asJson[GetMangaListSuccess])
         .send(backend)
         .map(_.body)
-        .handleError(_.asLeft)
+        .rethrow
 
     override def find(
         token: AuthToken,
         mangaId: ExternalMangaId
-    ): F[Either[Throwable, Option[Manga]]] =
+    ): F[Option[Manga]] =
       val url = uri"https://api.myanimelist.net/v2/manga/$mangaId"
       basicRequest
         .get(url)
@@ -68,16 +68,20 @@ object MyAnimeListClient:
         .bearer(token.accessToken)
         .response(asJson[Manga])
         .send(backend)
-        .map: response =>
+        .flatMap: response =>
           response.code match
-            case StatusCode.NotFound => None.asRight
-            case _ => response.body.map(_.some).leftMap(new RuntimeException(_))
+            case StatusCode.NotFound => None.pure
+            case _ =>
+              response.body
+                .leftMap(new RuntimeException(_))
+                .liftTo[F]
+                .map(_.some)
 
     override def updateStatus(
         token: AuthToken,
         mangaId: ExternalMangaId,
         latestChapter: LatestChapter
-    ): F[Either[Throwable, Unit]] =
+    ): F[Unit] =
       val url =
         uri"https://api.myanimelist.net/v2/manga/$mangaId/my_list_status"
       basicRequest
@@ -89,12 +93,12 @@ object MyAnimeListClient:
         .auth
         .bearer(token.accessToken)
         .send(backend)
-        .map: response =>
-          response.body.void.leftMap(new RuntimeException(_))
+        .flatMap: response =>
+          response.body.void.leftMap(new RuntimeException(_)).liftTo[F]
 
     override def refreshAuthToken(
         token: RefreshToken
-    ): F[Either[Throwable, AuthToken]] =
+    ): F[AuthToken] =
       val url = uri"https://myanimelist.net/v1/oauth2/token"
       basicRequest
         .post(url)
@@ -108,13 +112,13 @@ object MyAnimeListClient:
         )
         .response(asJson[AuthToken])
         .send(backend)
-        .map: response =>
-          response.body.leftMap(new RuntimeException(_))
+        .flatMap: response =>
+          response.body.leftMap(new RuntimeException(_)).liftTo[F]
 
     override def acquireToken(
         code: String,
         codeChallenge: String
-    ): F[Either[Throwable, AuthToken]] =
+    ): F[AuthToken] =
       val url = uri"https://myanimelist.net/v1/oauth2/token"
       basicRequest
         .post(url)
@@ -130,8 +134,8 @@ object MyAnimeListClient:
         )
         .response(asJson[AuthToken])
         .send(backend)
-        .map: response =>
-          response.body.leftMap(new RuntimeException(_))
+        .flatMap: response =>
+          response.body.leftMap(new RuntimeException(_)).liftTo[F]
 
     override def createAuthorizationLink(
         codeChallenge: String

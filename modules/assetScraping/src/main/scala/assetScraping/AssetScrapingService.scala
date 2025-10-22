@@ -2,7 +2,9 @@ package assetScraping
 
 import scala.util.chaining.*
 
+import assetScraping.configs.domain.FindScrapingConfigError
 import cats.effect.kernel.{Clock, Sync}
+import cats.mtl.Handle
 import cats.syntax.all.*
 import core.Measure.*
 import library.AssetService
@@ -41,9 +43,13 @@ object AssetScrapingService:
 
     override def getNewReleases(assetId: AssetId): F[ScrapingSummary] =
       for
-        results <- configService.findByAssetId(assetId)
-        configs = results.map(_._2).getOrElse(List.empty).filter(_.isEnabled)
-        instructions = makeInstructions(configs)
+        configs <- Handle
+          .allow[FindScrapingConfigError]:
+            configService.findByAssetId(assetId).map(_._2)
+          .rescue:
+            case FindScrapingConfigError.AssetDoesNotExists => List.empty.pure
+        enabledConfigs = configs.filter(_.isEnabled)
+        instructions   = makeInstructions(enabledConfigs)
         results <- getNewReleases(instructions)
       yield results
 
@@ -125,6 +131,6 @@ object AssetScrapingService:
           val newEntriesCount = results.foldLeft(0):
             case (newEntriesCount, Left(_)) =>
               newEntriesCount
-            case (newEntriesCount, Right(savedEntries)) =>
-              newEntriesCount + savedEntries.length
+            case (newEntriesCount, Right(savedEntry)) =>
+              newEntriesCount + 1
           (newEntriesCount, savingTime)

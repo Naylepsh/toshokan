@@ -5,7 +5,7 @@ import cats.syntax.all.*
 
 class NoopSnapshotManager[F[_]](using F: Applicative[F])
     extends SnapshotManager[F]:
-  override def save(): F[Either[Throwable, Unit]] = ().asRight.pure
+  override def save(): F[Unit] = ().pure
 
   override def wasSavedRecently(): F[Boolean] = true.pure
 

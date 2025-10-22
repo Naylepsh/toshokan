@@ -3,6 +3,8 @@ package assetScraping.schedules
 import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import doobie.*
 import doobie.implicits.*
 import doobiex.*
@@ -16,7 +18,7 @@ trait ScheduleRepository[F[_]]:
       categoryIds: NonEmptyList[CategoryId]
   ): F[List[ScrapingSchedule]]
   def add(schedule: ScrapingSchedule): F[Unit]
-  def update(schedule: ScrapingSchedule): F[Either[UpdateScheduleError, Unit]]
+  def update(schedule: ScrapingSchedule): Raise[F, UpdateScheduleError] ?=> F[Unit]
 
 object ScheduleRepository:
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): ScheduleRepository[F] =
@@ -46,9 +48,9 @@ object ScheduleRepository:
 
       override def update(
           schedule: ScrapingSchedule
-      ): F[Either[UpdateScheduleError, Unit]] =
+      ): Raise[F, UpdateScheduleError] ?=> F[Unit] =
         findByCategoryId(schedule.categoryId).flatMap:
-          case None => UpdateScheduleError.ScheduleDoesNotExist.asLeft.pure
+          case None => UpdateScheduleError.ScheduleDoesNotExist.raise
           case Some(existingSchedule) =>
             val daysToAdd = schedule.days.foldLeft(List.empty[DayOfTheWeek]):
               (acc, day) =>
@@ -67,7 +69,7 @@ object ScheduleRepository:
               .map: days =>
                 remove(schedule.categoryId, days)
               .getOrElse(MonadCancelThrow[F].unit)
-            (addDays *> removeDays).map(_.asRight)
+            addDays *> removeDays
 
       override def findByCategoryIds(
           categoryIds: NonEmptyList[CategoryId]

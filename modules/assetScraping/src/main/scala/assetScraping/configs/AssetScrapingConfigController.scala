@@ -11,6 +11,7 @@ import org.http4s.headers.*
 import org.http4s.server.Router
 
 import domain.*
+import cats.mtl.Handle
 
 class AssetScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetScrapingConfigService[F],
@@ -22,16 +23,18 @@ class AssetScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
   private val httpRoutes = HttpRoutes.of[F]:
 
     case GET -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
-      service
-        .findByAssetId(assetId)
-        .flatMap:
-          case Left(FindScrapingConfigError.AssetDoesNotExists) =>
+      Handle
+        .allow[FindScrapingConfigError]:
+          service
+            .findByAssetId(assetId)
+            .flatMap: (asset, configs) =>
+              Ok(
+                view.renderForms(asset, configs),
+                `Content-Type`(MediaType.text.html)
+              )
+        .rescue:
+          case FindScrapingConfigError.AssetDoesNotExists =>
             NotFound(s"Asset with id:$assetId could not be found")
-          case Right(asset, configs) =>
-            Ok(
-              view.renderForms(asset, configs),
-              `Content-Type`(MediaType.text.html)
-            )
 
     case req @ POST -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
       withJsonErrorsHandled[AssetScrapingConfigDTO](req): newConfig =>
@@ -39,15 +42,17 @@ class AssetScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
           case Left(error) =>
             BadRequest(s"Invalid config: ${error}")
           case Right(newConfig) =>
-            service
-              .add(newConfig)
-              .flatMap:
-                case Left(AddScrapingConfigError.ConfigAlreadyExists) =>
+            Handle
+              .allow[AddScrapingConfigError]:
+                service
+                  .add(newConfig)
+                  .flatMap: config =>
+                    Ok(view.renderConfigRow(assetId, config.some))
+              .rescue:
+                case AddScrapingConfigError.ConfigAlreadyExists =>
                   Conflict(s"${newConfig.uri} already exists")
-                case Left(AddScrapingConfigError.AssetDoesNotExists) =>
+                case AddScrapingConfigError.AssetDoesNotExists =>
                   BadRequest(s"Asset ${assetId} does not exist")
-                case Right(config) =>
-                  Ok(view.renderConfigRow(assetId, config.some))
 
     case req @ PUT -> Root / "assets" / AssetIdVar(
           assetId
@@ -57,17 +62,19 @@ class AssetScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
           case Left(error) =>
             BadRequest(s"Invalid config: ${error}")
           case Right(newConfig) =>
-            service
-              .update(newConfig)
-              .flatMap:
-                case Left(UpdateScrapingConfigError.ConfigDoesNotExist) =>
+            Handle
+              .allow[UpdateScrapingConfigError]:
+                service
+                  .update(newConfig)
+                  .flatMap: config =>
+                    Ok(view.renderConfigRow(assetId, config.some))
+              .rescue:
+                case UpdateScrapingConfigError.ConfigDoesNotExist =>
                   BadRequest(s"Config ${configId} does not exist")
-                case Left(UpdateScrapingConfigError.AssetDoesNotExists) =>
+                case UpdateScrapingConfigError.AssetDoesNotExists =>
                   BadRequest(s"Asset ${assetId} does not exist")
-                case Left(UpdateScrapingConfigError.ConflictingConfigError) =>
+                case UpdateScrapingConfigError.ConflictingConfigError =>
                   Conflict(s"Similar config already exists")
-                case Right(config) =>
-                  Ok(view.renderConfigRow(assetId, config.some))
 
     case req @ DELETE -> Root
         / "assets"

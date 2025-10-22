@@ -1,6 +1,7 @@
 package assetMapping
 
 import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.mtl.Handle
 import cats.syntax.all.*
 import library.AssetController.AssetIdVar
 import library.AssetService
@@ -25,13 +26,11 @@ class AssetMappingController[F[_]: MonadCancelThrow: Concurrent](
         / "search" :? TermQueryParam(term) =>
       service
         .searchForManga(term)
-        .flatMap:
-          case Left(error) => MonadCancelThrow[F].raiseError(error)
-          case Right(mangaMatches) =>
-            Ok(
-              view.mangaMatchesPartial(id, mangaMatches),
-              `Content-Type`(MediaType.text.html)
-            )
+        .flatMap: mangaMatches =>
+          Ok(
+            view.mangaMatchesPartial(id, mangaMatches),
+            `Content-Type`(MediaType.text.html)
+          )
 
     case GET -> Root / AssetIdVar(id) / "search" =>
       assetService
@@ -45,38 +44,37 @@ class AssetMappingController[F[_]: MonadCancelThrow: Concurrent](
             )
 
     case GET -> Root / AssetIdVar(id) =>
-      service
-        .findAssetWithMalMapping(id)
-        .flatMap:
-          case Left(error) =>
-            MonadCancelThrow[F].raiseError(error)
-          case Right(None) =>
-            SeeOther(
-              Location(
-                Uri.unsafeFromString(
-                  s"/asset-mapping/${id}/search"
+      Handle
+        .allow[FindMalMappingError]:
+          service
+            .findAssetWithMalMapping(id)
+            .flatMap:
+              case None =>
+                SeeOther(
+                  Location(Uri.unsafeFromString(s"/asset-mapping/${id}/search"))
                 )
-              )
-            )
-          case Right(Some(asset, mapping)) =>
-            Ok(
-              view.renderMangaMalMapping(asset, mapping),
-              `Content-Type`(MediaType.text.html)
-            )
+              case Some(asset, mapping) =>
+                Ok(
+                  view.renderMangaMalMapping(asset, mapping),
+                  `Content-Type`(MediaType.text.html)
+                )
+        .rescue:
+          case error => MonadCancelThrow[F].raiseError(error)
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[NewMalMangaMappingDTO](req): newMalLinking =>
-        service
-          .assignExternalIdToManga(newMalLinking.malId, newMalLinking.assetId)
-          .flatMap:
-            case Left(AssetNotFound) => NotFound("Asset not found")
-            case Left(CategoryNotFound | AssetIsNotManga) =>
+        Handle
+          .allow[AssignExternalIdToMangaError]:
+            service.assignExternalIdToManga(
+              newMalLinking.malId,
+              newMalLinking.assetId
+            ) *> Ok("")
+          .rescue:
+            case AssetNotFound => NotFound("Asset not found")
+            case CategoryNotFound | AssetIsNotManga =>
               BadRequest("Asset illegible for MAL integration")
-            case Left(
-                  ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned
-                ) =>
+            case ExternalIdAlreadyInUse | MangaAlreadyHasExternalIdAssigned =>
               Conflict("Duplicate mangaId / externalId assignment")
-            case Right(_) => Ok("")
 
     case DELETE -> Root / AssetIdVar(id) =>
       service.deleteMapping(id) *> Ok("")

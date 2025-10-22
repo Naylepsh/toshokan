@@ -1,8 +1,10 @@
 package library
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, OptionT}
 import cats.effect.MonadCancelThrow
 import cats.implicits.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import core.Tuples
 import doobie.*
 import doobie.implicits.*
@@ -11,7 +13,6 @@ import doobiex.*
 import domain.*
 import category.domain.{CategoryId, CategoryName}
 import category.Categories
-import cats.data.OptionT
 
 trait AssetRepository[F[_]]:
   def findAll
@@ -29,8 +30,10 @@ trait AssetRepository[F[_]]:
       // TODO: this could be enforced to be a positive number
       minDaysToBeStale: Int
   ): F[List[(ExistingAsset, DateUploaded)]]
-  def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
-  def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
+  def add(asset: NewAsset): Raise[F, AddAssetError] ?=> F[ExistingAsset]
+  def add(
+      entry: NewAssetEntry
+  ): Raise[F, AddEntryError] ?=> F[ExistingAssetEntry]
   def addToAsset(asset: ExistingAsset, category: CategoryId): F[Unit]
   def update(asset: ExistingAsset): F[Unit]
   def update(entry: ExistingAssetEntry): F[Unit]
@@ -140,19 +143,21 @@ object AssetRepository:
         .to[List]
         .transact(xa)
 
-    override def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]] =
+    override def add(
+        asset: NewAsset
+    ): Raise[F, AddAssetError] ?=> F[ExistingAsset] =
       doesAssetExist(asset.title).flatMap:
-        case true  => AssetAlreadyExists.asLeft.pure
-        case false => addWithoutChecking(asset).map(_.asRight)
+        case true  => AssetAlreadyExists.raise
+        case false => addWithoutChecking(asset)
 
     override def add(
         entry: NewAssetEntry
-    ): F[Either[AddEntryError, ExistingAssetEntry]] =
+    ): Raise[F, AddEntryError] ?=> F[ExistingAssetEntry] =
       (doesAssetExist(entry.assetId), doesEntryExist(entry.uri)).tupled.flatMap:
         (assetExists, entryExists) =>
-          if entryExists then AddEntryError.EntryAlreadyExists.asLeft.pure
-          else if !assetExists then AddEntryError.AssetDoesNotExists.asLeft.pure
-          else addWithoutChecking(entry).map(_.asRight)
+          if entryExists then AddEntryError.EntryAlreadyExists.raise
+          else if !assetExists then AddEntryError.AssetDoesNotExists.raise
+          else addWithoutChecking(entry)
 
     override def addToAsset(
         asset: ExistingAsset,

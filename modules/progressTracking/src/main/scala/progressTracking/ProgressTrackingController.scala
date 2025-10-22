@@ -1,6 +1,7 @@
 package progressTracking
 
 import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.mtl.Handle
 import cats.syntax.all.*
 import library.AssetController.{AssetIdVar, EntryIdVar}
 import library.domain.{AssetId, UpdateEntryError}
@@ -55,14 +56,16 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
         / AssetIdVar(assetId)
         / EntryIdVar(entryId) =>
       withJsonErrorsHandled[UpdateProgressDTO](req): dto =>
-        service
-          .updateProgress(assetId, entryId, dto.wasEntrySeen)
-          .flatMap:
-            case Left(UpdateEntryError.AssetDoesNotExists) =>
+        Handle
+          .allow[UpdateEntryError]:
+            service
+              .updateProgress(assetId, entryId, dto.wasEntrySeen)
+              .flatMap((asset, entry) => Ok(view.entryPartial(asset, entry)))
+          .rescue:
+            case UpdateEntryError.AssetDoesNotExists =>
               NotFound("Asset does not exist")
-            case Left(UpdateEntryError.EntryDoesNotExist) =>
+            case UpdateEntryError.EntryDoesNotExist =>
               NotFound("Entry does not exist")
-            case Right(asset, entry) => Ok(view.entryPartial(asset, entry))
 
     case PATCH -> Root / "partials" / "releases" / AssetIdVar(assetId) =>
       service.binge(assetId) *> Ok("Binged")

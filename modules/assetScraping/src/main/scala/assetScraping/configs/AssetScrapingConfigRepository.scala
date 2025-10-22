@@ -3,6 +3,8 @@ package assetScraping.configs
 import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import core.Tuples
 import doobie.*
 import doobie.implicits.*
@@ -16,10 +18,10 @@ trait AssetScrapingConfigRepository[F[_]]:
   def findByAssetId(assetId: AssetId): F[List[ExistingAssetScrapingConfig]]
   def add(
       scrapingConfig: NewAssetScrapingConfig
-  ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
+  ): Raise[F, AddScrapingConfigError] ?=> F[ExistingAssetScrapingConfig]
   def update(
       scrapingConfig: ExistingAssetScrapingConfig
-  ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]]
+  ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig]
   def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
 
 object AssetScrapingConfigRepository:
@@ -49,22 +51,21 @@ object AssetScrapingConfigRepository:
 
     def add(
         scrapingConfig: NewAssetScrapingConfig
-    ): F[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]] =
+    ): Raise[F, AddScrapingConfigError] ?=> F[ExistingAssetScrapingConfig] =
       exists(scrapingConfig.uri).flatMap: configExists =>
-        if configExists then
-          AddScrapingConfigError.ConfigAlreadyExists.asLeft.pure
-        else addWithoutChecking(scrapingConfig).map(_.asRight)
+        if configExists then AddScrapingConfigError.ConfigAlreadyExists.raise
+        else addWithoutChecking(scrapingConfig)
 
     def update(
         scrapingConfig: ExistingAssetScrapingConfig
-    ): F[Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]] =
+    ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig] =
       (exists(scrapingConfig.id), exists(scrapingConfig.uri)).tupled.flatMap:
         case (true, false) =>
-          updateWithoutChecking(scrapingConfig).map(_.asRight)
+          updateWithoutChecking(scrapingConfig)
         case (false, _) =>
-          UpdateScrapingConfigError.ConfigDoesNotExist.asLeft.pure
+          UpdateScrapingConfigError.ConfigDoesNotExist.raise
         case (_, true) =>
-          UpdateScrapingConfigError.ConflictingConfigError.asLeft.pure
+          UpdateScrapingConfigError.ConflictingConfigError.raise
 
     def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit] =
       sql"""

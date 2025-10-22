@@ -3,6 +3,7 @@ package assetScraping.schedules
 import cats.MonadThrow
 import cats.data.NonEmptyList
 import cats.effect.Concurrent
+import cats.mtl.Handle
 import cats.syntax.all.*
 import io.circe.Decoder
 import library.category.CategoryService
@@ -43,26 +44,30 @@ class ScheduleController[F[_]: MonadThrow: Concurrent](
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[CreateScheduleDTO](req): schedule =>
-        schedule.toDomain
-          .traverse(service.add)
-          .map(_.flatten)
-          .flatMap:
-            case Left(reason)    => BadRequest(reason.toString)
-            case Right(schedule) => Ok("")
+        schedule.toDomain match
+          case Left(error) => BadRequest(error)
+          case Right(schedule) =>
+            Handle
+              .allow[AddScheduleError]:
+                service.add(schedule) *> Ok("")
+              .rescue:
+                case reason: AddScheduleError => BadRequest(reason.toString)
 
     case req @ PUT -> Root / CategoryIdVar(categoryId) =>
       withJsonErrorsHandled[UpdateScheduleDTO](req): schedule =>
-        schedule
-          .toDomain(categoryId)
-          .traverse(service.update)
-          .map(_.flatten)
-          .flatMap:
-            case Left(UpdateScheduleError.CategoryDoesNotExist) =>
-              NotFound(s"Category with id=${categoryId} does not exist")
-            case Left(UpdateScheduleError.ScheduleDoesNotExist) =>
-              NotFound(s"Schedule for categoryId=${categoryId} does not exist")
-            case Left(error: String) => BadRequest(error)
-            case Right(schedule)     => Ok("")
+        schedule.toDomain(categoryId) match
+          case Left(error) => BadRequest(error)
+          case Right(schedule) =>
+            Handle
+              .allow[UpdateScheduleError]:
+                service.update(schedule) *> Ok("")
+              .rescue:
+                case UpdateScheduleError.CategoryDoesNotExist =>
+                  NotFound(s"Category with id=${categoryId} does not exist")
+                case UpdateScheduleError.ScheduleDoesNotExist =>
+                  NotFound(
+                    s"Schedule for categoryId=${categoryId} does not exist"
+                  )
 
     case GET -> Root / "new" =>
       categoryService.findAll.flatMap: categories =>

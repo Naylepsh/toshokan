@@ -1,9 +1,11 @@
 package myAnimeList
 
+import cats.Applicative
 import cats.data.NonEmptyList
 import cats.effect.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import cats.syntax.all.*
-import cats.{Applicative, Functor}
 import doobie.ConnectionIO
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
@@ -23,12 +25,12 @@ type NoCodeChallenge = NoCodeChallenge.type
 private type Result[A] = Either[Throwable, A]
 
 trait MyAnimeListService[F[_]]:
-  def searchForManga(term: Term): F[Either[Throwable, List[Manga]]]
+  def searchForManga(term: Term): F[List[Manga]]
   def updateProgress(
       malId: ExternalMangaId,
       chapter: LatestChapter
-  ): F[Either[Throwable, Unit]]
-  def acquireToken(code: String): F[Either[Throwable, Unit]]
+  ): F[Unit]
+  def acquireToken(code: String): Raise[F, NoCodeChallenge] ?=> F[Unit]
   def prepareForTokenAcquisition: F[Uri]
 
 object MyAnimeListService:
@@ -43,17 +45,19 @@ object MyAnimeListService:
       MyAnimeListServiceImpl.make[F](xa, client).map(identity)
 
 class MyAnimeListServiceNoop[F[_]: Applicative] extends MyAnimeListService[F]:
-  override def searchForManga(term: Term): F[Either[Throwable, List[Manga]]] =
-    List.empty.asRight.pure
+  override def searchForManga(term: Term): F[List[Manga]] =
+    List.empty.pure
   override def updateProgress(
       malId: ExternalMangaId,
       chapter: LatestChapter
-  ): F[Either[Throwable, Unit]] = Either.unit.pure
+  ): F[Unit] = Applicative[F].unit
   override def prepareForTokenAcquisition: F[Uri] = Uri(
     "http://localhost:8080/doesnt-matter"
   ).pure
-  override def acquireToken(code: String): F[Either[Throwable, Unit]] =
-    Either.unit.pure
+  override def acquireToken(
+      code: String
+  ): Raise[F, NoCodeChallenge] ?=> F[Unit] =
+    Applicative[F].unit
 
 class MyAnimeListServiceImpl[F[_]: Sync](
     xa: Transactor[F],
@@ -63,22 +67,22 @@ class MyAnimeListServiceImpl[F[_]: Sync](
 ) extends MyAnimeListService[F]:
   override def searchForManga(
       term: Term
-  ): F[Either[Throwable, List[Manga]]] =
+  ): F[List[Manga]] =
     withToken: token =>
       term match
         case Term.Id(id) =>
-          Functor[F]
-            .compose[Result]
-            .map(malClient.find(token, id)):
+          malClient
+            .find(token, id)
+            .map:
               case None => List.empty
               case Some(manga) =>
                 List(
                   Manga(ExternalMangaId(manga.id), MangaTitle(manga.title))
                 )
         case name @ Term.Name(_) =>
-          Functor[F]
-            .compose[Result]
-            .map(malClient.searchManga(token, name)): body =>
+          malClient
+            .searchManga(token, name)
+            .map: body =>
               body.data.map: mangaData =>
                 Manga(
                   ExternalMangaId(mangaData.node.id),
@@ -88,7 +92,7 @@ class MyAnimeListServiceImpl[F[_]: Sync](
   override def updateProgress(
       malId: ExternalMangaId,
       chapter: LatestChapter
-  ): F[Either[Throwable, Unit]] =
+  ): F[Unit] =
     withToken(malClient.updateStatus(_, malId, chapter))
 
   override val prepareForTokenAcquisition: F[Uri] =
@@ -98,19 +102,20 @@ class MyAnimeListServiceImpl[F[_]: Sync](
       _ <- codeChallengeRef.set(codeChallenge.some)
     yield authLink
 
-  override def acquireToken(code: String): F[Either[Throwable, Unit]] =
-    codeChallengeRef.get.flatMap(_.fold(NoCodeChallenge.asLeft.pure):
-      codeChallenge =>
-        malClient
-          .acquireToken(code, codeChallenge)
-          .flatMap(_.traverse(saveToken))
-          .flatTap(_ => codeChallengeRef.set(None))
-    )
+  override def acquireToken(
+      code: String
+  ): Raise[F, NoCodeChallenge] ?=> F[Unit] =
+    codeChallengeRef.get.flatMap(_.fold(NoCodeChallenge.raise): codeChallenge =>
+      malClient
+        .acquireToken(code, codeChallenge)
+        .flatMap(saveToken)
+        .flatTap(_ => codeChallengeRef.set(None))
+        .void)
 
-  private def withToken[A](f: AuthToken => F[Either[Throwable, A]]) =
+  private def withToken[A](f: AuthToken => F[A]) =
     tokenRef.get
       .flatMap(_.fold(getOrRefreshToken)(_.some.pure))
-      .flatMap(_.fold(NoAuthToken.asLeft.pure)(f))
+      .flatMap(_.fold(NoAuthToken.raiseError)(f))
 
   private val getOrRefreshToken: F[Option[AuthToken]] =
     getToken
@@ -119,7 +124,7 @@ class MyAnimeListServiceImpl[F[_]: Sync](
           AuthToken(0L, refreshToken, accessToken).some.pure
         case (None, Some(refreshToken)) =>
           scribe.cats[F].info("Access token expired, refreshing...")
-            *> updateToken(refreshToken)
+            *> updateToken(refreshToken).map(_.some)
         case _ => None.pure
       .flatMap: token =>
         tokenRef.set(token).as(token)
@@ -137,14 +142,10 @@ class MyAnimeListServiceImpl[F[_]: Sync](
           .map(_.map(RefreshToken(_)))
     yield (access, refresh)
 
-  private def updateToken(token: RefreshToken): F[Option[AuthToken]] =
+  private def updateToken(token: RefreshToken): F[AuthToken] =
     malClient
       .refreshAuthToken(token)
-      .flatMap:
-        case Left(error) =>
-          scribe.cats[F].error(error.getMessage).as(None)
-        case Right(token) =>
-          saveToken(token).as(token.some)
+      .flatTap(saveToken)
 
   private def saveToken(token: AuthToken): F[Unit] =
     Clock[F].realTime.flatMap: now =>

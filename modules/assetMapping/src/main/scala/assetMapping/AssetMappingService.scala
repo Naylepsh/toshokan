@@ -1,7 +1,10 @@
 package assetMapping
 
+import cats.MonadThrow
 import cats.data.{EitherT, NonEmptyList, OptionT}
 import cats.effect.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import core.Tuples
 import doobie.ConnectionIO
@@ -40,13 +43,13 @@ type FindMalMappingError = AssetNotFound | CategoryNotFound | AssetIsNotManga
 
 private type Result[A] = Either[Throwable, A]
 
-class AssetMappingService[F[_]: Sync](
+class AssetMappingService[F[_]: MonadThrow: Sync](
     assetService: AssetService[F],
     categoryService: CategoryService[F],
     malService: MyAnimeListService[F],
     xa: Transactor[F]
 ):
-  def searchForManga(term: Term): F[Either[Throwable, List[Manga]]] =
+  def searchForManga(term: Term): F[List[Manga]] =
     malService.searchForManga(term)
 
   def findExternalId(asset: ExistingAsset): F[Option[ExternalMangaId]] =
@@ -60,9 +63,9 @@ class AssetMappingService[F[_]: Sync](
 
   def findAssetWithMalMapping(
       assetId: AssetId
-  ): F[Either[FindMalMappingError, Option[
+  ): Raise[F, FindMalMappingError] ?=> F[Option[
     (ExistingAsset, ExistingMalMangaMapping)
-  ]]] =
+  ]] =
     (for
       (asset, _) <- EitherT.fromOptionF(
         assetService.find(assetId),
@@ -80,7 +83,9 @@ class AssetMappingService[F[_]: Sync](
       mapping <- EitherT.liftF(
         MalMangaMappingSql.findMapping(mangaId).transact(xa)
       )
-    yield mapping.map(asset -> _)).value
+    yield mapping.map(asset -> _)).value.flatMap:
+      case Left(error)   => error.raise
+      case Right(result) => result.pure
 
   def deleteMapping(assetId: AssetId): F[Unit] =
     (for
@@ -94,7 +99,7 @@ class AssetMappingService[F[_]: Sync](
   def assignExternalIdToManga(
       externalId: ExternalMangaId,
       internalId: AssetId
-  ): F[Either[AssignExternalIdToMangaError, Unit]] =
+  ): Raise[F, AssignExternalIdToMangaError] ?=> F[Unit] =
     val getMangaId = for
       (asset, _) <- EitherT.fromOptionF(
         assetService.find(internalId),
@@ -111,7 +116,7 @@ class AssetMappingService[F[_]: Sync](
     yield mangaId
 
     getMangaId.value.flatMap:
-      case Left(error) => error.asLeft.pure
+      case Left(error) => error.raise
       case Right(mangaId) =>
         (
           MalMangaMappingSql.findMalId(mangaId),
@@ -120,14 +125,13 @@ class AssetMappingService[F[_]: Sync](
           .transact(xa)
           .flatMap:
             case (_, Some(_)) =>
-              ExternalIdAlreadyInUse.asLeft.pure
+              ExternalIdAlreadyInUse.raise
             case (Some(_), _) =>
-              MangaAlreadyHasExternalIdAssigned.asLeft.pure
+              MangaAlreadyHasExternalIdAssigned.raise
             case (None, None) =>
               MalMangaMappingSql
                 .assignMalIdToManga(externalId, mangaId)
                 .transact(xa)
-                .map(_.asRight)
 
 private object MalMangaMapping extends TableDefinition("mal_manga_mapping"):
   val id      = Column[MalMangaMappingId]("id")

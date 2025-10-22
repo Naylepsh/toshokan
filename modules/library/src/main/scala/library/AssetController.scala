@@ -2,6 +2,7 @@ package library
 
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.implicits.*
+import cats.mtl.Handle
 import io.circe.Decoder
 import library.category.CategoryService
 import library.domain.*
@@ -60,19 +61,21 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[NewAsset](req): newAsset =>
-        assetService
-          .add(newAsset)
-          .flatMap:
-            case Left(AssetAlreadyExists) =>
-              Conflict(s"${newAsset.title} already exists")
-            case Right(asset) =>
-              Ok(
-                asset.id.value.toString,
-                addRedirectHeaderIfHtmxRequest(
-                  req,
-                  s"/assets/${asset.id}"
+        Handle
+          .allow[AddAssetError]:
+            assetService
+              .add(newAsset)
+              .flatMap: asset =>
+                Ok(
+                  asset.id.value.toString,
+                  addRedirectHeaderIfHtmxRequest(
+                    req,
+                    s"/assets/${asset.id}"
+                  )
                 )
-              )
+          .rescue:
+            case AssetAlreadyExists =>
+              Conflict(s"${newAsset.title} already exists")
 
     case req @ PUT -> Root / AssetIdVar(id) =>
       withJsonErrorsHandled[NewAsset](req): newAsset =>

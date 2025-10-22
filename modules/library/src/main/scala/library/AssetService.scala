@@ -1,12 +1,14 @@
 package library
 
-import cats.data.{EitherT, NonEmptyList}
+import cats.data.NonEmptyList
+import cats.effect.kernel.Sync
 import cats.implicits.*
+import cats.mtl.syntax.all.*
+import cats.mtl.{Handle, Raise}
 
 import domain.*
 import domain.Releases.given
 import category.domain.{CategoryId, CategoryName}
-import cats.effect.kernel.Sync
 
 trait AssetService[F[_]]:
   def findAll
@@ -17,17 +19,19 @@ trait AssetService[F[_]]:
   def matchCategoriesToAssets(
       categoryIds: List[CategoryId]
   ): F[Map[CategoryId, List[AssetId]]]
-  def add(asset: NewAsset): F[Either[AddAssetError, ExistingAsset]]
-  def add(entry: NewAssetEntry): F[Either[AddEntryError, ExistingAssetEntry]]
+  def add(asset: NewAsset): Raise[F, AddAssetError] ?=> F[ExistingAsset]
+  def add(
+      entry: NewAssetEntry
+  ): Raise[F, AddEntryError] ?=> F[ExistingAssetEntry]
   def addIfNewRelease(
       entries: List[NewAssetEntry]
-  ): F[List[Either[AddEntryError, List[ExistingAssetEntry]]]]
+  ): F[List[Either[AddEntryError, ExistingAssetEntry]]]
   def update(asset: ExistingAsset): F[Unit]
   def setSeen(
       assetId: AssetId,
       entryId: EntryId,
       seen: WasEntrySeen
-  ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]]
+  ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)]
   def delete(assetId: AssetId): F[Unit]
 
 object AssetService:
@@ -74,30 +78,33 @@ object AssetService:
 
       override def add(
           asset: NewAsset
-      ): F[Either[AddAssetError, ExistingAsset]] =
+      ): Raise[F, AddAssetError] ?=> F[ExistingAsset] =
         repository.add(asset)
 
       override def add(
           entry: NewAssetEntry
-      ): F[Either[AddEntryError, ExistingAssetEntry]] =
+      ): Raise[F, AddEntryError] ?=> F[ExistingAssetEntry] =
         repository.add(entry)
 
       override def addIfNewRelease(
           entries: List[NewAssetEntry]
-      ): F[List[Either[AddEntryError, List[ExistingAssetEntry]]]] =
+      ): F[List[Either[AddEntryError, ExistingAssetEntry]]] =
         entries
           .groupBy(_.assetId)
           .toList
           .traverse: (assetId, entries) =>
             find(assetId).flatMap:
               case None =>
-                AddEntryError.AssetDoesNotExists.asLeft.pure
+                List(AddEntryError.AssetDoesNotExists.asLeft).pure
               case Some(_, assetEntries) =>
                 val existingUrls = assetEntries.map(_.uri)
                 entries
                   .filter(entry => !existingUrls.contains(entry.uri))
-                  .traverse(entry => EitherT(add(entry)))
-                  .value
+                  .traverse: entry =>
+                    Handle
+                      .allow[AddEntryError](add(entry).map(_.asRight))
+                      .rescue(_.asLeft.pure)
+          .map(_.flatten)
 
       override def update(asset: ExistingAsset): F[Unit] =
         /** TODO: This should probably check whether the asset exists first? But
@@ -109,17 +116,17 @@ object AssetService:
           assetId: AssetId,
           entryId: EntryId,
           seen: WasEntrySeen
-      ): F[Either[UpdateEntryError, (ExistingAsset, ExistingAssetEntry)]] =
+      ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)] =
         repository
           .findById(assetId)
           .flatMap:
-            case None => UpdateEntryError.AssetDoesNotExists.asLeft.pure
+            case None => UpdateEntryError.AssetDoesNotExists.raise
             case Some(asset, entries) =>
               entries.find(_.id == entryId) match
-                case None => UpdateEntryError.EntryDoesNotExist.asLeft.pure
+                case None => UpdateEntryError.EntryDoesNotExist.raise
                 case Some(entry) =>
                   val e = entry.copy(wasSeen = seen)
-                  repository.update(e).as((asset, e).asRight)
+                  repository.update(e).as(asset -> e)
 
       override def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)
