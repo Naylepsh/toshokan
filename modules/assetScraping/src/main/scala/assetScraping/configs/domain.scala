@@ -74,10 +74,7 @@ object NewAssetScrapingConfig:
   private val hitomiUri       = "^https://hitomi.la/artist/(.+).html$".r
   private val empikUri        = "^https://www.empik.com/ksiazki.+".r
   private val dynastyScansUri = "^https://dynasty-scans.com/series/.+".r
-  private val batotoUriWithTitleRegex =
-    "^https://(bato.to|xbato.com)/series/([0-9]+)/.+$".r
-  private val batotoUriWithoutTitleRegex =
-    "^https://(bato.to|xbato.com)/series/([0-9]+)/?$".r
+  private val batotoUri = "^https://(bato.to|xbato.com)/series/([0-9]+)/?.*".r
 
   def apply(
       uri: ScrapingConfigUri,
@@ -135,14 +132,8 @@ object NewAssetScrapingConfig:
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.Batoto =>
         uri.value.toString match
-          case batotoUriWithTitleRegex(_, title) =>
-            ScrapingConfigUri(
-              URI(uri.value.toString.replace(s"/$title", ""))
-            ).asRight
-          case batotoUriWithoutTitleRegex(domain, mangaId) =>
-            ScrapingConfigUri(
-              URI(s"https://${domain}/series/$mangaId")
-            ).asRight
+          case batotoUri(domain, mangaId) =>
+            ScrapingConfigUri(URI(s"https://${domain}/series/$mangaId")).asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
 
