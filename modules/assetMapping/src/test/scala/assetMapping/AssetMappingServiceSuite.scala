@@ -3,7 +3,6 @@ package assetMapping
 import java.net.URI
 import java.time.LocalDate
 
-import cats.data.EitherT
 import cats.effect.IO
 import db.migrations.applyMigrations
 import db.transactors.inMemoryTransactor
@@ -16,6 +15,8 @@ import myAnimeList.MyAnimeListServiceImpl
 import myAnimeList.domain.ExternalMangaId
 
 import testUtils.noopMalClient
+import cats.mtl.Handle
+import library.category.domain.AddCategoryError
 
 class AssetMappingServiceSuite extends munit.CatsEffectSuite:
   import AssetMappingServiceSuite.*
@@ -27,82 +28,93 @@ class AssetMappingServiceSuite extends munit.CatsEffectSuite:
   withServices.test(
     "Assigning external id to manga fails when asset does not exist"
   ): (service, _, _) =>
-    val result = service.assignExternalIdToManga(ExternalMangaId(1), AssetId(2))
-    assertIO(result, Left(AssetNotFound))
+    val result = Handle
+      .allow[AssignExternalIdToMangaError]:
+        service.assignExternalIdToManga(ExternalMangaId(1), AssetId(2))
+      .rescue:
+        case error: AssignExternalIdToMangaError => IO.pure(error)
+
+    assertIO(result, AssetNotFound)
 
   withServices.test(
     "Assigning external id to manga fails when asset has no category"
   ): (service, assetService, _) =>
-    val result = for
-      asset <- EitherT(
-        assetService.add(NewAsset(AssetTitle("test-asset"), None))
-      )
-      result <- EitherT(
-        service.assignExternalIdToManga(externalMangaId, asset.id)
-      )
-    yield result
+    val result = Handle
+      .allow[AddAssetError | AssignExternalIdToMangaError]:
+        for
+          asset  <- assetService.add(NewAsset(AssetTitle("test-asset"), None))
+          result <- service.assignExternalIdToManga(externalMangaId, asset.id)
+        yield result
+      .rescue:
+        case error: (AddAssetError | AssignExternalIdToMangaError) =>
+          IO.pure(error)
 
-    assertIO(result.value, Left(CategoryNotFound))
+    assertIO(result, CategoryNotFound)
 
   withServices.test(
     "Assigning external id to manga fails when category is not a manga"
   ): (service, assetService, categoryService) =>
-    val result = for
-      category <- EitherT(
-        categoryService.add(NewCategory(CategoryName("anime")))
-      )
-      asset <- EitherT(
-        assetService.add(NewAsset(AssetTitle("test-asset"), Some(category.id)))
-      )
-      result <- EitherT(
-        service.assignExternalIdToManga(externalMangaId, asset.id)
-      )
-    yield result
+    val result = Handle
+      .allow[AddCategoryError | AddAssetError | AssignExternalIdToMangaError]:
+        for
+          category <- categoryService.add(NewCategory(CategoryName("anime")))
+          asset <- assetService.add(
+            NewAsset(AssetTitle("test-asset"), Some(category.id))
+          )
+          result <- service.assignExternalIdToManga(externalMangaId, asset.id)
+        yield result
+      .rescue:
+        case error: (AddCategoryError | AddAssetError |
+              AssignExternalIdToMangaError) =>
+          IO.pure(error)
 
-    assertIO(result.value, Left(AssetIsNotManga))
+    assertIO(result, AssetIsNotManga)
 
   withServices.test(
     "Assigning external id to manga fails when asset already has an external id assigned"
   ): (service, assetService, categoryService) =>
-    val result = for
-      category <- EitherT(
-        categoryService.add(NewCategory(CategoryName("manga")))
-      )
-      asset <- EitherT(
-        assetService.add(NewAsset(AssetTitle("test-asset1"), Some(category.id)))
-      )
-      _ <- EitherT(
-        service.assignExternalIdToManga(ExternalMangaId(1), asset.id)
-      )
-      result <- EitherT(
-        service.assignExternalIdToManga(ExternalMangaId(2), asset.id)
-      )
-    yield result
+    val result = Handle
+      .allow[AddCategoryError | AddAssetError | AssignExternalIdToMangaError]:
+        for
+          category <- categoryService.add(NewCategory(CategoryName("manga")))
+          asset <- assetService.add(
+            NewAsset(AssetTitle("test-asset1"), Some(category.id))
+          )
+          _ <- service.assignExternalIdToManga(ExternalMangaId(1), asset.id)
+          result <- service.assignExternalIdToManga(
+            ExternalMangaId(2),
+            asset.id
+          )
+        yield result
+      .rescue:
+        case error: (AddCategoryError | AddAssetError |
+              AssignExternalIdToMangaError) =>
+          IO.pure(error)
 
-    assertIO(result.value, Left(MangaAlreadyHasExternalIdAssigned))
+    assertIO(result, MangaAlreadyHasExternalIdAssigned)
 
   withServices.test(
     "Assigning external id to manga fails when external id is already used by another asset"
   ): (service, assetService, categoryService) =>
-    val result = for
-      category <- EitherT(
-        categoryService.add(NewCategory(CategoryName("manga")))
-      )
-      asset1 <- EitherT(
-        assetService.add(NewAsset(AssetTitle("test-asset1"), Some(category.id)))
-      )
-      asset2 <- EitherT(
-        assetService.add(NewAsset(AssetTitle("test-asset2"), Some(category.id)))
-      )
-      _ <- EitherT(
-        service.assignExternalIdToManga(externalMangaId, asset1.id)
-      )
-      result <- EitherT(
-        service.assignExternalIdToManga(externalMangaId, asset2.id)
-      )
-    yield result
+    val result = Handle
+      .allow[AddCategoryError | AddAssetError | AssignExternalIdToMangaError]:
+        for
+          category <- categoryService.add(NewCategory(CategoryName("manga")))
+          asset1 <- assetService.add(
+            NewAsset(AssetTitle("test-asset1"), Some(category.id))
+          )
+          asset2 <- assetService.add(
+            NewAsset(AssetTitle("test-asset2"), Some(category.id))
+          )
+          _      <- service.assignExternalIdToManga(externalMangaId, asset1.id)
+          result <- service.assignExternalIdToManga(externalMangaId, asset2.id)
+        yield result
+      .rescue:
+        case error: (AddCategoryError | AddAssetError |
+              AssignExternalIdToMangaError) =>
+          IO.pure(error)
 
-    assertIO(result.value, Left(ExternalIdAlreadyInUse))
+    assertIO(result, ExternalIdAlreadyInUse)
 
 object AssetMappingServiceSuite:
   val externalMangaId = ExternalMangaId(1)
