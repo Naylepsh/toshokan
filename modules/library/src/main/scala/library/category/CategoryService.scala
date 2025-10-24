@@ -2,6 +2,8 @@ package library.category
 
 import domain.*
 import cats.Monad
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 
 trait CategoryService[F[_]]:
@@ -11,7 +13,7 @@ trait CategoryService[F[_]]:
   def findManga: F[Option[ExistingCategory]]
   def add(
       newCategory: NewCategory
-  ): F[Either[AddCategoryError, ExistingCategory]]
+  ): Raise[F, AddCategoryError] ?=> F[ExistingCategory]
 
 object CategoryService:
   def make[F[_]: Monad](
@@ -33,9 +35,9 @@ object CategoryService:
 
     override def add(
         newCategory: NewCategory
-    ): F[Either[AddCategoryError, ExistingCategory]] =
+    ): Raise[F, AddCategoryError] ?=> F[ExistingCategory] =
       repository.findAll.flatMap: categories =>
         categories
           .find(_.name.eqv(newCategory.name))
-          .fold(repository.add(newCategory).map(_.asRight)): _ =>
-            AddCategoryError.CategoryAlreadyExists.asLeft.pure
+          .fold(repository.add(newCategory)): _ =>
+            AddCategoryError.CategoryAlreadyExists.raise
