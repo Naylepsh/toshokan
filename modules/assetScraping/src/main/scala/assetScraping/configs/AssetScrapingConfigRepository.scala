@@ -59,12 +59,15 @@ object AssetScrapingConfigRepository:
     def update(
         scrapingConfig: ExistingAssetScrapingConfig
     ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig] =
-      (exists(scrapingConfig.id), exists(scrapingConfig.uri)).tupled.flatMap:
-        case (true, false) =>
+      val id = scrapingConfig.id
+      (exists(scrapingConfig.id), idOf(scrapingConfig.uri)).tupled.flatMap:
+        case (true, Some(`id`)) =>
+          updateWithoutChecking(scrapingConfig)
+        case (true, None) =>
           updateWithoutChecking(scrapingConfig)
         case (false, _) =>
           UpdateScrapingConfigError.ConfigDoesNotExist.raise
-        case (_, true) =>
+        case (_, Some(_)) =>
           UpdateScrapingConfigError.ConflictingConfigError.raise
 
     def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit] =
@@ -72,6 +75,13 @@ object AssetScrapingConfigRepository:
         DELETE FROM ${AssetScrapingConfigs} 
         WHERE ${AssetScrapingConfigs.id === scrapingConfigId}
       """.update.run.transact(xa).void
+
+    private def idOf(uri: ScrapingConfigUri): F[Option[AssetScrapingConfigId]] =
+      sql"""
+        SELECT ${AssetScrapingConfigs.id}
+        FROM ${AssetScrapingConfigs}
+        WHERE ${AssetScrapingConfigs.uri === uri}
+      """.query[AssetScrapingConfigId].option.transact(xa)
 
     private def exists(uri: ScrapingConfigUri): F[Boolean] =
       sql"""
