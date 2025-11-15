@@ -129,7 +129,11 @@ class AssetView(navBarItems: List[NavBarItem]):
   ): TypedTag[String] =
     layout(
       asset.title.show.some,
-      assetDetailesPartial(asset, entries, categories),
+      assetDetailesPartial(
+        asset,
+        entries.sortBy(_.no)(using Ordering[EntryNo].reverse),
+        categories
+      ),
       navBarItems
     )
 
