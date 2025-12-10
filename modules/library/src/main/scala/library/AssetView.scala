@@ -54,7 +54,7 @@ class AssetView(navBarItems: List[NavBarItem]):
                 td(categoryName.map(_.value).getOrElse("-")),
                 td(
                   div(
-                    cls := "d-flex space-x-2",
+                    cls := "flex gap-2",
                     a(
                       cls  := "text-light",
                       href := s"/assets/${asset.id}",
