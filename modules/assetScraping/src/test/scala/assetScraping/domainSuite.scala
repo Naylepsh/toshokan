@@ -52,3 +52,19 @@ class domainSuite extends munit.FunSuite:
         assert(false, s"At least one config creation failed due to $error")
       case Right(configs) =>
         assertEquals(configs.map(_.uri.value.toString).toSet.size, 1)
+
+  test("Batoto uri normalization"):
+    val config = NewAssetScrapingConfig(
+      ScrapingConfigUri(
+        URI(
+          "https://bato.si/title/161599-the-maid-s-three-star-cuisine-in-another-world-i-used-real-life-dishes-to-become-a-palace-sensation"
+        )
+      ),
+      Site.Batoto,
+      IsConfigEnabled(true),
+      AssetId(42)
+    )
+    config match
+      case Left(error) => assert(false, s"Config creation failed: $error")
+      case Right(config) =>
+        assertEquals(config.uri.value.toString, "https://bato.si/title/161599")
