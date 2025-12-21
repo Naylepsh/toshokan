@@ -20,26 +20,24 @@ class BatotoScraper[F[_]: Sync] extends SiteScraper[F]:
       case Right(content) => BatotoScraper.parseContent(content)
 
 object BatotoScraper:
-  private val entryNoPattern      = """.*Chapter (\d+(?:\.\d+)?)""".r
-  private val dateReleasedPattern = """(\d+)\s+(mins|hours|days)\s+ago""".r
+  private val entryNoPattern      = """Chapter (\d+(?:\.\d+)?)""".r
+  private val dateReleasedPattern = """(\d+)\s+(days?|hours?|mins?)\s+ago""".r
 
   def parseContent(document: Document): Either[ScrapeError, List[EntryFound]] =
-    (document >> elementList(".main > div"))
+    (document >> elementList("[data-name='chapter-list'] .group > div"))
       .traverse: row =>
-        val no = (row >> element(".chapt b")).text match
+        val linkElement = row >> element("a.link-hover")
+        val chapterText = linkElement.text
+
+        val no = chapterText match
           case entryNoPattern(rawNo) => EntryNo(rawNo)
           case _                     => EntryNo("")
-        val title =
-          EntryTitle(
-            (row >?> element(".chapt span"))
-              .map(_.text.stripPrefix(": "))
-              .getOrElse(s"Chapter ${no.value}")
-          )
-        val refLink = EntryUri(
-          s"https://bato.to${(row >> element("a[href]")).attr("href")}"
-        )
-        val dateUploaded =
-          parseDateUploaded((row >> element(".extra > i")).text)
+
+        val title   = EntryTitle(chapterText)
+        val refLink = EntryUri(s"https://bato.si${linkElement.attr("href")}")
+
+        val dateElement  = row >> element("span[data-passed]")
+        val dateUploaded = parseDateUploaded(dateElement.text)
 
         (refLink, dateUploaded).tupled
           .map: (uri, dateUploaded) =>
@@ -52,9 +50,10 @@ object BatotoScraper:
   def parseDateUploaded(rawDate: String): Either[String, DateUploaded] =
     rawDate match
       case dateReleasedPattern(amountStr, unit) =>
-        val amount = amountStr.toLong
-        unit match
-          case "mins" =>
+        val amount         = amountStr.toLong
+        val normalizedUnit = unit.toLowerCase.stripSuffix("s")
+        normalizedUnit match
+          case "min" =>
             Right(
               DateUploaded(
                 LocalDateTime
@@ -63,13 +62,13 @@ object BatotoScraper:
                   .toLocalDate
               )
             )
-          case "hours" =>
+          case "hour" =>
             Right(
               DateUploaded(
                 LocalDateTime.now().minus(amount, ChronoUnit.HOURS).toLocalDate
               )
             )
-          case "days" =>
+          case "day" =>
             Right(DateUploaded(LocalDate.now().minus(amount, ChronoUnit.DAYS)))
           case _ => Left(s"Invalid unit: $unit")
       case _ => Left(s"Invalid date: $rawDate")
