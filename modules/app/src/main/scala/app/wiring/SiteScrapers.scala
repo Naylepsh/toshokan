@@ -1,4 +1,4 @@
-package app
+package app.wiring
 
 import assetScraping.configs.domain.Site
 import cats.effect.kernel.Sync

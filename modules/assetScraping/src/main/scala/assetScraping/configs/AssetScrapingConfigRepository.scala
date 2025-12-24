@@ -2,9 +2,9 @@ package assetScraping.configs
 
 import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
-import cats.syntax.all.*
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
+import cats.syntax.all.*
 import core.Tuples
 import doobie.*
 import doobie.implicits.*

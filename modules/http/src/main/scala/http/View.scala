@@ -5,6 +5,7 @@ import scalatags.Text.all.*
 object View:
   val template = tag("template")
   val title    = tag("title")
+  val dialog   = tag("dialog")
 
   case class NavBarItem(label: String, ref: String)
 
@@ -37,9 +38,9 @@ object View:
           href := "/public/css/index.css",
           rel  := "stylesheet"
         ),
-        script(src    := "https://unpkg.com/htmx.org@1.9.12"),
-        script(src    := "https://unpkg.com/htmx.org@1.9.12/dist/ext/json-enc.js"),
-        script(src    := "https://unpkg.com/hyperscript.org@0.9.12"),
+        script(src := "https://unpkg.com/htmx.org@1.9.12"),
+        script(src := "https://unpkg.com/htmx.org@1.9.12/dist/ext/json-enc.js"),
+        script(src := "https://unpkg.com/hyperscript.org@0.9.12"),
         script(`type` := "text/javascript", src := "/public/js/index.js"),
         script(src    := "https://cdn.tailwindcss.com")
       ),

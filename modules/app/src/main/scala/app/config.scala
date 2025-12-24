@@ -2,13 +2,13 @@ package app
 package config
 
 import java.net.URI
+import java.nio.file.Path
 
+import assetScraping.downloading.domain.DownloadDir
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import http.View.NavBarItem
 import myAnimeList.MalAuth
-import assetScraping.downloading.domain.DownloadDir
-import java.nio.file.Path
 
 def load[F[_]](using F: Sync[F]) =
   F.delay:
@@ -17,8 +17,9 @@ def load[F[_]](using F: Sync[F]) =
     val snapshotRecencyThreshold = sys.env.get("SNAPSHOT_RECENCY_THRESHOLD")
     val malClientId              = sys.env.get("MAL_CLIENT_ID")
     val malSecret                = sys.env.get("MAL_SECRET")
-    val malRedirectUrl = sys.env.get("MAL_REDIRECT_URL").map(new URI(_))
-    val downloadDir    = DownloadDir(Path.of(sys.env("DOWNLOAD_DIR")))
+    val malRedirectUrl  = sys.env.get("MAL_REDIRECT_URL").map(new URI(_))
+    val downloadDir     = DownloadDir(Path.of(sys.env("DOWNLOAD_DIR")))
+    val useDnsOverHttps = sys.env.get("USE_DNS_OVER_HTTPS").contains("true")
 
     val serverConfig = ServerConfig.default
     val dbConfig     = db.Config.forSqlite(db.Path(databaseUrl))
@@ -45,5 +46,6 @@ def load[F[_]](using F: Sync[F]) =
       snapshotConfig,
       malAuth,
       downloadDir,
-      navBarItems
+      navBarItems,
+      useDnsOverHttps
     )

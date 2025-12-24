@@ -1,6 +1,6 @@
-ThisBuild / scalaVersion := "3.7.1"
-// ThisBuild / semanticdbEnabled := true
-// ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+ThisBuild / scalaVersion      := "3.7.1"
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 val commonDependencies = Seq(
   Dependencies.catsCore,
@@ -155,7 +155,11 @@ lazy val app = project
   .in(file("modules/app"))
   .settings(
     name := "app",
-    libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.slf4j,
+      Dependencies.sttpOkHttp,
+      Dependencies.okHttpDoH
+    )
   )
   .aggregate(
     core,
@@ -190,3 +194,5 @@ lazy val root = project
   .aggregate(app)
   .dependsOn(app)
   .enablePlugins(JavaAppPackaging) // SBT native packager
+
+addCommandAlias("fmt", "scalafixAll OrganizeImports; scalafmtAll; scalafmtSbt")

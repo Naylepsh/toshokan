@@ -35,7 +35,12 @@ object MangadexApi:
         .response(asJson[feed.GetMangaFeedResponse])
         .send(backend)
         .map(_.body)
-        .handleError(_.asLeft)
+        .handleError: error =>
+          scribe.error(
+            s"Failed to get manga feed for mangaId=$mangaId, url=$url",
+            error
+          )
+          error.asLeft
 
     override def getManga(
         mangaId: String
@@ -48,7 +53,12 @@ object MangadexApi:
         .response(asJson[manga.GetMangaResponse])
         .send(backend)
         .map(_.body)
-        .handleError(_.asLeft)
+        .handleError: error =>
+          scribe.error(
+            s"Failed to get manga for mangaId=$mangaId, url=$url",
+            error
+          )
+          error.asLeft
 
     override def getImages(chapterId: String): F[Either[Throwable, List[URI]]] =
       val url = uri"https://api.mangadex.org/at-home/server/${chapterId}"
@@ -58,4 +68,9 @@ object MangadexApi:
         .response(asJson[server.GetChapterFilesResponse])
         .send(backend)
         .map(_.body.map(_.chapter.urls))
-        .handleError(_.asLeft)
+        .handleError: error =>
+          scribe.error(
+            s"Failed to get images for chapterId=$chapterId, url=$url",
+            error
+          )
+          error.asLeft

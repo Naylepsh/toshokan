@@ -1,11 +1,11 @@
 package assetScraping.configs
 
 import cats.effect.kernel.Sync
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import library.AssetService
 import library.domain.*
-import cats.mtl.Raise
-import cats.mtl.syntax.all.*
 
 import domain.*
 
@@ -25,7 +25,7 @@ trait AssetScrapingConfigService[F[_]]:
   ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig]
   def delete(id: AssetScrapingConfigId): F[Unit]
 
-object AssetScrapingService:
+object AssetScrapingConfigService:
   def make[F[_]: Sync](
       repository: AssetScrapingConfigRepository[F],
       assetService: AssetService[F]

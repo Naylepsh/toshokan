@@ -5,8 +5,8 @@ import java.time.LocalDate
 
 import cats.effect.Sync
 import cats.syntax.all.*
-import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
+import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.model.Document
 import scraper.domain.*
 import scraper.util.requests.getHtmlContent

@@ -1,11 +1,12 @@
 package assetImporting
 package domain
 
-import core.Newt
+import java.net.URI
+
+import core.given
+import core.{Newt, Newtype}
 
 import util.control.NoStackTrace
-import core.{Newtype, given}
-import java.net.URI
 
 type MangadexId = MangadexId.Type
 object MangadexId extends Newt[String]

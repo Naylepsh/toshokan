@@ -16,6 +16,9 @@ object Dependencies {
   val sttp      = "com.softwaremill.sttp.client3" %% "core"  % "3.11.0"
   val sttpCats  = "com.softwaremill.sttp.client3" %% "cats"  % sttp.revision
   val sttpCirce = "com.softwaremill.sttp.client3" %% "circe" % sttp.revision
+  val sttpOkHttp =
+    "com.softwaremill.sttp.client3" %% "okhttp-backend" % sttp.revision
+  val okHttpDoH = "com.squareup.okhttp3" % "okhttp-dnsoverhttps" % "4.12.0"
 
   // HTTP Layer
   val http4sServer = "org.http4s" %% "http4s-ember-server" % "0.23.30"

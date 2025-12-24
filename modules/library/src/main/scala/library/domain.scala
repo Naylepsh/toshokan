@@ -4,6 +4,7 @@ package domain
 import java.net.URI
 import java.time.LocalDate
 
+import cats.effect.kernel.Sync
 import cats.kernel.Order
 import cats.syntax.all.*
 import core.Newtype
@@ -12,10 +13,9 @@ import doobie.util.Read
 import io.circe.{Decoder, Encoder}
 import io.github.arainko.ducktape.*
 import org.typelevel.cats.time.*
-import util.control.NoStackTrace
 
+import util.control.NoStackTrace
 import category.domain.CategoryId
-import cats.effect.kernel.Sync
 
 /** Asset
   */

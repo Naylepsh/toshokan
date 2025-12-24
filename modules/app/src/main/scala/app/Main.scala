@@ -1,39 +1,17 @@
 package app
 
-import assetImporting.{
-  AssetImportingController,
-  AssetImportingService,
-  AssetImportingView
-}
-import assetMapping.{
-  AssetMappingController,
-  AssetMappingService,
-  AssetMappingView
-}
-import assetScraping.AssetScrapingView
 import assetScraping.downloading.domain.DownloadDir
-import assetScraping.schedules.*
 import cats.effect.*
-import cats.effect.kernel.Resource
 import cats.effect.std.Random
 import com.microsoft.playwright.Browser
 import doobie.Transactor
 import http.Routed
 import http.View.NavBarItem
-import mangadex.MangadexApi
 import myAnimeList.*
 import org.http4s.HttpRoutes
 import org.http4s.syntax.all.*
-import progressTracking.{
-  ProgressTrackingController,
-  ProgressTrackingService,
-  ProgressTrackingView
-}
-import scraper.Scraper
-import scraper.util.playwright
 import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
-import sttp.client3.httpclient.cats.HttpClientCatsBackend
 
 import middleware.logErrors
 
@@ -47,39 +25,35 @@ object Main extends IOApp.Simple:
         snapshotConfig,
         malAuth,
         downloadDir,
-        navBarItems
+        navBarItems,
+        useDnsOverHttps
       ) <- config
         .load[IO]
       random <- Random.scalaUtilRandom[IO]
-      result <- setupResources(dbConfig).use:
-        (xa, httpBackend, browser, shutdownSignal) =>
+      result <- app.wiring.CrossCuttingConcernsModule
+        .setupResources(dbConfig, useDnsOverHttps)
+        .use: resources =>
           val snapshotManager = snapshotConfig
             .map(snapshot.git.GitSnapshotManager[IO](_))
             .getOrElse(snapshot.NoopSnapshotManager[IO])
           createControllers(
-            xa,
-            httpBackend,
-            browser,
+            resources.xa,
+            resources.httpBackend,
+            resources.browser,
             malAuth,
             downloadDir,
-            shutdownSignal,
+            resources.shutdownSignal,
             navBarItems,
             random
-          ).map(Routed.combine)
-            .flatMap: routes =>
-              snapshotManager.saveIfDue()
-                *> startServer(serverConfig, routes, shutdownSignal)
+          ).flatMap(routes =>
+            snapshotManager.saveIfDue() *>
+              startServer(
+                serverConfig,
+                Routed.combine(routes),
+                resources.shutdownSignal
+              )
+          )
     yield result
-
-  private def setupResources(dbConfig: db.Config) =
-    for
-      xa          <- db.transactors.makeSqliteTransactorResource[IO](dbConfig)
-      httpBackend <- HttpClientCatsBackend.resource[IO]()
-      browser <- playwright
-        .makePlaywrightResource[IO]
-        .evalMap(p => IO.delay(p.chromium().launch()))
-      shutdownSignal <- Resource.eval(Deferred[IO, Unit])
-    yield (xa, httpBackend, browser, shutdownSignal)
 
   private def createControllers(
       xa: Transactor[IO],
@@ -90,120 +64,49 @@ object Main extends IOApp.Simple:
       shutdownSignal: Deferred[IO, Unit],
       navBarItems: List[NavBarItem],
       random: Random[IO]
-  ) =
-    val categoryRepo = library.category.CategoryRepository.make[IO](xa)
-    val categoryService =
-      library.category.CategoryService.make[IO](categoryRepo)
-    val assetRepo    = library.AssetRepository.make[IO](xa)
-    val assetService = library.AssetService.make(assetRepo)
-    val assetView    = library.AssetView(navBarItems)
-    val assetController =
-      library.AssetController(assetService, categoryService, assetView)
-
-    val scraper         = Scraper.make[IO]
-    val pickSiteScraper = SiteScrapers.makeScraperPicker(httpBackend, browser)
-
-    val scheduleRepo = ScheduleRepository.make[IO](xa)
-    val scheduleService =
-      ScheduleService.make(scheduleRepo, assetService, categoryService)
-    val scheduleView = ScheduleView(navBarItems)
-    val scheduleController =
-      ScheduleController[IO](scheduleService, categoryService, scheduleView)
-
-    val assetScrapingConfigRepo =
-      assetScraping.configs.AssetScrapingConfigRepository.make[IO](xa)
-    val assetScrapingConfigService = assetScraping.configs.AssetScrapingService
-      .make[IO](assetScrapingConfigRepo, assetService)
-    val assetScrapingConfigView =
-      assetScraping.configs.AssetScrapingConfigView(navBarItems)
-    val assetScrapingConfigController =
-      assetScraping.configs.AssetScrapingConfigController(
-        assetScrapingConfigService,
-        assetScrapingConfigView
+  ): IO[List[http.Routed[IO]]] =
+    for
+      library <- IO.pure(app.wiring.LibraryModule.make(xa, navBarItems))
+      externals <- IO.pure(
+        app.wiring.ExternalServices.make(httpBackend, malAuth, random)
       )
-
-    val assetScrapingService = assetScraping.AssetScrapingService.make[IO](
-      assetService,
-      assetScrapingConfigService,
-      scheduleService,
-      scraper,
-      pickSiteScraper
-    )
-    val assetScrapingView = AssetScrapingView(navBarItems)
-    val assetScrapingController = assetScraping.AssetScrapingController[IO](
-      assetScrapingService,
-      categoryService,
-      assetScrapingView
-    )
-
-    val mangadexApi = MangadexApi.make[IO](httpBackend)
-    val assetDownloadingService =
-      assetScraping.downloading.AssetDownloadingService
-        .make[IO](mangadexApi, httpBackend, downloadDir, assetRepo)
-    val assetDownloadingView =
-      assetScraping.downloading.AssetDownloadingView(navBarItems)
-    val assetDownloadingController =
-      assetScraping.downloading.AssetDownloadingController[IO](
-        assetDownloadingService,
-        assetDownloadingView
+      scraping <- IO.pure(
+        app.wiring.AssetScrapingModule.make(
+          library,
+          externals,
+          httpBackend,
+          browser,
+          downloadDir,
+          navBarItems,
+          xa
+        )
       )
-
-    val malClient =
-      malAuth.map(MyAnimeListClient.make[IO](httpBackend, _, random))
-    MyAnimeListService
-      .make[IO](xa, malClient)
-      .map: malService =>
-        val myAnimeListController = MyAnimeListController(malService)
-
-        val assetMappingService =
-          AssetMappingService(assetService, categoryService, malService, xa)
-        val assetMappingView = AssetMappingView(navBarItems)
-        val assetMappingController = AssetMappingController(
-          assetMappingService,
-          assetService,
-          assetMappingView
-        )
-
-        val assetImportingView = AssetImportingView(navBarItems)
-        val assetImportingService = AssetImportingService(
-          assetService,
-          categoryService,
-          assetMappingService,
-          assetScrapingConfigService,
-          mangadexApi
-        )
-        val assetImportingController =
-          AssetImportingController(assetImportingService, assetImportingView)
-
-        val progressTrackingService = ProgressTrackingService
-          .make(
-            malService,
-            assetService,
-            assetMappingService
-          )
-
-        val progressTrackingView = ProgressTrackingView(navBarItems)
-        val progressTrackingController = ProgressTrackingController(
-          progressTrackingService,
-          progressTrackingView
-        )
-
-        val publicController   = PublicController[IO]()
-        val shutdownController = ShutdownController[IO](shutdownSignal)
-
-        List(
-          assetController,
-          assetScrapingController,
-          assetScrapingConfigController,
-          assetDownloadingController,
-          scheduleController,
-          myAnimeListController,
-          assetMappingController,
-          assetImportingController,
-          progressTrackingController,
-          publicController,
-          shutdownController
-        )
+      mal <- app.wiring.MyAnimeListModule.make(externals, xa)
+      mapping <- IO.pure(
+        app.wiring.AssetMappingModule.make(library, mal, xa, navBarItems)
+      )
+      progress <- IO.pure(
+        app.wiring.ProgressTrackingModule
+          .make(library, mal, mapping, navBarItems)
+      )
+      importing <- IO.pure(
+        app.wiring.AssetImportingModule
+          .make(library, scraping, mapping, externals, navBarItems)
+      )
+      system <- IO.pure(app.wiring.SystemModule.make(shutdownSignal))
+    yield List(
+      library.assetController,
+      scraping.scrapingController,
+      scraping.configController,
+      scraping.downloadingController,
+      scraping.scheduleController,
+      mal.controller,
+      mapping.controller,
+      importing.controller,
+      progress.controller,
+      system.publicController,
+      system.shutdownController
+    )
 
   private def startServer(
       serverConfig: ServerConfig,

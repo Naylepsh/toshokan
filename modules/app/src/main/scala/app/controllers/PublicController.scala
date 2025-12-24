@@ -1,4 +1,4 @@
-package app
+package app.controllers
 
 import cats.MonadThrow
 import cats.syntax.all.*
@@ -17,4 +17,3 @@ class PublicController[F[_]: MonadThrow: Files]
       StaticFile.fromPath(p, request.some).getOrElseF(NotFound())
 
   val routes = Router("public" -> httpRoutes)
-
