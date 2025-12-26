@@ -6,6 +6,8 @@ import cats.mtl.Handle
 import io.circe.Decoder
 import library.category.CategoryService
 import library.domain.*
+import neotype.*
+import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.headers.*
@@ -67,7 +69,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
               .add(newAsset)
               .flatMap: asset =>
                 Ok(
-                  asset.id.value.toString,
+                  asset.id.unwrap.toString,
                   addRedirectHeaderIfHtmxRequest(
                     req,
                     s"/assets/${asset.id}"
@@ -81,7 +83,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
       withJsonErrorsHandled[NewAsset](req): newAsset =>
         val asset = newAsset.asExisting(id)
         assetService.update(asset) *> Ok(
-          asset.id.value.toString,
+          asset.id.unwrap.toString,
           addRedirectHeaderIfHtmxRequest(req, "/assets")
         )
 

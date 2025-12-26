@@ -12,6 +12,7 @@ import library.category.domain.CategoryId
 import library.domain.*
 import mangadex.MangadexApi
 import munit.CatsEffectSuite
+import neotype.interop.cats.given
 import sttp.client3.Response
 import sttp.client3.impl.cats.implicits.*
 import sttp.client3.testing.SttpBackendStub

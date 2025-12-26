@@ -5,10 +5,12 @@ import cats.data.NonEmptyList
 import cats.effect.Concurrent
 import cats.mtl.Handle
 import cats.syntax.all.*
+import core.given
 import io.circe.Decoder
 import library.category.CategoryService
 import library.category.domain.CategoryId
 import library.category.schemas.CategoryIdVar
+import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.headers.*

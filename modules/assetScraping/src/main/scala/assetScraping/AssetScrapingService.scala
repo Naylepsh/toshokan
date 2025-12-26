@@ -10,6 +10,7 @@ import core.Measure.*
 import library.AssetService
 import library.category.domain.CategoryId
 import library.domain.*
+import neotype.*
 import scraper.domain.{JobLabel, SiteScraper}
 import scraper.{Instruction, ScrapeJobSuccess, Scraper}
 
@@ -96,8 +97,8 @@ object AssetScrapingService:
     ): List[Instruction[F]] =
       configs.map: config =>
         (
-          JobLabel(config.assetId.value),
-          config.uri.value,
+          JobLabel(config.assetId.unwrap),
+          config.uri,
           pickSiteScraper(config.site)
         )
 
@@ -109,8 +110,8 @@ object AssetScrapingService:
         .filter(config => assetIds.contains(config.assetId))
         .map: config =>
           (
-            JobLabel(config.assetId.value),
-            config.uri.value,
+            JobLabel(config.assetId.unwrap),
+            config.uri,
             pickSiteScraper(config.site)
           )
 
@@ -119,11 +120,11 @@ object AssetScrapingService:
         .flatMap: (label, entries) =>
           entries.map: entry =>
             NewAssetEntry.make(
-              EntryTitle(entry.title.value),
-              EntryNo(entry.no.value),
-              EntryUri(entry.uri.value),
-              DateUploaded(entry.dateUploaded.value),
-              AssetId(label.value)
+              EntryTitle(entry.title),
+              EntryNo(entry.no),
+              EntryUri(entry.uri),
+              DateUploaded(entry.dateUploaded),
+              AssetId(label)
             )
         .pipe(assetService.addIfNewRelease)
         .measure

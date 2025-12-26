@@ -88,7 +88,7 @@ object MyAnimeListClient:
         .patch(url)
         .body(
           "status"            -> MangaStatus.Reading.urlEncoded,
-          "num_chapters_read" -> latestChapter.value.toString
+          "num_chapters_read" -> latestChapter.toString
         )
         .auth
         .bearer(token.accessToken)
@@ -107,7 +107,7 @@ object MyAnimeListClient:
             "client_id"     -> auth.clientId,
             "client_secret" -> auth.clientSecret,
             "grant_type"    -> "refresh_token",
-            "refresh_token" -> token.value
+            "refresh_token" -> token
           )
         )
         .response(asJson[AuthToken])

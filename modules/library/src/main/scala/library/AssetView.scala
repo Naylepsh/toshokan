@@ -1,8 +1,11 @@
 package library
 
 import cats.syntax.all.*
+import core.given
 import http.View.{NavBarItem, dialog, layout}
 import library.domain.*
+import neotype.*
+import neotype.interop.cats.given
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
@@ -49,9 +52,9 @@ class AssetView(navBarItems: List[NavBarItem]):
               val rowId = s"asset-${asset.id}"
               tr(
                 id := rowId,
-                th(asset.id.value),
-                td(asset.title.value),
-                td(categoryName.map(_.value).getOrElse("-")),
+                th(asset.id.unwrap.show),
+                td(asset.title),
+                td(categoryName.getOrElse("-")),
                 td(
                   div(
                     cls := "flex gap-2",
@@ -105,9 +108,9 @@ class AssetView(navBarItems: List[NavBarItem]):
           tbody(
             assets.map: asset =>
               tr(
-                td(asset.asset.title.value),
-                td(asset.lastRelease.value.toString),
-                td(asset.daysSinceLastRelease.value.toString),
+                td(asset.asset.title),
+                td(asset.lastRelease.toString),
+                td(asset.daysSinceLastRelease.toString),
                 td(
                   a(
                     cls  := "text-light",
@@ -165,7 +168,7 @@ object AssetView:
             cls  := "select select-bordered",
             name := "categoryId",
             option(
-              value := head.id.value,
+              value := head.id.unwrap,
               if head.id.some == selectedCategory then
                 selected := selectedCategory.get.show
               else (),
@@ -173,7 +176,7 @@ object AssetView:
             ),
             tail.map: category =>
               option(
-                value := category.id.value,
+                value := category.id.unwrap,
                 if category.id.some == selectedCategory then
                   selected := selectedCategory.get.show
                 else (),
@@ -305,7 +308,7 @@ object AssetView:
             cls   := "input input-bordered w-full",
             id    := titleId,
             name  := "title",
-            value := asset.map(_.title.value).getOrElse("")
+            value := asset.map(_.title).getOrElse("")
           )
         )
       ),

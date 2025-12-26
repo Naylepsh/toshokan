@@ -1,12 +1,10 @@
 package library.category.domain
 
-import core.Newtype
-
 type CategoryId = CategoryId.Type
-object CategoryId extends Newtype[Long]
+object CategoryId extends neotype.Newtype[Long]
 
 type CategoryName = CategoryName.Type
-object CategoryName extends Newtype[String]
+object CategoryName extends neotype.Subtype[String]
 
 case class NewCategory(name: CategoryName)
 case class ExistingCategory(id: CategoryId, name: CategoryName)

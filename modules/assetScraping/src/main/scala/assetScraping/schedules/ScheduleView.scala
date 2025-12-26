@@ -1,8 +1,11 @@
 package assetScraping.schedules
 
 import cats.syntax.all.*
+import core.given
 import http.View.{NavBarItem, layout}
 import library.category.domain.{CategoryId, ExistingCategory}
+import neotype.*
+import neotype.interop.cats.given
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
@@ -88,13 +91,13 @@ class ScheduleView(navBarItems: List[NavBarItem]):
             cls  := "select select-bordered",
             name := "categoryId",
             option(
-              value := head.id.value,
+              value := head.id.unwrap,
               head.name.show,
               selected := "1"
             ),
             tail.map: category =>
               option(
-                value := category.id.value,
+                value := category.id.unwrap,
                 category.name.show
               )
           )

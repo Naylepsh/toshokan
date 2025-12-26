@@ -4,22 +4,19 @@ package domain
 import java.net.URI
 import java.time.LocalDate
 
-import core.{Newtype, given}
-import org.typelevel.cats.time.*
-
 type EntryNo = EntryNo.Type
-object EntryNo extends Newtype[String]
+object EntryNo extends neotype.Subtype[String]
 
 type EntryTitle = EntryTitle.Type
-object EntryTitle extends Newtype[String]
+object EntryTitle extends neotype.Subtype[String]
 
 type EntryUri = EntryUri.Type
-object EntryUri extends Newtype[URI]:
+object EntryUri extends neotype.Subtype[URI]:
   def apply(value: String): Either[String, EntryUri] =
     core.Uri.fromStringSafe(value).map(EntryUri(_))
 
 type DateUploaded = DateUploaded.Type
-object DateUploaded extends Newtype[LocalDate]
+object DateUploaded extends neotype.Subtype[LocalDate]
 
 case class EntryFound(
     title: EntryTitle,
@@ -29,7 +26,7 @@ case class EntryFound(
 )
 
 type JobLabel = JobLabel.Type
-object JobLabel extends Newtype[Long]
+object JobLabel extends neotype.Subtype[Long]
 
 enum ScrapeError:
   case NoEntriesFound

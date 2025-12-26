@@ -2,16 +2,15 @@ package myAnimeList
 package domain
 
 import cats.syntax.all.*
-import core.Newtype
 
 type ExternalMangaId = ExternalMangaId.Type
-object ExternalMangaId extends Newtype[Long]
+object ExternalMangaId extends neotype.Newtype[Long]
 
 type LatestChapter = LatestChapter.Type
-object LatestChapter extends Newtype[Int]
+object LatestChapter extends neotype.Subtype[Int]
 
 type MangaTitle = MangaTitle.Type
-object MangaTitle extends Newtype[String]
+object MangaTitle extends neotype.Subtype[String]
 
 enum Term:
   case Name(value: String)

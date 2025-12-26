@@ -6,10 +6,12 @@ import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import core.Tuples
+import core.given
+import db.fragments.*
 import doobie.*
 import doobie.implicits.*
-import doobiex.*
 import library.domain.AssetId
+import neotype.interop.doobie.given
 
 import domain.*
 
@@ -119,12 +121,11 @@ object AssetScrapingConfigRepository:
         scrapingConfig: ExistingAssetScrapingConfig
     ): F[ExistingAssetScrapingConfig] =
       sql"""
-      ${updateTable(
-          AssetScrapingConfigs,
+      ${AssetScrapingConfigs.updateTable(
           NonEmptyList.of(
-            _.isEnabled --> scrapingConfig.isEnabled,
-            _.uri --> scrapingConfig.uri,
-            _.site --> scrapingConfig.site
+            AssetScrapingConfigs.isEnabled --> scrapingConfig.isEnabled,
+            AssetScrapingConfigs.uri --> scrapingConfig.uri,
+            AssetScrapingConfigs.site --> scrapingConfig.site
           )
         )}
       WHERE ${AssetScrapingConfigs.id === scrapingConfig.id}

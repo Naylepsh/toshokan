@@ -36,6 +36,6 @@ class MangadexScraper[F[_]: Monad](api: MangadexApi[F]) extends SiteScraper[F]:
             ),
             EntryNo(chapter.attributes.chapter),
             EntryUri(chapter.url),
-            DateUploaded(chapter.attributes.createdAt.value)
+            DateUploaded(chapter.attributes.createdAt)
           )
         .asRight

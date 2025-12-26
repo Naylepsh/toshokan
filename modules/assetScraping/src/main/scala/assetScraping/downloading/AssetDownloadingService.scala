@@ -16,6 +16,7 @@ import cats.syntax.all.*
 import library.AssetRepository
 import library.domain.*
 import mangadex.MangadexApi
+import neotype.interop.cats.given
 import sttp.capabilities.WebSockets
 import sttp.client3.*
 import sttp.model.Uri
@@ -134,7 +135,7 @@ object AssetDownloadingService:
     private def getImageExtractor(
         entry: ExistingAssetEntry
     ): Option[F[List[URI]]] =
-      entry.uri.value.toString match
+      entry.uri.toString match
         case s"https://mangadex.org/chapter/$chapterId" =>
           Some(mangadexApi.getImages(chapterId).flatMap(Sync[F].fromEither))
         case _ => None
@@ -171,7 +172,7 @@ object AssetDownloadingService:
         entry: ExistingAssetEntry
     ): F[AssetEntryDir] =
       val dir = AssetEntryDir(downloadDir, asset.title, entry.no)
-      Sync[F].blocking(Files.createDirectories(dir.value)).as(dir)
+      Sync[F].blocking(Files.createDirectories(dir)).as(dir)
 
     private def downloadImages(urls: List[URI], dir: AssetEntryDir): F[Unit] =
       urls.zipWithIndex.traverse_ { (url, index) =>

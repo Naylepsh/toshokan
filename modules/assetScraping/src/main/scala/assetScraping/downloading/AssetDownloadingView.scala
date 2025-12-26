@@ -12,7 +12,7 @@ class AssetDownloadingView(navBarItems: List[NavBarItem]):
       "Download result".some,
       div(
         cls := "mt-5",
-        p(s"Entry successfully downloaded to ${downloadedTo.value}")
+        p(s"Entry successfully downloaded to ${downloadedTo}")
       ),
       navBarItems
     )
@@ -62,7 +62,7 @@ class AssetDownloadingView(navBarItems: List[NavBarItem]):
               ul(
                 cls := "list-disc list-inside",
                 progress.failedEntries.map(entryId =>
-                  li(s"Entry ID: ${entryId.value}")
+                  li(s"Entry ID: ${entryId}")
                 )
               )
             )

@@ -2,25 +2,24 @@ package assetScraping.downloading.domain
 
 import java.nio.file.Path
 
-import core.Newt
 import library.domain.*
 
 type DownloadDir = DownloadDir.Type
-object DownloadDir extends Newt[Path]:
+object DownloadDir extends neotype.Subtype[Path]:
   val tmp: DownloadDir = DownloadDir(java.nio.file.Paths.get("/tmp"))
 
 type AssetEntryDir = AssetEntryDir.Type
-object AssetEntryDir extends Newt[Path]:
+object AssetEntryDir extends neotype.Subtype[Path]:
   def apply(
       downloadDir: DownloadDir,
       assetTitle: AssetTitle,
       entryNo: EntryNo
   ): AssetEntryDir =
-    AssetEntryDir(downloadDir.value.resolve(s"${assetTitle} - ${entryNo}"))
+    AssetEntryDir(downloadDir.resolve(s"${assetTitle} - ${entryNo}"))
 
   extension (self: AssetEntryDir)
     def forPage(page: Int, extension: String): Path =
-      self.value.resolve(s"${page}.${extension}")
+      self.resolve(s"${page}.${extension}")
 
 case class BulkDownloadProgress(
     assetId: AssetId,

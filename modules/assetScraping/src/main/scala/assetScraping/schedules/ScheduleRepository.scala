@@ -5,10 +5,12 @@ import cats.effect.MonadCancelThrow
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
+import core.given
 import doobie.*
 import doobie.implicits.*
-import doobiex.*
 import library.category.domain.CategoryId
+import neotype.interop.cats.given
+import neotype.interop.doobie.given
 
 import domain.*
 
@@ -125,10 +127,16 @@ object ScheduleRepository:
       ) =
         days
           .map: day =>
-            insertInto(
-              Schedules,
-              NonEmptyList.of(_.categoryId --> categoryId, _.day --> day)
-            ).update.run
+            Schedules
+              .insertInto(
+                NonEmptyList
+                  .of(
+                    Schedules.categoryId --> categoryId,
+                    Schedules.day --> day
+                  )
+              )
+              .update
+              .run
           .sequence
           .transact(xa)
           .void

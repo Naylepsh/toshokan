@@ -3,19 +3,18 @@ package assetScraping.configs.domain
 import java.net.URI
 
 import cats.syntax.all.*
-import core.{Newtype, given}
 import doobie.util.{Read, Write}
 import io.circe.{Decoder, Encoder}
 import library.domain.AssetId
 
 type AssetScrapingConfigId = AssetScrapingConfigId.Type
-object AssetScrapingConfigId extends Newtype[Long]
+object AssetScrapingConfigId extends neotype.Newtype[Long]
 
 type ScrapingConfigUri = ScrapingConfigUri.Type
-object ScrapingConfigUri extends Newtype[URI]
+object ScrapingConfigUri extends neotype.Subtype[URI]
 
 type IsConfigEnabled = IsConfigEnabled.Type
-object IsConfigEnabled extends Newtype[Boolean]
+object IsConfigEnabled extends neotype.Subtype[Boolean]
 
 enum Site:
   case Mangakakalot, Mangadex, Yatta, Hitomi, Empik, DynastyScans, Batoto
@@ -94,10 +93,10 @@ object NewAssetScrapingConfig:
   ) =
     val normalizedUri = site match
       case Site.Mangadex =>
-        uri.value.toString match
+        uri.toString match
           case mangadexUriWithTitleRegex(_, title) =>
             ScrapingConfigUri(
-              URI(uri.value.toString.replace(s"/$title", ""))
+              URI(uri.toString.replace(s"/$title", ""))
             ).asRight
           case mangadexUriWithoutTitleRegex(mangaId) =>
             ScrapingConfigUri(
@@ -106,32 +105,32 @@ object NewAssetScrapingConfig:
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.Mangakakalot =>
-        uri.value.toString match
+        uri.toString match
           case mangakakalotUri(_) => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.Yatta =>
-        uri.value.toString match
+        uri.toString match
           case yattaUri() => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.Hitomi =>
-        uri.value.toString match
+        uri.toString match
           case hitomiUri(_) => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.Empik =>
-        uri.value.toString match
+        uri.toString match
           case empikUri() => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.DynastyScans =>
-        uri.value.toString match
+        uri.toString match
           case dynastyScansUri() => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
       case Site.Batoto =>
-        uri.value.toString match
+        uri.toString match
           case batotoUri(mangaId) =>
             ScrapingConfigUri(URI(s"https://bato.si/title/$mangaId")).asRight
           case other =>

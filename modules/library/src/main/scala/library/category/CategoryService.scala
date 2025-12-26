@@ -4,6 +4,7 @@ import cats.Monad
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
+import neotype.interop.cats.given
 
 import domain.*
 

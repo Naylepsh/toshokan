@@ -3,6 +3,7 @@ package assetScraping.configs
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout, template}
 import library.domain.{AssetId, ExistingAsset}
+import neotype.*
 import scalatags.Text.all.*
 
 import domain.{ExistingAssetScrapingConfig, Site}
@@ -72,10 +73,10 @@ class AssetScrapingConfigView(navBarItems: List[NavBarItem]):
     var deleteModifiers = List(`type` := "button", cls := "btn")
     config match
       case Some(cfg) =>
-        idField = span(cfg.id.value.toString)
+        idField = span(cfg.id.unwrap.toString)
         if cfg.isEnabled then
           isEnabledModifiers = (checked := "1") :: isEnabledModifiers
-        uriModifiers = (value := cfg.uri.value.toString) :: uriModifiers
+        uriModifiers = (value := cfg.uri.toString) :: uriModifiers
         hxMethod = attr("hx-put")
         url = s"/asset-scraping/assets/${assetId}/configs/${cfg.id}"
         deleteModifiers = (attr("hx-delete") := url)

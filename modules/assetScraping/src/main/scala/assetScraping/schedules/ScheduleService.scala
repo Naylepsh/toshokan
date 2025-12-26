@@ -6,10 +6,12 @@ import cats.effect.kernel.Sync
 import cats.mtl.Raise
 import cats.mtl.implicits.*
 import cats.syntax.all.*
+import core.given
 import library.AssetService
 import library.category.CategoryService
 import library.category.domain.{CategoryId, ExistingCategory}
 import library.domain.AssetId
+import neotype.interop.cats.given
 
 import domain.{DayOfTheWeek, ScrapingSchedule, AddScheduleError}
 

@@ -9,6 +9,7 @@ import cats.syntax.all.*
 import library.AssetService
 import library.domain.*
 import myAnimeList.MyAnimeListService
+import neotype.interop.cats.given
 
 import util.chaining.*
 import domain.*
@@ -41,7 +42,7 @@ object ProgressTrackingService:
             (
               // TODO: entry management (setSeen) should be moved to progress tracking?
               // Probably as a separate database entity (separate from entry)
-              assetService.setSeen(assetId, entryId, wasEntrySeen),
+              assetService.setSeen((asset, entries), entryId, wasEntrySeen),
               if wasEntrySeen
               then
                 entries
@@ -59,12 +60,13 @@ object ProgressTrackingService:
         .flatMap:
           case None =>
             scribe.cats[F].error(s"No asset with id=${assetId} found")
-          case Some(asset, entries) =>
+          case Some(assetWithEntries) =>
+            val (asset, entries) = assetWithEntries
             val updateEntries = entries.traverse: entry =>
               Handle
                 .allow[UpdateEntryError]:
                   assetService
-                    .setSeen(asset.id, entry.id, WasEntrySeen(true))
+                    .setSeen(assetWithEntries, entry.id, WasEntrySeen(true))
                     .void
                 .rescue:
                   case error => scribe.cats[F].error(error.toString)
@@ -106,10 +108,10 @@ object ProgressTrackingService:
       no: EntryNo,
       allEntries: List[ExistingAssetEntry]
   ): Boolean =
-    no.value.toIntOption
+    no.toIntOption
       .map: noNumeric =>
         allEntries
-          .mapFilter(_.no.value.toIntOption)
+          .mapFilter(_.no.toIntOption)
           .pipe(NonEmptyList.fromList)
           .fold(false)(_.maximum == noNumeric)
       .getOrElse(false)
@@ -118,7 +120,7 @@ object ProgressTrackingService:
       entries: List[ExistingAssetEntry]
   ): Option[EntryNo] =
     entries
-      .sortBy(_.no.value.toIntOption)(using Ordering[Option[Int]].reverse)
+      .sortBy(_.no.toIntOption)(using Ordering[Option[Int]].reverse)
       .pipe(pickLatestEntryInternals)
 
   /** Assumes that entries are sorted by `entry.no` descending

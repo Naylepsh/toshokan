@@ -8,6 +8,8 @@ import myAnimeList.MyAnimeListClient
 import myAnimeList.domain.Manga
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
+import neotype.*
+import neotype.interop.cats.given
 
 import domain.ExistingMalMangaMapping
 import schemas.NewMalMangaMappingDTO
@@ -83,7 +85,7 @@ object AssetMappingView:
         cls := "mt-3",
         attr(
           "hx-get"
-        )               := s"/asset-mapping/${mangaId.value}/search",
+        )               := s"/asset-mapping/${mangaId.unwrap}/search",
         attr("hx-swap") := "outerHTML",
         div(
           cls := "flex mx-auto max-w-xl",

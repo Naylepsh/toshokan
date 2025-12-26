@@ -7,11 +7,9 @@ import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import core.Tuples
-import doobie.ConnectionIO
+import doobie.{util as _, *}
 import doobie.implicits.*
-import doobie.util.query.Query0
 import doobie.util.transactor.Transactor
-import doobiex.*
 import library.AssetService
 import library.category.CategoryService
 import library.domain.*
@@ -19,7 +17,9 @@ import myAnimeList.MyAnimeListService
 import myAnimeList.domain.{ExternalMangaId, Manga, Term}
 
 import util.control.NoStackTrace
+import db.extensions.*
 import domain.*
+import neotype.interop.doobie.given
 
 case object AssetNotFound extends NoStackTrace
 type AssetNotFound = AssetNotFound.type
@@ -145,10 +145,13 @@ private object MalMangaMappingSql:
       externalId: ExternalMangaId,
       internalId: MangaId
   ): ConnectionIO[Unit] =
-    insertInto(
-      MalMangaMapping,
-      NonEmptyList.of(_.mangaId --> internalId, _.malId --> externalId)
-    ).update.run.void
+    MalMangaMapping
+      .insertIntoX(
+        NonEmptyList.of(_.mangaId --> internalId, _.malId --> externalId)
+      )
+      .update
+      .run
+      .void
 
   def findMalId(
       mangaId: MangaId
