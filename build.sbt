@@ -11,6 +11,8 @@ val commonDependencies = Seq(
   Dependencies.monocle,
   Dependencies.ducktape,
   Dependencies.doobieCore,
+  Dependencies.neotype,
+  Dependencies.neotypeCirce,
   Dependencies.validator,
   Dependencies.scribe,
   Dependencies.scribeCats,

@@ -3,6 +3,7 @@ package assetImporting
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
 import io.circe.Decoder
+import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.headers.*

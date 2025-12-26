@@ -1,16 +1,19 @@
 import sbt.*
 
 object Dependencies {
-  val catsCore     = "org.typelevel"     %% "cats-core"         % "2.13.0"
-  val catsEffect   = "org.typelevel"     %% "cats-effect"       % "3.6.2"
-  val catsTime     = "org.typelevel"     %% "cats-time"         % "0.6.0"
-  val catsMtl      = "org.typelevel"     %% "cats-mtl"          % "1.6.0"
-  val circeCore    = "io.circe"          %% "circe-core"        % "0.14.14"
-  val monocle      = "dev.optics"        %% "monocle-core"      % "3.3.0"
-  val ducktape     = "io.github.arainko" %% "ducktape"          % "0.2.9"
-  val validator    = "commons-validator"  % "commons-validator" % "1.10.0"
-  val scalaScraper = "net.ruippeixotog"  %% "scala-scraper"     % "3.2.0"
-  val playwright = "com.microsoft.playwright" % "playwright" % "1.53.0"
+  val catsCore   = "org.typelevel"        %% "cats-core"    % "2.13.0"
+  val catsEffect = "org.typelevel"        %% "cats-effect"  % "3.6.2"
+  val catsTime   = "org.typelevel"        %% "cats-time"    % "0.6.0"
+  val catsMtl    = "org.typelevel"        %% "cats-mtl"     % "1.6.0"
+  val circeCore  = "io.circe"             %% "circe-core"   % "0.14.14"
+  val monocle    = "dev.optics"           %% "monocle-core" % "3.3.0"
+  val neotype    = "io.github.kitlangton" %% "neotype"      % "0.3.37"
+  val neotypeCirce =
+    "io.github.kitlangton" %% "neotype-circe" % neotype.revision
+  val ducktape     = "io.github.arainko"       %% "ducktape"          % "0.2.9"
+  val validator    = "commons-validator"        % "commons-validator" % "1.10.0"
+  val scalaScraper = "net.ruippeixotog"        %% "scala-scraper"     % "3.2.0"
+  val playwright   = "com.microsoft.playwright" % "playwright"        % "1.53.0"
 
   // HTTP Client
   val sttp      = "com.softwaremill.sttp.client3" %% "core"  % "3.11.0"

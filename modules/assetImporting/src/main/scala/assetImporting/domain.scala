@@ -3,21 +3,13 @@ package domain
 
 import java.net.URI
 
-import core.given
-import core.{Newt, Newtype}
-
 import util.control.NoStackTrace
 
 type MangadexId = MangadexId.Type
-object MangadexId extends Newt[String]
+object MangadexId extends neotype.Newtype[String]
 
 type MangadexMangaUri = MangadexMangaUri.Type
-object MangadexMangaUri extends Newtype[URI]:
-  def fromString(s: URI): Either[String, MangadexMangaUri] =
-    s.toString match
-      case s"https://mangadex.org/title/$id/$_" => Right(MangadexMangaUri(s))
-      case _ => Left(s"${s} is not a valid mangadex uri")
-
+object MangadexMangaUri extends neotype.Subtype[URI]:
   extension (uri: MangadexMangaUri)
     def id: MangadexId = uri.toString match
       case s"https://mangadex.org/title/$id/$_" => MangadexId(id)
