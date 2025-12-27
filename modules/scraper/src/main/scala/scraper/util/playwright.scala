@@ -3,8 +3,8 @@ package scraper.util.playwright
 import cats.effect.Resource
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import com.microsoft.playwright.Page.WaitForSelectorOptions
 import com.microsoft.playwright.*
+import com.microsoft.playwright.Page.WaitForSelectorOptions
 
 extension (page: Page)
   def navigateSafe[F[_]](url: String)(using F: Sync[F]): F[Response] =

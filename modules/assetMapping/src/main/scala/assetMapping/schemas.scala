@@ -7,6 +7,7 @@ import library.domain.AssetId
 import myAnimeList.domain.ExternalMangaId
 import org.http4s.*
 import org.http4s.circe.*
+import neotype.interop.circe.given
 
 case class NewMalMangaMappingDTO(assetId: AssetId, malId: ExternalMangaId)
     derives Codec

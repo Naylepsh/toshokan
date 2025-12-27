@@ -1,9 +1,9 @@
 package myAnimeList
 package schemas
 
-import core.Newtype
 import io.circe.derivation.{Configuration, ConfiguredDecoder}
-import io.circe.{Decoder, Encoder}
+import io.circe.{Decoder}
+import neotype.interop.circe.given
 
 given Configuration = Configuration.default.withSnakeCaseMemberNames
 
@@ -21,10 +21,10 @@ enum MangaStatus:
     .transformConstructorNames(this.toString)
 
 type RefreshToken = RefreshToken.Type
-object RefreshToken extends Newtype[String]
+object RefreshToken extends neotype.Subtype[String]
 
 type AccessToken = AccessToken.Type
-object AccessToken extends Newtype[String]
+object AccessToken extends neotype.Subtype[String]
 
 case class AuthToken(
     expiresIn: Long,

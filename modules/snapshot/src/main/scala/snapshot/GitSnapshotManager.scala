@@ -10,13 +10,12 @@ import scala.sys.process.*
 
 import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.all.*
-import core.Newtype
 
 type PathToSnapshot = PathToSnapshot.Type
-object PathToSnapshot extends Newtype[String]
+object PathToSnapshot extends neotype.Subtype[String]
 
 type RecencyThreshold = RecencyThreshold.Type
-object RecencyThreshold extends Newtype[Long]
+object RecencyThreshold extends neotype.Subtype[Long]
 
 extension [F[_]: Sync](path: Path)
   def toFileSafe: F[File] = Sync[F].delay(path.toFile)

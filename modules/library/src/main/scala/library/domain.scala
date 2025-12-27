@@ -4,27 +4,25 @@ package domain
 import java.net.URI
 import java.time.LocalDate
 
+import cats.effect.kernel.Sync
 import cats.kernel.Order
 import cats.syntax.all.*
-import core.Newtype
-import core.given
-import doobie.util.Read
-import io.circe.{Decoder, Encoder}
+import io.circe.Decoder
 import io.github.arainko.ducktape.*
+import neotype.interop.circe.given
 import org.typelevel.cats.time.*
-import util.control.NoStackTrace
 
+import util.control.NoStackTrace
 import category.domain.CategoryId
-import cats.effect.kernel.Sync
 
 /** Asset
   */
 
 type AssetId = AssetId.Type
-object AssetId extends Newtype[Long]
+object AssetId extends neotype.Newtype[Long]
 
 type AssetTitle = AssetTitle.Type
-object AssetTitle extends Newtype[String]
+object AssetTitle extends neotype.Subtype[String]
 
 case class NewAsset(title: AssetTitle, categoryId: Option[CategoryId])
     derives Decoder:
@@ -42,7 +40,7 @@ type AssetAlreadyExists = AssetAlreadyExists.type
 type AddAssetError = AssetAlreadyExists
 
 type DaysSinceRelease = DaysSinceRelease.Type
-object DaysSinceRelease extends Newtype[Long]
+object DaysSinceRelease extends neotype.Subtype[Long]
 
 case class StaleAsset(
     asset: ExistingAsset,
@@ -54,40 +52,40 @@ case class StaleAsset(
   */
 
 type EntryId = EntryId.Type
-object EntryId extends Newtype[Long]
+object EntryId extends neotype.Newtype[Long]
 
 type EntryTitle = EntryTitle.Type
-object EntryTitle extends Newtype[String]
+object EntryTitle extends neotype.Subtype[String]
 
 type EntryNo = EntryNo.Type
-object EntryNo extends Newtype[String]:
+object EntryNo extends neotype.Subtype[String]:
   given Ordering[EntryNo] with
     override def compare(x: EntryNo, y: EntryNo): Int =
-      (x.value.toDoubleOption, y.value.toDoubleOption) match
+      (x.toDoubleOption, y.toDoubleOption) match
         case (Some(xNo), Some(yNo)) => xNo.compareTo(yNo)
         case (Some(xNo), None)      => 1
         case (None, Some(yNo))      => -1
         case (None, None)           => 0
 
 type EntryUri = EntryUri.Type
-object EntryUri extends Newtype[URI]
+object EntryUri extends neotype.Subtype[URI]
 
 type WasEntrySeen = WasEntrySeen.Type
-object WasEntrySeen extends Newtype[Boolean]
+object WasEntrySeen extends neotype.Subtype[Boolean]
 
 type DateUploaded = DateUploaded.Type
-object DateUploaded extends Newtype[LocalDate]:
+object DateUploaded extends neotype.Subtype[LocalDate]:
   extension (self: DateUploaded)
     def daysAgo[F[_]: Sync]: F[DaysSinceRelease] =
       Sync[F]
         .delay:
           java.time.temporal.ChronoUnit.DAYS
-            .between(self.value, java.time.LocalDate.now())
+            .between(self, java.time.LocalDate.now())
         .map(DaysSinceRelease(_))
 
   given Ordering[DateUploaded] with
     override def compare(x: DateUploaded, y: DateUploaded): Int =
-      x.value.compareTo(y.value)
+      x.compareTo(y)
 
 case class NewAssetEntry(
     title: EntryTitle,
@@ -120,8 +118,10 @@ type Releases = (DateUploaded, List[(ExistingAsset, ExistingAssetEntry)])
 object Releases:
   given Order[Releases] with
     def compare(x: Releases, y: Releases): Int =
-      if x._1 == y._1 then 0
-      else if x._1 < y._1 then -1
+      val xdt: LocalDate = x._1
+      val ydt: LocalDate = y._1
+      if xdt == ydt then 0
+      else if xdt < ydt then -1
       else 1
 
 enum AddEntryError:

@@ -5,6 +5,7 @@ import cats.effect.Concurrent
 import io.circe.Codec
 import library.domain.{AssetId, WasEntrySeen}
 import myAnimeList.domain.ExternalMangaId
+import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
 

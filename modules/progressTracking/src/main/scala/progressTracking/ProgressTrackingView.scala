@@ -3,6 +3,8 @@ package progressTracking
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout}
 import library.domain.*
+import neotype.interop.cats.given
+import org.typelevel.cats.time.*
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 

@@ -1,17 +1,15 @@
 package db
 
-import core.Newtype
-
 type Path = Path.Type
-object Path extends Newtype[String]:
+object Path extends neotype.Subtype[String]:
   extension (path: Path)
     def withoutProtocol: Path = Path(path.replaceFirst(".*://", ""))
 
 type Username = Username.Type
-object Username extends Newtype[String]
+object Username extends neotype.Subtype[String]
 
 type Password = Password.Type
-object Password extends Newtype[String]
+object Password extends neotype.Subtype[String]
 
 case class Config(
     path: Path,

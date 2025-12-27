@@ -1,6 +1,4 @@
-import cats.effect.IOApp
-import cats.effect.IO
+import cats.effect.{IO, IOApp}
 
 object Main extends IOApp.Simple:
   override def run: IO[Unit] = ???
-    

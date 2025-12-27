@@ -5,6 +5,7 @@ import cats.effect.kernel.Sync
 import cats.implicits.*
 import cats.mtl.syntax.all.*
 import cats.mtl.{Handle, Raise}
+import neotype.interop.cats.given
 
 import domain.*
 import domain.Releases.given
@@ -28,7 +29,7 @@ trait AssetService[F[_]]:
   ): F[List[Either[AddEntryError, ExistingAssetEntry]]]
   def update(asset: ExistingAsset): F[Unit]
   def setSeen(
-      assetId: AssetId,
+      asset: (ExistingAsset, List[ExistingAssetEntry]),
       entryId: EntryId,
       seen: WasEntrySeen
   ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)]
@@ -113,20 +114,16 @@ object AssetService:
         repository.update(asset)
 
       override def setSeen(
-          assetId: AssetId,
+          asset: (ExistingAsset, List[ExistingAssetEntry]),
           entryId: EntryId,
           seen: WasEntrySeen
       ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)] =
-        repository
-          .findById(assetId)
-          .flatMap:
-            case None => UpdateEntryError.AssetDoesNotExists.raise
-            case Some(asset, entries) =>
-              entries.find(_.id == entryId) match
-                case None => UpdateEntryError.EntryDoesNotExist.raise
-                case Some(entry) =>
-                  val e = entry.copy(wasSeen = seen)
-                  repository.update(e).as(asset -> e)
+        val (existingAsset, entries) = asset
+        entries.find(_.id == entryId) match
+          case None => UpdateEntryError.EntryDoesNotExist.raise
+          case Some(entry) =>
+            val e = entry.copy(wasSeen = seen)
+            repository.update(e).as(existingAsset -> e)
 
       override def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)

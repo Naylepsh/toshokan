@@ -1,8 +1,11 @@
 package library
 
 import cats.syntax.all.*
-import http.View.{NavBarItem, layout}
+import core.given
+import http.View.{NavBarItem, dialog, layout}
 import library.domain.*
+import neotype.*
+import neotype.interop.cats.given
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
@@ -49,9 +52,9 @@ class AssetView(navBarItems: List[NavBarItem]):
               val rowId = s"asset-${asset.id}"
               tr(
                 id := rowId,
-                th(asset.id.value),
-                td(asset.title.value),
-                td(categoryName.map(_.value).getOrElse("-")),
+                th(asset.id.unwrap.show),
+                td(asset.title),
+                td(categoryName.getOrElse("-")),
                 td(
                   div(
                     cls := "flex gap-2",
@@ -105,9 +108,9 @@ class AssetView(navBarItems: List[NavBarItem]):
           tbody(
             assets.map: asset =>
               tr(
-                td(asset.asset.title.value),
-                td(asset.lastRelease.value.toString),
-                td(asset.daysSinceLastRelease.value.toString),
+                td(asset.asset.title),
+                td(asset.lastRelease.toString),
+                td(asset.daysSinceLastRelease.toString),
                 td(
                   a(
                     cls  := "text-light",
@@ -165,7 +168,7 @@ object AssetView:
             cls  := "select select-bordered",
             name := "categoryId",
             option(
-              value := head.id.value,
+              value := head.id.unwrap,
               if head.id.some == selectedCategory then
                 selected := selectedCategory.get.show
               else (),
@@ -173,7 +176,7 @@ object AssetView:
             ),
             tail.map: category =>
               option(
-                value := category.id.value,
+                value := category.id.unwrap,
                 if category.id.some == selectedCategory then
                   selected := selectedCategory.get.show
                 else (),
@@ -203,20 +206,36 @@ object AssetView:
       div(
         cls := "mt-3",
         div(
-          cls := "flex justify-end",
+          cls := "flex justify-between gap-3",
           a(
-            cls             := "btn btn-primary btn-wide mt-3 mr-3",
+            cls             := "btn btn-primary flex-1 mt-3",
             attr("hx-post") := s"/asset-scraping/asset/${asset.id}",
             attr("hx-swap") := "none",
             attr("hx-on::after-request") := "window.location.reload()",
             "Get new releases"
           ),
           button(
-            cls := "btn btn-primary btn-wide mt-3",
+            cls               := "btn btn-secondary flex-1 mt-3",
+            attr("hx-post")   := s"/asset-downloading/bulk/${asset.id}",
+            attr("hx-swap")   := "innerHTML",
+            attr("hx-target") := "#bulk-download-modal-content",
+            attr("hx-on::after-request") := "bulk_download_modal.showModal()",
+            "Bulk Download"
+          ),
+          button(
+            cls := "btn btn-primary flex-1 mt-3",
             attr(
               "hx-patch"
             ) := s"/progress-tracking/partials/releases/${asset.id}",
             "Binge"
+          )
+        ),
+        dialog(
+          id  := "bulk_download_modal",
+          cls := "modal",
+          div(
+            id  := "bulk-download-modal-content",
+            cls := "modal-box w-11/12 max-w-5xl"
           )
         ),
         table(
@@ -289,7 +308,7 @@ object AssetView:
             cls   := "input input-bordered w-full",
             id    := titleId,
             name  := "title",
-            value := asset.map(_.title.value).getOrElse("")
+            value := asset.map(_.title).getOrElse("")
           )
         )
       ),

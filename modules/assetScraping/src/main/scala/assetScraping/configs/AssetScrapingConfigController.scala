@@ -1,17 +1,18 @@
 package assetScraping.configs
 
 import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.mtl.Handle
 import cats.syntax.all.*
 import io.circe.*
 import library.AssetController.AssetIdVar
 import library.domain.AssetId
+import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.headers.*
 import org.http4s.server.Router
 
 import domain.*
-import cats.mtl.Handle
 
 class AssetScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
     service: AssetScrapingConfigService[F],

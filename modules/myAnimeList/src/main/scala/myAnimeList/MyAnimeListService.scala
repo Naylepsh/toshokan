@@ -9,12 +9,13 @@ import cats.syntax.all.*
 import doobie.ConnectionIO
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import doobiex.*
 import sttp.model.Uri
+import doobie.{util as _, *}
 
 import util.control.NoStackTrace
 import domain.*
 import schemas.{Manga as _, *}
+import db.extensions.*
 
 case object NoAuthToken extends NoStackTrace
 type NoAuthToken = NoAuthToken.type
@@ -202,8 +203,7 @@ private object TokensSql:
       expiresAt: Long
   ): ConnectionIO[Unit] =
     sql"""
-    ${insertInto(
-        Tokens,
+    ${Tokens.insertIntoX(
         NonEmptyList.of(
           _.name_ --> name,
           _.value --> value,

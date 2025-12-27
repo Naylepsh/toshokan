@@ -6,11 +6,10 @@ import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, ZonedDateTime}
 
 import cats.syntax.all.*
-import core.Newt
 import io.circe.Decoder
 
 type CreatedAt = CreatedAt.Type
-object CreatedAt extends Newt[LocalDate]:
+object CreatedAt extends neotype.Subtype[LocalDate]:
   given Decoder[CreatedAt] = Decoder[String].emap: str =>
     Either
       .catchNonFatal:

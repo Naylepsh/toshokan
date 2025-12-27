@@ -4,9 +4,10 @@ import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
 import core.Tuples
+import db.fragments.*
 import doobie.*
 import doobie.implicits.*
-import doobiex.*
+import neotype.interop.doobie.given
 
 import domain.*
 

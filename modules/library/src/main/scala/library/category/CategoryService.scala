@@ -1,10 +1,12 @@
 package library.category
 
-import domain.*
 import cats.Monad
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
+import neotype.interop.cats.given
+
+import domain.*
 
 trait CategoryService[F[_]]:
   def find(id: CategoryId): F[Option[ExistingCategory]]

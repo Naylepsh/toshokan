@@ -1,4 +1,4 @@
-package app
+package app.controllers
 
 import cats.MonadThrow
 import cats.effect.kernel.Deferred
@@ -20,4 +20,3 @@ class ShutdownController[F[_]: MonadThrow](shutdownSignal: Deferred[F, Unit])
         .pure
 
   val routes = Router("shutdown" -> httpRoutes)
-

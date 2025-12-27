@@ -3,15 +3,26 @@ package assetScraping.downloading
 import java.net.URI
 import java.nio.file.{Files, Path, StandardOpenOption}
 
-import assetScraping.downloading.domain.{AssetEntryDir, DownloadDir}
-import cats.effect.kernel.Sync
+import scala.concurrent.duration.FiniteDuration
+
+import assetScraping.downloading.domain.{
+  AssetEntryDir,
+  BulkDownloadProgress,
+  DownloadDir
+}
+import cats.MonadThrow
+import cats.effect.kernel.{Sync, Temporal}
 import cats.syntax.all.*
 import library.AssetRepository
 import library.domain.*
 import mangadex.MangadexApi
+import neotype.interop.cats.given
 import sttp.capabilities.WebSockets
 import sttp.client3.*
 import sttp.model.Uri
+
+class AssetNotFound(assetId: AssetId)
+    extends Exception(s"Asset not found: $assetId")
 
 class NoAssetFoundForEntry(entryId: EntryId)
     extends Exception(s"No asset found for entry=${entryId}")
@@ -26,16 +37,109 @@ class UnsupportedUrlForEntryDownloading(url: URI)
       s"Unsupported url=${url} for entry downloading"
     )
 
+object NoEntriesApplicableForDownload
+    extends Exception("No entries applicable for download")
+
 trait AssetDownloadingService[F[_]]:
   def download(entryId: EntryId): F[AssetEntryDir]
+  def downloadAll(assetId: AssetId): F[BulkDownloadProgress]
 
 object AssetDownloadingService:
-  def make[F[_]: Sync](
+  case class Config(
+      delayBetweenDownloads: FiniteDuration
+  )
+
+  def make[F[_]: Sync: Temporal: MonadThrow](
       mangadexApi: MangadexApi[F],
       backend: SttpBackend[F, WebSockets],
       downloadDir: DownloadDir,
-      assetRepository: AssetRepository[F]
+      assetRepository: AssetRepository[F],
+      config: Config
   ): AssetDownloadingService[F] = new:
+    override def downloadAll(assetId: AssetId): F[BulkDownloadProgress] =
+      for
+        entryGroups <- getEntryGroupsOrderedByNo(assetId)
+        initialProgress = BulkDownloadProgress.initial(
+          assetId,
+          entryGroups.size
+        )
+        finalProgress <- entryGroups.foldM(initialProgress):
+          case (progress, (asset, entryNo, entryGroup)) =>
+            downloadEntryGroup(progress, asset, entryNo, entryGroup)
+      yield finalProgress
+
+    private def getEntryGroupsOrderedByNo(assetId: AssetId) =
+      assetRepository
+        .findById(assetId)
+        .flatMap:
+          case None => Temporal[F].raiseError(AssetNotFound(assetId))
+          case Some(asset, entries) =>
+            entries
+              .groupBy(_.no)
+              .toList
+              .sortBy(_._1)
+              .map((entryNo, entryGroup) => (asset, entryNo, entryGroup))
+              .pure
+
+    private def downloadEntryGroup(
+        progress: BulkDownloadProgress,
+        asset: ExistingAsset,
+        entryNo: EntryNo,
+        entryGroup: List[ExistingAssetEntry]
+    ) =
+      for
+        _      <- scribe.cats[F].info(s"Downloading entry group ${entryNo}")
+        result <- tryDownloadFromGroup(asset, entryGroup).attempt
+        _      <- Temporal[F].sleep(config.delayBetweenDownloads)
+        updatedProgress <- result match
+          case Right(_) =>
+            scribe
+              .cats[F]
+              .info(
+                s"Successfully downloaded entry ${entryNo}"
+              )
+              .as(progress.completedOne)
+          case Left(error) =>
+            scribe
+              .cats[F]
+              .error(
+                s"Failed to download entry ${entryNo}: ${error.getClass.getSimpleName} - ${error.getMessage}",
+                error
+              )
+              .as(progress.failedOne(entryGroup.head.no))
+      yield updatedProgress
+
+    @annotation.tailrec
+    private def tryDownloadFromGroup(
+        asset: ExistingAsset,
+        entryGroup: List[ExistingAssetEntry]
+    ): F[AssetEntryDir] =
+      entryGroup match
+        case Nil =>
+          Temporal[F].raiseError(NoEntriesApplicableForDownload)
+        case entry :: rest =>
+          getImageExtractor(entry) match
+            case Some(imageUrlsF) =>
+              for
+                urls <- imageUrlsF
+                dir  <- createDirectory(asset, entry)
+                _    <- downloadImages(urls, dir)
+              yield dir
+            case None =>
+              if rest.nonEmpty then tryDownloadFromGroup(asset, rest)
+              else
+                Temporal[F].raiseError(
+                  UnsupportedUrlForEntryDownloading(entry.uri)
+                )
+
+    private def getImageExtractor(
+        entry: ExistingAssetEntry
+    ): Option[F[List[URI]]] =
+      entry.uri.toString match
+        case s"https://mangadex.org/chapter/$chapterId" =>
+          Some(mangadexApi.getImages(chapterId).flatMap(Sync[F].fromEither))
+        case _ => None
+
     override def download(entryId: EntryId): F[AssetEntryDir] =
       for
         (asset, entry) <- findAssetAndEntry(entryId)
@@ -58,10 +162,9 @@ object AssetDownloadingService:
       yield (asset, entry)
 
     private def getImageUrls(entry: ExistingAssetEntry): F[List[URI]] =
-      entry.uri.value.toString match
-        case s"https://mangadex.org/chapter/$chapterId" =>
-          mangadexApi.getImages(chapterId).flatMap(Sync[F].fromEither)
-        case _ =>
+      getImageExtractor(entry) match
+        case Some(imageUrlsF) => imageUrlsF
+        case None =>
           Sync[F].raiseError(UnsupportedUrlForEntryDownloading(entry.uri))
 
     private def createDirectory(
@@ -69,7 +172,7 @@ object AssetDownloadingService:
         entry: ExistingAssetEntry
     ): F[AssetEntryDir] =
       val dir = AssetEntryDir(downloadDir, asset.title, entry.no)
-      Sync[F].blocking(Files.createDirectories(dir.value)).as(dir)
+      Sync[F].blocking(Files.createDirectories(dir)).as(dir)
 
     private def downloadImages(urls: List[URI], dir: AssetEntryDir): F[Unit] =
       urls.zipWithIndex.traverse_ { (url, index) =>

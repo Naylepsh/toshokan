@@ -1,6 +1,6 @@
-ThisBuild / scalaVersion := "3.7.1"
-// ThisBuild / semanticdbEnabled := true
-// ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+ThisBuild / scalaVersion      := "3.7.1"
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 val commonDependencies = Seq(
   Dependencies.catsCore,
@@ -8,9 +8,13 @@ val commonDependencies = Seq(
   Dependencies.catsTime,
   Dependencies.catsMtl,
   Dependencies.circeCore,
-  Dependencies.monocle,
   Dependencies.ducktape,
   Dependencies.doobieCore,
+  Dependencies.doobieTypesafe,
+  Dependencies.neotype,
+  Dependencies.neotypeCirce,
+  Dependencies.neotypeDoobie,
+  Dependencies.neotypeCats,
   Dependencies.validator,
   Dependencies.scribe,
   Dependencies.scribeCats,
@@ -22,14 +26,6 @@ lazy val core = project
   .in(file("modules/core"))
   .disablePlugins(RevolverPlugin)
   .settings(libraryDependencies ++= commonDependencies)
-
-lazy val doobiex = project
-  .in(file("modules/doobiex"))
-  .disablePlugins(RevolverPlugin)
-  .settings(
-    libraryDependencies ++= commonDependencies
-  )
-  .dependsOn(core)
 
 lazy val db = project
   .in(file("modules/db"))
@@ -79,7 +75,7 @@ lazy val myAnimeList = project
       Dependencies.http4sServer
     )
   )
-  .dependsOn(core, doobiex, http)
+  .dependsOn(core, db, http)
 
 lazy val library = project
   .in(file("modules/library"))
@@ -91,7 +87,7 @@ lazy val library = project
       Dependencies.http4sServer
     )
   )
-  .dependsOn(core, doobiex, db, http)
+  .dependsOn(core, db, http)
 
 lazy val scraper = project
   .in(file("modules/scraper"))
@@ -119,7 +115,7 @@ lazy val assetMapping = project
   .settings(
     libraryDependencies ++= commonDependencies
   )
-  .dependsOn(core, doobiex, db, library, myAnimeList)
+  .dependsOn(core, db, library, myAnimeList)
 
 lazy val assetImporting = project
   .in(file("modules/assetImporting"))
@@ -149,13 +145,17 @@ lazy val progressTracking = project
       Dependencies.sttpCirce
     )
   )
-  .dependsOn(core, doobiex, db, library, myAnimeList, assetMapping)
+  .dependsOn(core, db, library, myAnimeList, assetMapping)
 
 lazy val app = project
   .in(file("modules/app"))
   .settings(
     name := "app",
-    libraryDependencies ++= commonDependencies ++ Seq(Dependencies.slf4j)
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.slf4j,
+      Dependencies.sttpOkHttp,
+      Dependencies.okHttpDoH
+    )
   )
   .aggregate(
     core,
@@ -190,3 +190,5 @@ lazy val root = project
   .aggregate(app)
   .dependsOn(app)
   .enablePlugins(JavaAppPackaging) // SBT native packager
+
+addCommandAlias("fmt", "scalafixAll OrganizeImports; scalafmtAll; scalafmtSbt")

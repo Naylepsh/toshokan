@@ -6,9 +6,12 @@ import cats.implicits.*
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import core.Tuples
+import core.given
+import db.extensions.*
 import doobie.*
 import doobie.implicits.*
-import doobiex.*
+import neotype.interop.doobie.given
+import org.typelevel.cats.time.*
 
 import domain.*
 import category.domain.{CategoryId, CategoryName}
@@ -164,20 +167,23 @@ object AssetRepository:
         categoryId: CategoryId
     ): F[Unit] =
       sql"""
-      ${updateTable(Assets, NonEmptyList.of(_.categoryId --> categoryId.some))}
+      ${Assets.updateTableX(
+          NonEmptyList.of(
+            _.categoryId --> categoryId.some
+          )
+        )}
       WHERE ${Assets.id === asset.id}
       """.update.run.transact(xa).void
 
     override def update(asset: ExistingAsset): F[Unit] =
       sql"""
-      ${updateTable(Assets, NonEmptyList.of(_.title --> asset.title))}
+      ${Assets.updateTableX(NonEmptyList.of(_.title --> asset.title))}
       WHERE ${Assets.id === asset.id}
       """.update.run.transact(xa).void
 
     override def update(entry: ExistingAssetEntry): F[Unit] =
       sql"""
-      ${updateTable(
-          AssetEntries,
+      ${AssetEntries.updateTableX(
           NonEmptyList.of(
             _.no --> entry.no,
             _.wasSeen --> entry.wasSeen,
@@ -246,14 +252,14 @@ object AssetRepository:
           rows.map(Tuples.from[ExistingAssetEntry](_))
 
     private def addWithoutChecking(asset: NewAsset): F[ExistingAsset] =
-      insertIntoReturning(
-        Assets,
-        NonEmptyList.of(
-          _.title --> asset.title,
-          _.categoryId --> asset.categoryId
-        ),
-        _.*
-      )
+      Assets
+        .insertIntoReturning(
+          NonEmptyList.of(
+            _.title --> asset.title,
+            _.categoryId --> asset.categoryId
+          ),
+          _.*
+        )
         .queryOf(Assets.*)
         .unique
         .transact(xa)
@@ -263,18 +269,18 @@ object AssetRepository:
     private def addWithoutChecking(
         entry: NewAssetEntry
     ): F[ExistingAssetEntry] =
-      insertIntoReturning(
-        AssetEntries,
-        NonEmptyList.of(
-          _.title --> entry.title,
-          _.no --> entry.no,
-          _.uri --> entry.uri,
-          _.wasSeen --> WasEntrySeen(false),
-          _.dateUploaded --> entry.dateUploaded,
-          _.assetId --> entry.assetId
-        ),
-        _.*
-      )
+      AssetEntries
+        .insertIntoReturning(
+          NonEmptyList.of(
+            _.title --> entry.title,
+            _.no --> entry.no,
+            _.uri --> entry.uri,
+            _.wasSeen --> WasEntrySeen(false),
+            _.dateUploaded --> entry.dateUploaded,
+            _.assetId --> entry.assetId
+          ),
+          _.*
+        )
         .queryOf(AssetEntries.*)
         .unique
         .transact(xa)

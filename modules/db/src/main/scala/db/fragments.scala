@@ -1,10 +1,17 @@
-package doobiex
+package db
+package fragments
 
 import cats.syntax.all.*
-import cats.{Functor, Reducible}
+import cats.{Reducible, Functor}
 import doobie.*
 import doobie.implicits.*
-import doobie.util.fragment.Fragment
+
+def insertIntoReturning[F[_]: Reducible: Functor, A <: TableDefinition, B](
+    table: A,
+    insertColumns: F[A => (Fragment, Fragment)],
+    returningColumns: A => Columns[B]
+): Fragment =
+  sql"${insertInto(table, insertColumns)} RETURNING ${returningColumns(table)}"
 
 def insertInto[F[_]: Reducible: Functor, A <: TableDefinition](
     table: A,
@@ -23,13 +30,6 @@ def insertInto[F[_]: Reducible: Functor, A <: TableDefinition](
         fr0"$acc$value"
 
   sql"INSERT INTO $table ($columnNames) VALUES ($values)"
-
-def insertIntoReturning[F[_]: Reducible: Functor, A <: TableDefinition, B](
-    table: A,
-    insertColumns: F[A => (Fragment, Fragment)],
-    returningColumns: A => Columns[B]
-): Fragment =
-  sql"${insertInto(table, insertColumns)} RETURNING ${returningColumns(table)}"
 
 def updateTable[F[_]: Reducible: Functor, A <: TableDefinition](
     table: A,

@@ -5,11 +5,10 @@ import java.time.{DayOfWeek, LocalDate}
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import core.{Newtype, given}
 import library.category.domain.CategoryId
 
 type DayOfTheWeek = DayOfTheWeek.Type
-object DayOfTheWeek extends Newtype[DayOfWeek]:
+object DayOfTheWeek extends neotype.Subtype[DayOfWeek]:
   val fullWeek: NonEmptyList[DayOfTheWeek] =
     NonEmptyList.fromListUnsafe(DayOfWeek.values.toList.map(DayOfTheWeek(_)))
 
@@ -26,7 +25,7 @@ object ScrapingSchedule:
       days: NonEmptyList[DayOfTheWeek]
   ): ScrapingSchedule =
     val dedupedDays =
-      NonEmptyList.fromListUnsafe(Set.from(days.toIterable).toList).sorted
+      NonEmptyList.fromListUnsafe(Set.from(days.toIterable).toList.sorted)
     new ScrapingSchedule(categoryId, dedupedDays)
 
 enum AddScheduleError:
