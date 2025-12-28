@@ -14,6 +14,8 @@ import org.typelevel.cats.time.*
 
 import util.control.NoStackTrace
 import category.domain.CategoryId
+import cats.data.NonEmptyList
+import scala.util.chaining.*
 
 /** Asset
   */
@@ -109,6 +111,41 @@ case class ExistingAssetEntry(
     dateUploaded: DateUploaded,
     assetId: AssetId
 )
+
+object ExistingAssetEntry:
+  /** Any EntryNo with fractional number should not be considered latest, as we
+    * don't known whether there are any more entries within the same integer
+    * mark
+    */
+  def isLatestEntry(
+      no: EntryNo,
+      allEntries: List[ExistingAssetEntry]
+  ): Boolean =
+    no.toIntOption
+      .map: noNumeric =>
+        allEntries
+          .mapFilter(_.no.toIntOption)
+          .pipe(NonEmptyList.fromList)
+          .fold(false)(_.maximum == noNumeric)
+      .getOrElse(false)
+
+  def pickLatestEntry(
+      entries: List[ExistingAssetEntry]
+  ): Option[EntryNo] =
+    @scala.annotation.tailrec
+    def pickLatestEntryInternals(
+        entries: List[ExistingAssetEntry]
+    ): Option[EntryNo] =
+      entries match
+        case Nil => None
+        case entry :: tail =>
+          entry.no.toDoubleOption match
+            case None    => pickLatestEntryInternals(tail)
+            case Some(_) => entry.no.some
+
+    entries
+      .sortBy(_.no.toIntOption)(using Ordering[Option[Int]].reverse)
+      .pipe(pickLatestEntryInternals)
 
 type Releases = (DateUploaded, List[(ExistingAsset, ExistingAssetEntry)])
 object Releases:

@@ -1,7 +1,6 @@
 package progressTracking
 
 import assetMapping.AssetMappingService
-import cats.data.NonEmptyList
 import cats.effect.*
 import cats.implicits.*
 import cats.mtl.Raise
@@ -12,7 +11,6 @@ import library.domain.Releases.given
 import myAnimeList.MyAnimeListService
 import neotype.interop.cats.given
 
-import util.chaining.*
 import domain.*
 
 trait ProgressTrackingService[F[_]]:
@@ -52,7 +50,7 @@ object ProgressTrackingService:
                       .handleErrorWith: error =>
                         scribe.cats[F].error(error.toString).void
                   else Sync[F].unit
-                ).mapN((_, _) => (asset, entry))
+                ).tupled.as((asset, entry))
 
     override def binge(assetId: AssetId): F[Unit] =
       assetService
@@ -70,15 +68,17 @@ object ProgressTrackingService:
                     Sync[F].pure(
                       progressTracking.domain.EntryProgress.notSeen(entry.id)
                     )
-            val updateLatestEntryExternally = pickLatestEntry(entries).fold(
-              scribe
-                .cats[F]
-                .warn(
-                  s"Asset ${asset.title} has no entry applicable for updating externally"
-                )
-            ): no =>
-              updateProgressExternally(asset, entries, no)
-                .handleError(error => scribe.error(error.getMessage))
+            val updateLatestEntryExternally = ExistingAssetEntry
+              .pickLatestEntry(entries)
+              .fold(
+                scribe
+                  .cats[F]
+                  .warn(
+                    s"Asset ${asset.title} has no entry applicable for updating externally"
+                  )
+              ): no =>
+                updateProgressExternally(asset, entries, no)
+                  .handleError(error => scribe.error(error.getMessage))
             (updateEntries <* updateLatestEntryExternally).void
 
     override def findNotSeenReleases: F[List[Releases]] =
@@ -104,7 +104,7 @@ object ProgressTrackingService:
         entries: List[ExistingAssetEntry],
         no: EntryNo
     ): F[Unit] =
-      (isLatestEntry(no, entries), no.asLatestChapter) match
+      (ExistingAssetEntry.isLatestEntry(no, entries), no.asLatestChapter) match
         case (true, Some(latestChapter)) =>
           assetMappingService
             .findExternalId(asset)
@@ -113,39 +113,3 @@ object ProgressTrackingService:
               case Some(externalId) =>
                 malService.updateProgress(externalId, latestChapter)
         case _ => ().pure
-
-  /** Any EntryNo with fractional number should not be considered latest, as we
-    * don't known whether there are any more entries within the same integer
-    * mark
-    */
-  def isLatestEntry(
-      no: EntryNo,
-      allEntries: List[ExistingAssetEntry]
-  ): Boolean =
-    no.toIntOption
-      .map: noNumeric =>
-        allEntries
-          .mapFilter(_.no.toIntOption)
-          .pipe(NonEmptyList.fromList)
-          .fold(false)(_.maximum == noNumeric)
-      .getOrElse(false)
-
-  def pickLatestEntry(
-      entries: List[ExistingAssetEntry]
-  ): Option[EntryNo] =
-    entries
-      .sortBy(_.no.toIntOption)(using Ordering[Option[Int]].reverse)
-      .pipe(pickLatestEntryInternals)
-
-  /** Assumes that entries are sorted by `entry.no` descending
-    */
-  @scala.annotation.tailrec
-  private def pickLatestEntryInternals(
-      entries: List[ExistingAssetEntry]
-  ): Option[EntryNo] =
-    entries match
-      case Nil => None
-      case entry :: tail =>
-        entry.no.asLatestChapter match
-          case None    => pickLatestEntryInternals(tail)
-          case Some(_) => entry.no.some
