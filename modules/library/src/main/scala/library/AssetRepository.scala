@@ -60,7 +60,6 @@ object AssetRepository:
       AE(_.title).option,
       AE(_.no).option,
       AE(_.uri).option,
-      AE(_.wasSeen).option,
       AE(_.dateUploaded).option
     )
 
@@ -92,7 +91,6 @@ object AssetRepository:
                     record._7,
                     record._8,
                     record._9,
-                    record._10,
                     id.some
                   ).tupled
                     .map(Tuples.from[ExistingAssetEntry](_))
@@ -186,7 +184,6 @@ object AssetRepository:
       ${AssetEntries.updateTableX(
           NonEmptyList.of(
             _.no --> entry.no,
-            _.wasSeen --> entry.wasSeen,
             _.dateUploaded --> entry.dateUploaded
           )
         )}
@@ -275,7 +272,6 @@ object AssetRepository:
             _.title --> entry.title,
             _.no --> entry.no,
             _.uri --> entry.uri,
-            _.wasSeen --> WasEntrySeen(false),
             _.dateUploaded --> entry.dateUploaded,
             _.assetId --> entry.assetId
           ),
@@ -319,8 +315,7 @@ private object AssetEntries extends TableDefinition("asset_entries"):
   val title        = Column[EntryTitle]("title")
   val no           = Column[EntryNo]("no")
   val uri          = Column[EntryUri]("uri")
-  val wasSeen      = Column[WasEntrySeen]("was_seen")
   val dateUploaded = Column[DateUploaded]("date_uploaded")
   val assetId      = Column[AssetId]("asset_id")
 
-  val * = Columns((id, title, no, uri, wasSeen, dateUploaded, assetId))
+  val * = Columns((id, title, no, uri, dateUploaded, assetId))

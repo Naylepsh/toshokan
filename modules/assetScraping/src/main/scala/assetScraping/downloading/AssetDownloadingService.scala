@@ -121,9 +121,9 @@ object AssetDownloadingService:
           getImageExtractor(entry) match
             case Some(imageUrlsF) =>
               for
-                urls <- imageUrlsF
-                folder  <- storage.createFolder(asset, entry)
-                _    <- downloadImages(urls, folder)
+                urls   <- imageUrlsF
+                folder <- storage.createFolder(asset, entry)
+                _      <- downloadImages(urls, folder)
               yield ()
             case None =>
               if rest.nonEmpty then tryDownloadFromGroup(asset, rest)

@@ -63,7 +63,6 @@ object ProgressTrackingServiceSuite:
       EntryTitle("The End of the Adventure"),
       EntryNo("1"),
       EntryUri(new URI("http://localhost:8080/foo/1")),
-      WasEntrySeen(false),
       DateUploaded(LocalDate.now()),
       AssetId(1)
     ),
@@ -72,7 +71,6 @@ object ProgressTrackingServiceSuite:
       EntryTitle("The Priest's Lie"),
       EntryNo("2"),
       EntryUri(new URI("http://localhost:8080/foo/2")),
-      WasEntrySeen(false),
       DateUploaded(LocalDate.now()),
       AssetId(1)
     ),
@@ -81,7 +79,6 @@ object ProgressTrackingServiceSuite:
       EntryTitle("Blue Moonweed"),
       EntryNo("3"),
       EntryUri(new URI("http://localhost:8080/foo/2")),
-      WasEntrySeen(false),
       DateUploaded(LocalDate.now()),
       AssetId(1)
     )
@@ -92,6 +89,7 @@ object ProgressTrackingServiceSuite:
   ): IO[(ProgressTrackingService[IO], AssetService[IO], CategoryService[IO])] =
     val assetService    = AssetService.make(AssetRepository.make(xa))
     val categoryService = CategoryService.make(CategoryRepository.make(xa))
+    val entryProgressRepository = EntryProgressRepository.make(xa)
     MyAnimeListServiceImpl
       .make(xa, noopMalClient)
       .map: malService =>
@@ -101,6 +99,7 @@ object ProgressTrackingServiceSuite:
           .make[IO](
             malService,
             assetService,
-            assetMappingService
+            assetMappingService,
+            entryProgressRepository
           )
         (service, assetService, categoryService)

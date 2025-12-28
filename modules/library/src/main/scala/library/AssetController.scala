@@ -3,11 +3,9 @@ package library
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.implicits.*
 import cats.mtl.Handle
-import io.circe.Decoder
 import library.category.CategoryService
 import library.domain.*
 import neotype.*
-import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.headers.*
@@ -101,12 +99,7 @@ object AssetController:
     def unapply(str: String): Option[EntryId] =
       str.toIntOption.map(EntryId(_))
 
-  case class PartialAssetEntry(
-      wasSeen: Option[WasEntrySeen]
-  ) derives Decoder
-  object PartialAssetEntry:
-    given [F[_]: Concurrent]: EntityDecoder[F, PartialAssetEntry] =
-      jsonOf[F, PartialAssetEntry]
+  // PartialAssetEntry removed - progress tracking moved to ProgressTrackingController
 
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
 

@@ -1,12 +1,12 @@
 import sbt.*
 
 object Dependencies {
-  val catsCore   = "org.typelevel"        %% "cats-core"    % "2.13.0"
-  val catsEffect = "org.typelevel"        %% "cats-effect"  % "3.6.2"
-  val catsTime   = "org.typelevel"        %% "cats-time"    % "0.6.0"
-  val catsMtl    = "org.typelevel"        %% "cats-mtl"     % "1.6.0"
-  val circeCore  = "io.circe"             %% "circe-core"   % "0.14.14"
-  val neotype    = "io.github.kitlangton" %% "neotype"      % "0.3.37"
+  val catsCore   = "org.typelevel"        %% "cats-core"   % "2.13.0"
+  val catsEffect = "org.typelevel"        %% "cats-effect" % "3.6.2"
+  val catsTime   = "org.typelevel"        %% "cats-time"   % "0.6.0"
+  val catsMtl    = "org.typelevel"        %% "cats-mtl"    % "1.6.0"
+  val circeCore  = "io.circe"             %% "circe-core"  % "0.14.14"
+  val neotype    = "io.github.kitlangton" %% "neotype"     % "0.3.37"
   val neotypeCirce =
     "io.github.kitlangton" %% "neotype-circe" % neotype.revision
   val neotypeDoobie =

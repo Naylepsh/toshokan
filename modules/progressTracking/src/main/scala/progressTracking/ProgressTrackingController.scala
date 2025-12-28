@@ -32,7 +32,7 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
           val (items, pagination) =
             Pagination.paginate(releases, page.getOrElse(1))
           Ok(
-            view.renderReleases(items, pagination).toString,
+            view.renderUnseenReleases(items, pagination).toString,
             `Content-Type`(MediaType.text.html)
           )
 
@@ -60,7 +60,8 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
           .allow[UpdateEntryError]:
             service
               .updateProgress(assetId, entryId, dto.wasEntrySeen)
-              .flatMap((asset, entry) => Ok(view.entryPartial(asset, entry)))
+              .flatMap: (asset, entry) =>
+                Ok(view.entryPartial(asset, entry, dto.wasEntrySeen))
           .rescue:
             case UpdateEntryError.AssetDoesNotExists =>
               NotFound("Asset does not exist")
