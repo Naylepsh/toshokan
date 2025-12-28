@@ -55,7 +55,7 @@ class AssetImportingService[F[_]: MonadCancelThrow](
       manga: ExistingCategory
   ) =
     for
-      title <- mangaResponse.data.attributes.title.preferred
+      title <- mangaResponse.data.attributes.preferredTitle
         .liftTo[F](new RuntimeException(NoTitleTranslation.toString))
       result <-
         Handle

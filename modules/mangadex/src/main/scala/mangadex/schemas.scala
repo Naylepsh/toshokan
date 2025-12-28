@@ -38,11 +38,13 @@ object feed:
 object manga:
   case class MangaLinks(mal: Option[String]) derives Decoder
 
-  case class MangaTitle(en: Option[String], ja: Option[String]) derives Decoder:
-    val preferred: Option[String] = en.orElse(ja)
-
-  case class MangaAttributes(title: MangaTitle, links: MangaLinks)
-      derives Decoder
+  case class MangaAttributes(title: Map[String, String], links: MangaLinks)
+      derives Decoder:
+    val preferredTitle: Option[String] =
+      title
+        .get("en")
+        .orElse(title.get("ja"))
+        .orElse(title.get("ja-ro"))
 
   case class Manga(attributes: MangaAttributes) derives Decoder
 
