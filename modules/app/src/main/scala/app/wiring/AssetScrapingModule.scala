@@ -21,13 +21,15 @@ import http.View.NavBarItem
 import scraper.Scraper
 import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
+import assetScraping.downloading.domain.AssetEntryDir
+import assetScraping.downloading.EntryLocalStorage
 
 case class AssetScrapingModule[F[_]](
     scrapingService: AssetScrapingService[F],
     scrapingController: AssetScrapingController[F],
     configService: AssetScrapingConfigService[F],
     configController: AssetScrapingConfigController[F],
-    downloadingService: AssetDownloadingService[F],
+    downloadingService: AssetDownloadingService[F, AssetEntryDir],
     downloadingController: AssetDownloadingController[F],
     scheduleService: ScheduleService[F],
     scheduleController: ScheduleController[F]
@@ -79,11 +81,12 @@ object AssetScrapingModule:
       scrapingView
     )
 
-    val downloadingService = AssetDownloadingService.make[IO](
+    val localEntryStorage = EntryLocalStorage[IO](downloadDir)
+    val downloadingService = AssetDownloadingService.make[IO, AssetEntryDir](
       externals.mangadexApi,
       httpBackend,
-      downloadDir,
       library.assetRepository,
+      localEntryStorage,
       AssetDownloadingService.Config(2.seconds)
     )
     val downloadingView = AssetDownloadingView(navBarItems)

@@ -40,8 +40,8 @@ class UnsupportedUrlForEntryDownloading(url: URI)
 object NoEntriesApplicableForDownload
     extends Exception("No entries applicable for download")
 
-trait AssetDownloadingService[F[_]]:
-  def download(entryId: EntryId): F[AssetEntryDir]
+trait AssetDownloadingService[F[_], FolderCreated]:
+  def download(entryId: EntryId): F[FolderCreated]
   def downloadAll(assetId: AssetId): F[BulkDownloadProgress]
 
 object AssetDownloadingService:
@@ -49,13 +49,13 @@ object AssetDownloadingService:
       delayBetweenDownloads: FiniteDuration
   )
 
-  def make[F[_]: Sync: Temporal: MonadThrow](
+  def make[F[_]: Sync: Temporal: MonadThrow, FolderCreated](
       mangadexApi: MangadexApi[F],
       backend: SttpBackend[F, WebSockets],
-      downloadDir: DownloadDir,
       assetRepository: AssetRepository[F],
+      storage: EntryStorage[F, FolderCreated],
       config: Config
-  ): AssetDownloadingService[F] = new:
+  ): AssetDownloadingService[F, FolderCreated] = new:
     override def downloadAll(assetId: AssetId): F[BulkDownloadProgress] =
       for
         entryGroups <- getEntryGroupsOrderedByNo(assetId)
@@ -113,7 +113,7 @@ object AssetDownloadingService:
     private def tryDownloadFromGroup(
         asset: ExistingAsset,
         entryGroup: List[ExistingAssetEntry]
-    ): F[AssetEntryDir] =
+    ): F[Unit] =
       entryGroup match
         case Nil =>
           Temporal[F].raiseError(NoEntriesApplicableForDownload)
@@ -122,9 +122,9 @@ object AssetDownloadingService:
             case Some(imageUrlsF) =>
               for
                 urls <- imageUrlsF
-                dir  <- createDirectory(asset, entry)
-                _    <- downloadImages(urls, dir)
-              yield dir
+                folder  <- storage.createFolder(asset, entry)
+                _    <- downloadImages(urls, folder)
+              yield ()
             case None =>
               if rest.nonEmpty then tryDownloadFromGroup(asset, rest)
               else
@@ -140,11 +140,11 @@ object AssetDownloadingService:
           Some(mangadexApi.getImages(chapterId).flatMap(Sync[F].fromEither))
         case _ => None
 
-    override def download(entryId: EntryId): F[AssetEntryDir] =
+    override def download(entryId: EntryId): F[FolderCreated] =
       for
         (asset, entry) <- findAssetAndEntry(entryId)
         urls           <- getImageUrls(entry)
-        dir            <- createDirectory(asset, entry)
+        dir            <- storage.createFolder(asset, entry)
         _              <- downloadImages(urls, dir)
       yield dir
 
@@ -167,14 +167,10 @@ object AssetDownloadingService:
         case None =>
           Sync[F].raiseError(UnsupportedUrlForEntryDownloading(entry.uri))
 
-    private def createDirectory(
-        asset: ExistingAsset,
-        entry: ExistingAssetEntry
-    ): F[AssetEntryDir] =
-      val dir = AssetEntryDir(downloadDir, asset.title, entry.no)
-      Sync[F].blocking(Files.createDirectories(dir)).as(dir)
-
-    private def downloadImages(urls: List[URI], dir: AssetEntryDir): F[Unit] =
+    private def downloadImages(
+        urls: List[URI],
+        folderCreated: FolderCreated
+    ): F[Unit] =
       urls.zipWithIndex.traverse_ { (url, index) =>
         val ext = Path
           .of(url.getPath)
@@ -183,18 +179,10 @@ object AssetDownloadingService:
           .reverse
           .takeWhile(_ != '.')
           .reverse
-        val outputPath = dir.forPage(index + 1, ext)
-        downloadImage(url).flatMap: bytes =>
-          Sync[F]
-            .blocking(
-              Files.write(
-                outputPath,
-                bytes,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.TRUNCATE_EXISTING
-              )
-            )
-            .as(())
+        for
+          bytes <- downloadImage(url)
+          _     <- storage.addEntryPage(folderCreated, index + 1, ext, bytes)
+        yield ()
       }
 
     /** TODO: Add retries
@@ -206,3 +194,44 @@ object AssetDownloadingService:
         .send(backend)
         .map(_.body.leftMap(RuntimeException(_)))
         .flatMap(Sync[F].fromEither)
+
+trait EntryStorage[F[_], CreatedFolder]:
+  def createFolder(
+      asset: ExistingAsset,
+      entry: ExistingAssetEntry
+  ): F[CreatedFolder]
+
+  def addEntryPage(
+      folder: CreatedFolder,
+      page: Int,
+      ext: String,
+      bytes: Array[Byte]
+  ): F[Unit]
+
+class EntryLocalStorage[F[_]: Sync](
+    downloadDir: DownloadDir
+) extends EntryStorage[F, AssetEntryDir]:
+  def createFolder(
+      asset: ExistingAsset,
+      entry: ExistingAssetEntry
+  ): F[AssetEntryDir] =
+    val dir = AssetEntryDir(downloadDir, asset.title, entry.no)
+    Sync[F].blocking(Files.createDirectories(dir)).as(dir)
+
+  def addEntryPage(
+      folder: AssetEntryDir,
+      page: Int,
+      ext: String,
+      bytes: Array[Byte]
+  ): F[Unit] =
+    val outputPath = folder.forPage(page, ext)
+    Sync[F]
+      .blocking(
+        Files.write(
+          outputPath,
+          bytes,
+          StandardOpenOption.CREATE,
+          StandardOpenOption.TRUNCATE_EXISTING
+        )
+      )
+      .as(())
