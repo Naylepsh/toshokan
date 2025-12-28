@@ -8,7 +8,6 @@ CREATE TABLE asset_entries (
     id INTEGER PRIMARY KEY,
     no TEXT NOT NULL,
     uri TEXT NOT NULL,
-    was_seen INTEGER NOT NULL DEFAULT 0,
     date_uploaded TEXT NOT NULL,
     asset_id INTEGER NOT NULL, title TEXT NOT NULL DEFAULT '',
 
@@ -59,6 +58,12 @@ CREATE TABLE mal_manga_mapping (
         REFERENCES assets (id)
         ON DELETE CASCADE
 );
+CREATE TABLE entry_progress (
+    entry_id INTEGER PRIMARY KEY,
+    was_seen BOOLEAN NOT NULL DEFAULT FALSE,
+    date_marked_seen DATETIME,
+    FOREIGN KEY (entry_id) REFERENCES asset_entries(id) ON DELETE CASCADE
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20240130211545'),
@@ -67,4 +72,5 @@ INSERT INTO "schema_migrations" (version) VALUES
   ('20240529175125'),
   ('20240712124302'),
   ('20240824174343'),
-  ('20240925081137');
+  ('20240925081137'),
+  ('20251228172549');

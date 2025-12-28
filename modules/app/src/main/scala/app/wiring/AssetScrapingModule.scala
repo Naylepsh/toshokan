@@ -3,12 +3,8 @@ package app.wiring
 import scala.concurrent.duration.*
 
 import assetScraping.configs.*
-import assetScraping.downloading.domain.DownloadDir
-import assetScraping.downloading.{
-  AssetDownloadingController,
-  AssetDownloadingService,
-  AssetDownloadingView
-}
+import assetScraping.downloading.*
+import assetScraping.downloading.domain.{AssetEntryDir, DownloadDir}
 import assetScraping.schedules.*
 import assetScraping.{
   AssetScrapingController,
@@ -21,8 +17,6 @@ import http.View.NavBarItem
 import scraper.Scraper
 import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
-import assetScraping.downloading.domain.AssetEntryDir
-import assetScraping.downloading.EntryLocalStorage
 
 case class AssetScrapingModule[F[_]](
     scrapingService: AssetScrapingService[F],

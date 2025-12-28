@@ -3,18 +3,14 @@ package library
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import cats.implicits.*
-import cats.mtl.syntax.all.*
 import cats.mtl.{Handle, Raise}
-import neotype.interop.cats.given
 
 import domain.*
-import domain.Releases.given
 import category.domain.{CategoryId, CategoryName}
 
 trait AssetService[F[_]]:
   def findAll
       : F[List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]]
-  def findNotSeenReleases: F[List[Releases]]
   def findStale: F[List[StaleAsset]]
   def find(id: AssetId): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def matchCategoriesToAssets(
@@ -28,11 +24,6 @@ trait AssetService[F[_]]:
       entries: List[NewAssetEntry]
   ): F[List[Either[AddEntryError, ExistingAssetEntry]]]
   def update(asset: ExistingAsset): F[Unit]
-  def setSeen(
-      asset: (ExistingAsset, List[ExistingAssetEntry]),
-      entryId: EntryId,
-      seen: WasEntrySeen
-  ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)]
   def delete(assetId: AssetId): F[Unit]
 
 object AssetService:
@@ -42,20 +33,6 @@ object AssetService:
         List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]
       ] =
         repository.findAll
-
-      override def findNotSeenReleases: F[List[Releases]] =
-        repository.findAll.map: all =>
-          all
-            .flatMap: (asset, _, entries) =>
-              entries
-                .filter(_.wasSeen.eqv(WasEntrySeen(false)))
-                .map(entry => asset -> entry)
-            .groupBy: (_, entry) =>
-              entry.dateUploaded
-            .map: (key, assetsAndEntries) =>
-              key -> assetsAndEntries.sortBy(_._1.id)
-            .toList
-            .sorted(using Ordering[Releases].reverse)
 
       override def findStale: F[List[StaleAsset]] =
         repository
@@ -112,18 +89,6 @@ object AssetService:
           * it's not like it's needed for the UI for now
           */
         repository.update(asset)
-
-      override def setSeen(
-          asset: (ExistingAsset, List[ExistingAssetEntry]),
-          entryId: EntryId,
-          seen: WasEntrySeen
-      ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)] =
-        val (existingAsset, entries) = asset
-        entries.find(_.id == entryId) match
-          case None => UpdateEntryError.EntryDoesNotExist.raise
-          case Some(entry) =>
-            val e = entry.copy(wasSeen = seen)
-            repository.update(e).as(existingAsset -> e)
 
       override def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)

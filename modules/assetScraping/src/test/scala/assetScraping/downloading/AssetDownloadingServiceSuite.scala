@@ -46,7 +46,6 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
         EntryTitle("Ch 1"),
         EntryNo("1"),
         EntryUri(java.net.URI("https://mangadex.org/chapter/test1")),
-        WasEntrySeen(false),
         DateUploaded(java.time.LocalDate.now()),
         AssetId(1)
       ),
@@ -55,7 +54,6 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
         EntryTitle("Ch 2"),
         EntryNo("2"),
         EntryUri(java.net.URI("https://mangadex.org/chapter/test2")),
-        WasEntrySeen(false),
         DateUploaded(java.time.LocalDate.now()),
         AssetId(1)
       )
@@ -91,12 +89,13 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
       def getManga(mangaId: String)     = ???
       def getImages(chapterId: String)  = IO.pure(Right(List.empty))
 
-    val config = AssetDownloadingService.Config(1.millis)
+    val config  = AssetDownloadingService.Config(1.millis)
+    val storage = EntryLocalStorage[IO](DownloadDir.tmp)
     val service = AssetDownloadingService.make(
       mockMangadexApi,
       mockBackend,
-      DownloadDir.tmp,
       mockRepo,
+      storage,
       config
     )
 
@@ -119,12 +118,13 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
       def getManga(mangaId: String)     = ???
       def getImages(chapterId: String)  = ???
 
-    val config = AssetDownloadingService.Config(1.millis)
+    val config  = AssetDownloadingService.Config(1.millis)
+    val storage = EntryLocalStorage[IO](DownloadDir.tmp)
     val service = AssetDownloadingService.make(
       mockMangadexApi,
       mockBackend,
-      DownloadDir.tmp,
       mockRepo,
+      storage,
       config
     )
 

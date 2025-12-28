@@ -87,7 +87,7 @@ object Main extends IOApp.Simple:
       )
       progress <- IO.pure(
         app.wiring.ProgressTrackingModule
-          .make(library, mal, mapping, navBarItems)
+          .make(library, mal, mapping, navBarItems, xa)
       )
       importing <- IO.pure(
         app.wiring.AssetImportingModule

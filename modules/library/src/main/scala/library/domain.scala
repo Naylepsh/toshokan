@@ -70,9 +70,6 @@ object EntryNo extends neotype.Subtype[String]:
 type EntryUri = EntryUri.Type
 object EntryUri extends neotype.Subtype[URI]
 
-type WasEntrySeen = WasEntrySeen.Type
-object WasEntrySeen extends neotype.Subtype[Boolean]
-
 type DateUploaded = DateUploaded.Type
 object DateUploaded extends neotype.Subtype[LocalDate]:
   extension (self: DateUploaded)
@@ -109,7 +106,6 @@ case class ExistingAssetEntry(
     title: EntryTitle,
     no: EntryNo,
     uri: EntryUri,
-    wasSeen: WasEntrySeen,
     dateUploaded: DateUploaded,
     assetId: AssetId
 )

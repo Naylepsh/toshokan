@@ -1,7 +1,7 @@
 package core
 
 import java.net.URI
-import java.time.{DayOfWeek, LocalDate}
+import java.time.{DayOfWeek, LocalDate, LocalDateTime}
 
 import scala.util.Try
 
@@ -17,8 +17,10 @@ given Decoder[URI] = Decoder.decodeString.emap(Uri.fromStringSafe)
 given Show[URI] with
   override def show(t: URI): String = t.toString
 
-given Get[LocalDate] = Get[String].map(LocalDate.parse(_))
-given Put[LocalDate] = Put[String].contramap(_.toString)
+given Get[LocalDate]     = Get[String].map(LocalDate.parse)
+given Put[LocalDate]     = Put[String].contramap(_.toString)
+given Get[LocalDateTime] = Get[String].map(LocalDateTime.parse)
+given Put[LocalDateTime] = Put[String].contramap(_.toString)
 
 given Order[DayOfWeek]   = Order[Int].contramap(_.ordinal)
 given Encoder[DayOfWeek] = Encoder.encodeInt.contramap(_.ordinal)

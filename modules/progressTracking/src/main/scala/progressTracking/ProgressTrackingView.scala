@@ -8,10 +8,11 @@ import org.typelevel.cats.time.*
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
+import domain.WasEntrySeen
 import viewComponents.Pagination
 
 class ProgressTrackingView(navbarItems: List[NavBarItem]):
-  def renderReleases(
+  def renderUnseenReleases(
       releases: List[Releases],
       pagination: Pagination
   ): TypedTag[String] =
@@ -48,7 +49,7 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
               .flatMap: (asset, entry) =>
                 Seq[Frag](
                   div(cls := "divider"),
-                  entryPartial(asset, entry)
+                  entryPartial(asset, entry, WasEntrySeen(false))
                 )
               .tail
           )
@@ -75,14 +76,15 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
 
   def entryPartial(
       asset: ExistingAsset,
-      entry: ExistingAssetEntry
+      entry: ExistingAssetEntry,
+      wasSeen: WasEntrySeen
   ): TypedTag[String] =
     val linkToEntry = a(
       href := s"${entry.uri}",
       p(s"[${entry.no.show}] ${entry.title.show}")
     )
     val (headerClass, icon, newState) =
-      if entry.wasSeen
+      if wasSeen
       then ("", i(cls := "fa-solid fa-xmark"), false)
       else ("font-bold", i(cls := "fa-solid fa-check"), true)
     val markingAction = button(

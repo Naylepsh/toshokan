@@ -3,11 +3,13 @@ package schemas
 
 import cats.effect.Concurrent
 import io.circe.Codec
-import library.domain.{AssetId, WasEntrySeen}
+import library.domain.AssetId
 import myAnimeList.domain.ExternalMangaId
 import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
+
+import domain.WasEntrySeen
 
 case class NewMalMangaMappingDTO(assetId: AssetId, malId: ExternalMangaId)
     derives Codec
