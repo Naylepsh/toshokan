@@ -1,7 +1,7 @@
 package app.wiring
 
 import assetScraping.configs.domain.Site
-import cats.effect.kernel.Sync
+import cats.effect.Async
 import com.microsoft.playwright.Browser
 import mangadex.MangadexApi
 import scraper.domain.SiteScraper
@@ -16,11 +16,11 @@ import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
 
 object SiteScrapers:
-  def makeScraperPicker[F[_]: Sync](
+  def makeScraperPicker[F[_]: Async](
       backend: SttpBackend[F, WebSockets],
       browser: Browser
   ) =
-    val mangadexApi         = MangadexApi.make(backend)
+    val mangadexApi         = MangadexApi.make[F](backend)
     val mangadexScraper     = MangadexScraper[F](mangadexApi)
     val mangakakalotScraper = MangakakalotScraper[F]()
     val yattaScraper        = YattaScraper[F]()

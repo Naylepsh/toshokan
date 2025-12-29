@@ -3,7 +3,7 @@ package assetScraping.downloading
 import java.net.URI
 import java.nio.file.{Files, Path, StandardOpenOption}
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 import assetScraping.downloading.domain.{
   AssetEntryDir,
@@ -17,6 +17,7 @@ import library.AssetRepository
 import library.domain.*
 import mangadex.MangadexApi
 import neotype.interop.cats.given
+import retry.{ResultHandler, RetryPolicies, retryingOnErrors}
 import sttp.capabilities.WebSockets
 import sttp.client3.*
 import sttp.model.Uri
@@ -103,7 +104,7 @@ object AssetDownloadingService:
             scribe
               .cats[F]
               .error(
-                s"Failed to download entry ${entryNo}: ${error.getClass.getSimpleName} - ${error.getMessage}",
+                s"Failed to download entry ${entryNo}: ${error.getMessage}",
                 error
               )
               .as(progress.failedOne(entryGroup.head.no))
@@ -185,15 +186,19 @@ object AssetDownloadingService:
         yield ()
       }
 
-    /** TODO: Add retries
-      */
     private def downloadImage(url: URI): F[Array[Byte]] =
-      basicRequest
+      val request = basicRequest
         .get(Uri(url))
         .response(asByteArray)
         .send(backend)
         .map(_.body.leftMap(RuntimeException(_)))
         .flatMap(Sync[F].fromEither)
+      retryingOnErrors(request)(
+        policy = RetryPolicies
+          .limitRetries(2)
+          .join(RetryPolicies.exponentialBackoff(1.second)),
+        errorHandler = ResultHandler.retryOnAllErrors(ResultHandler.noop)
+      )
 
 trait EntryStorage[F[_], CreatedFolder]:
   def createFolder(

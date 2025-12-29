@@ -1,6 +1,6 @@
 package assetScraping
 
-import cats.effect.MonadCancelThrow
+import cats.effect.{MonadCancelThrow, Sync}
 import cats.syntax.all.*
 import library.AssetController.AssetIdVar
 import library.category.CategoryService
@@ -10,7 +10,7 @@ import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 import org.http4s.headers.*
 import org.http4s.server.Router
 
-class AssetScrapingController[F[_]: MonadCancelThrow](
+class AssetScrapingController[F[_]: MonadCancelThrow: Sync](
     service: AssetScrapingService[F],
     categoryService: CategoryService[F],
     view: AssetScrapingView
@@ -25,6 +25,20 @@ class AssetScrapingController[F[_]: MonadCancelThrow](
           view.renderScrapingManagement(categories),
           `Content-Type`(MediaType.text.html)
         )
+
+    case GET -> Root / "stale" =>
+      service.findStale.flatMap: assets =>
+        assets
+          .traverse: (asset, lastRelease) =>
+            lastRelease
+              .daysAgo[F]
+              .map: days =>
+                library.domain.StaleAsset(asset, lastRelease, days)
+          .flatMap: staleAssets =>
+            Ok(
+              view.renderStaleAssets(staleAssets),
+              `Content-Type`(MediaType.text.html)
+            )
 
     case POST -> Root :? OptionalScrapeTypeQueryParam(scrapeType) =>
       val getNewReleases = scrapeType.getOrElse(ScrapeType.Full) match

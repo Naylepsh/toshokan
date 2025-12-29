@@ -7,9 +7,10 @@ import cats.effect.kernel.{Clock, Sync}
 import cats.mtl.Handle
 import cats.syntax.all.*
 import core.Measure.*
-import library.AssetService
+import core.types.PositiveInt
 import library.category.domain.CategoryId
 import library.domain.*
+import library.{AssetRepository, AssetService}
 import neotype.*
 import scraper.domain.{JobLabel, SiteScraper}
 import scraper.{Instruction, ScrapeJobSuccess, Scraper}
@@ -26,10 +27,12 @@ trait AssetScrapingService[F[_]]:
   def getNewReleasesOfCategory(
       categoryId: CategoryId
   ): F[Option[ScrapingSummary]]
+  def findStale: F[List[(ExistingAsset, DateUploaded)]]
 
 object AssetScrapingService:
   def make[F[_]: Sync: Clock](
       assetService: AssetService[F],
+      assetRepository: AssetRepository[F],
       configService: AssetScrapingConfigService[F],
       scheduleService: ScheduleService[F],
       scraper: Scraper[F],
@@ -75,6 +78,15 @@ object AssetScrapingService:
                 val instructions = makeInstructionsForAssets(assetIds, configs)
                 getNewReleases(instructions).map(_.some)
             .getOrElse(None.pure)
+
+    override def findStale: F[List[(ExistingAsset, DateUploaded)]] =
+      for
+        allStale       <- assetRepository.findStale(PositiveInt(90))
+        enabledConfigs <- configService.findAllEnabled
+        enabledAssetIds = enabledConfigs.map(_.assetId).toSet
+        staleEnabled = allStale.filter: (asset, _) =>
+          enabledAssetIds.contains(asset.id)
+      yield staleEnabled
 
     private def getNewReleases(instructions: List[Instruction[F]]) =
       for

@@ -4,6 +4,9 @@ package domain
 import java.net.URI
 import java.time.LocalDate
 
+import scala.util.chaining.*
+
+import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import cats.kernel.Order
 import cats.syntax.all.*
@@ -14,8 +17,6 @@ import org.typelevel.cats.time.*
 
 import util.control.NoStackTrace
 import category.domain.CategoryId
-import cats.data.NonEmptyList
-import scala.util.chaining.*
 
 /** Asset
   */

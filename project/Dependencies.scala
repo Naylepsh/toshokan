@@ -5,6 +5,7 @@ object Dependencies {
   val catsEffect = "org.typelevel"        %% "cats-effect" % "3.6.2"
   val catsTime   = "org.typelevel"        %% "cats-time"   % "0.6.0"
   val catsMtl    = "org.typelevel"        %% "cats-mtl"    % "1.6.0"
+  val catsRetry  = "com.github.cb372"     %% "cats-retry"  % "4.0.0"
   val circeCore  = "io.circe"             %% "circe-core"  % "0.14.14"
   val neotype    = "io.github.kitlangton" %% "neotype"     % "0.3.37"
   val neotypeCirce =

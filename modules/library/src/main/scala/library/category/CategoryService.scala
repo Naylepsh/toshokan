@@ -15,7 +15,7 @@ trait CategoryService[F[_]]:
   def findManga: F[Option[ExistingCategory]]
   def add(
       newCategory: NewCategory
-  ): Raise[F, AddCategoryError] ?=> F[ExistingCategory]
+  ): Raise[F, CategoryAlreadyExists] ?=> F[ExistingCategory]
 
 object CategoryService:
   def make[F[_]: Monad](
@@ -37,9 +37,9 @@ object CategoryService:
 
     override def add(
         newCategory: NewCategory
-    ): Raise[F, AddCategoryError] ?=> F[ExistingCategory] =
+    ): Raise[F, CategoryAlreadyExists] ?=> F[ExistingCategory] =
       repository.findAll.flatMap: categories =>
         categories
           .find(_.name.eqv(newCategory.name))
           .fold(repository.add(newCategory)): _ =>
-            AddCategoryError.CategoryAlreadyExists.raise
+            CategoryAlreadyExists.raise

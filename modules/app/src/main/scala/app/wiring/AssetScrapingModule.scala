@@ -63,6 +63,7 @@ object AssetScrapingModule:
     val siteScraper = SiteScrapers.makeScraperPicker(httpBackend, browser)
     val scrapingService = AssetScrapingService.make[IO](
       library.assetService,
+      library.assetRepository,
       configService,
       scheduleService,
       scraper,

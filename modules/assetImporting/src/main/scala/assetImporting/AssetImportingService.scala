@@ -9,7 +9,7 @@ import cats.mtl.Handle
 import cats.syntax.all.*
 import library.AssetService
 import library.category.CategoryService
-import library.category.domain.ExistingCategory
+import library.category.domain.{CategoryDoesNotExist, ExistingCategory}
 import library.domain.*
 import mangadex.MangadexApi
 import mangadex.schemas.manga.GetMangaResponse
@@ -30,9 +30,7 @@ class AssetImportingService[F[_]: MonadCancelThrow](
     // TODO: Handle domain errors?
     categoryService.findManga.flatMap:
       case None =>
-        MonadCancelThrow[F].raiseError(
-          new RuntimeException(CategoryDoesNotExist.toString)
-        )
+        MonadCancelThrow[F].raiseError(CategoryDoesNotExist)
       case Some(manga) =>
         for
           mangaResponse <- getMangaFromMangadex(uri.id)

@@ -10,6 +10,50 @@ import scalatags.Text.all.*
 class AssetScrapingView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
 
+  def renderStaleAssets(
+      assets: List[library.domain.StaleAsset]
+  ): TypedTag[String] =
+    layout(
+      "Stale Assets".some,
+      div(
+        cls := "mt-5",
+        div(
+          cls := "mb-6",
+          h2(
+            cls := "text-2xl font-bolt text-center mb-2",
+            "Assets with no recent releases"
+          )
+        ),
+        table(
+          cls := "table table-zebra",
+          thead(
+            tr(
+              th("Title"),
+              th("Last Release"),
+              th("Days Ago"),
+              th("")
+            )
+          ),
+          tbody(
+            assets.map: asset =>
+              tr(
+                td(asset.asset.title),
+                td(asset.lastRelease.toString),
+                td(asset.daysSinceLastRelease.toString),
+                td(
+                  a(
+                    cls  := "text-light",
+                    href := s"/assets/${asset.asset.id}",
+                    i(cls := "fa-solid fa-eye")
+                  )
+                )
+              )
+          )
+        )
+      ),
+      navBarItems
+    )
+
   def renderScrapingManagement(categories: List[ExistingCategory]): String =
     layout(
       "Asset scraping".some,

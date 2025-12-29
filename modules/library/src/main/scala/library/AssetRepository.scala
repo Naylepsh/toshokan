@@ -7,6 +7,7 @@ import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import core.Tuples
 import core.given
+import core.types.PositiveInt
 import db.extensions.*
 import doobie.*
 import doobie.implicits.*
@@ -30,8 +31,7 @@ trait AssetRepository[F[_]]:
       entryId: EntryId
   ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def findStale(
-      // TODO: this could be enforced to be a positive number
-      minDaysToBeStale: Int
+      minDaysToBeStale: PositiveInt
   ): F[List[(ExistingAsset, DateUploaded)]]
   def add(asset: NewAsset): Raise[F, AddAssetError] ?=> F[ExistingAsset]
   def add(
@@ -123,18 +123,13 @@ object AssetRepository:
       yield result).value
 
     override def findStale(
-        minDaysToBeStale: Int
+        minDaysToBeStale: PositiveInt
     ): F[List[(ExistingAsset, DateUploaded)]] =
       val cutoff =
-        Fragment.const0(s"""date('now', '${minDaysToBeStale} day')""")
-      // TODO: clean this workaround up
+        Fragment.const0(s"""date('now', '-${minDaysToBeStale} day')""")
       sql"""
       SELECT ${A(_.*)}, MAX(${AE(_.dateUploaded)}) AS last_upload
       FROM ${A}
-      -- ugly workaround here
-      JOIN asset_scraping_configs ON asset_scraping_configs.asset_id = a.id
-      AND asset_scraping_configs.is_enabled = 1
-      -- end of the ugly workaround
       LEFT JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
       GROUP BY ${A(_.id)}
       HAVING last_upload IS NULL OR date(last_upload) < ${cutoff}

@@ -15,7 +15,6 @@ class AssetScrapingConfigView(navBarItems: List[NavBarItem]):
       asset: ExistingAsset,
       configs: List[ExistingAssetScrapingConfig]
   ): String =
-    // TODO: Display asset id
     val configTemplateId = "config-template"
     val configGroupId    = "configs"
     layout(

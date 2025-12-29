@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import cats.implicits.*
 import cats.mtl.{Handle, Raise}
+import core.types.PositiveInt
 
 import domain.*
 import category.domain.{CategoryId, CategoryName}
@@ -36,7 +37,7 @@ object AssetService:
 
       override def findStale: F[List[StaleAsset]] =
         repository
-          .findStale(minDaysToBeStale = 90)
+          .findStale(minDaysToBeStale = PositiveInt(90))
           .flatMap: assets =>
             assets.traverse: (asset, lastRelease) =>
               lastRelease.daysAgo[F].map(StaleAsset(asset, lastRelease, _))
@@ -85,9 +86,6 @@ object AssetService:
           .map(_.flatten)
 
       override def update(asset: ExistingAsset): F[Unit] =
-        /** TODO: This should probably check whether the asset exists first? But
-          * it's not like it's needed for the UI for now
-          */
         repository.update(asset)
 
       override def delete(assetId: AssetId): F[Unit] =

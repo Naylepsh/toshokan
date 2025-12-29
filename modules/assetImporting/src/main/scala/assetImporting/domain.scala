@@ -17,9 +17,5 @@ object MangadexMangaUri extends neotype.Subtype[URI]:
 case object NoMalIdAvailable extends NoStackTrace
 type NoMalIdAvailable = NoMalIdAvailable.type
 
-// TODO: Move it to category.domain?
-case object CategoryDoesNotExist extends NoStackTrace
-type CategoryDoesNotExist = CategoryDoesNotExist.type
-
 case object NoTitleTranslation extends NoStackTrace
 type NoTitleTranslation = NoTitleTranslation.type

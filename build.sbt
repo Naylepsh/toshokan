@@ -98,7 +98,8 @@ lazy val scraper = project
       Dependencies.sttpCats,
       Dependencies.sttpCirce,
       Dependencies.scalaScraper,
-      Dependencies.playwright
+      Dependencies.playwright,
+      Dependencies.catsRetry
     )
   )
   .dependsOn(core, mangadex)
@@ -106,7 +107,9 @@ lazy val scraper = project
 lazy val assetScraping = project
   .in(file("modules/assetScraping"))
   .disablePlugins(RevolverPlugin)
-  .settings(libraryDependencies ++= commonDependencies)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(Dependencies.catsRetry)
+  )
   .dependsOn(core, library, scraper)
 
 lazy val assetMapping = project

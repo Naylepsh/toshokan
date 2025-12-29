@@ -30,13 +30,6 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
             `Content-Type`(MediaType.text.html)
           )
 
-    case GET -> Root / "stale" =>
-      assetService.findStale.flatMap: assets =>
-        Ok(
-          view.renderStaleAssets(assets),
-          `Content-Type`(MediaType.text.html)
-        )
-
     case GET -> Root / "new" =>
       categoryService.findAll.flatMap: categories =>
         Ok(
@@ -98,8 +91,6 @@ object AssetController:
   object EntryIdVar:
     def unapply(str: String): Option[EntryId] =
       str.toIntOption.map(EntryId(_))
-
-  // PartialAssetEntry removed - progress tracking moved to ProgressTrackingController
 
   given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
 

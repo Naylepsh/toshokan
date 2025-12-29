@@ -7,6 +7,7 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.mtl.Raise
 import cats.syntax.eq.*
+import core.types.PositiveInt
 import library.AssetRepository
 import library.category.domain.CategoryId
 import library.domain.*
@@ -23,7 +24,7 @@ trait TestAssetRepository extends AssetRepository[IO]:
   def findAll                                                              = ???
   def findById(assetId: AssetId)                                           = ???
   def findByEntryId(entryId: EntryId)                                      = ???
-  def findStale(minDaysToBeStale: Int)                                     = ???
+  def findStale(minDaysToBeStale: PositiveInt)                             = ???
   def add(asset: NewAsset): Raise[IO, AddAssetError] ?=> IO[ExistingAsset] = ???
   def add(
       entry: NewAssetEntry
