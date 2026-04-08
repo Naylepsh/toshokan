@@ -3,7 +3,7 @@ package domain
 
 import cats.syntax.all.*
 import library.category.domain.CategoryName
-import library.domain.AssetId
+import library.asset.domain.AssetId
 import myAnimeList.domain.ExternalMangaId
 import neotype.*
 

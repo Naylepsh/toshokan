@@ -10,7 +10,7 @@ import core.given
 import db.fragments.*
 import doobie.*
 import doobie.implicits.*
-import library.domain.AssetId
+import library.asset.domain.AssetId
 import neotype.interop.doobie.given
 
 import domain.*

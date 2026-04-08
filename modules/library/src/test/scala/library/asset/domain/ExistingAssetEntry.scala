@@ -1,4 +1,4 @@
-package library.domain
+package library.asset.domain
 
 import java.net.URI
 import java.time.LocalDate

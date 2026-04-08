@@ -1,10 +1,10 @@
-package library
+package library.asset
 
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.implicits.*
 import cats.mtl.Handle
 import library.category.CategoryService
-import library.domain.*
+import library.asset.domain.*
 import neotype.*
 import org.http4s.*
 import org.http4s.circe.*

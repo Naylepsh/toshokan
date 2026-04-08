@@ -2,10 +2,10 @@ package assetScraping.schedules.domain
 
 import java.time.{DayOfWeek, LocalDate}
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, NonEmptySet}
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
 import library.category.domain.CategoryId
+import scala.collection.immutable.SortedSet
 
 type DayOfTheWeek = DayOfTheWeek.Type
 object DayOfTheWeek extends neotype.Subtype[DayOfWeek]:
@@ -15,21 +15,17 @@ object DayOfTheWeek extends neotype.Subtype[DayOfWeek]:
   def now[F[_]](using F: Sync[F]): F[DayOfTheWeek] =
     F.delay(DayOfTheWeek(LocalDate.now().getDayOfWeek))
 
-case class ScrapingSchedule private (
-    categoryId: CategoryId,
-    days: NonEmptyList[DayOfTheWeek]
-)
-object ScrapingSchedule:
-  def apply(
-      categoryId: CategoryId,
-      days: NonEmptyList[DayOfTheWeek]
-  ): ScrapingSchedule =
-    val dedupedDays =
-      NonEmptyList.fromListUnsafe(Set.from(days.toIterable).toList.sorted)
-    new ScrapingSchedule(categoryId, dedupedDays)
+  def makeAll(days: List[DayOfTheWeek]): Option[NonEmptySet[DayOfTheWeek]] =
+    NonEmptySet.fromSet(SortedSet.from(days))
 
 enum AddScheduleError:
   case CategoryDoesNotExist
 
 enum UpdateScheduleError:
   case CategoryDoesNotExist, ScheduleDoesNotExist
+
+enum ScrapingSchedule:
+  def days: NonEmptySet[DayOfTheWeek]
+
+  case Category(categoryId: CategoryId, days: NonEmptySet[DayOfTheWeek])
+  case Authors(days: NonEmptySet[DayOfTheWeek])

@@ -13,8 +13,8 @@ import assetScraping.downloading.domain.{
 import cats.MonadThrow
 import cats.effect.kernel.{Sync, Temporal}
 import cats.syntax.all.*
-import library.AssetRepository
-import library.domain.*
+import library.asset.AssetRepository
+import library.asset.domain.*
 import mangadex.MangadexApi
 import neotype.interop.cats.given
 import retry.{ResultHandler, RetryPolicies, retryingOnErrors}

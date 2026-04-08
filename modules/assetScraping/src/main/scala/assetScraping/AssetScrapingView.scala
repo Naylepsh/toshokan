@@ -11,7 +11,7 @@ class AssetScrapingView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
 
   def renderStaleAssets(
-      assets: List[library.domain.StaleAsset]
+      assets: List[library.asset.domain.StaleAsset]
   ): TypedTag[String] =
     layout(
       "Stale Assets".some,

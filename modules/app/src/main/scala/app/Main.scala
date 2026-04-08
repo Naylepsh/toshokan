@@ -96,8 +96,10 @@ object Main extends IOApp.Simple:
       system <- IO.pure(app.wiring.SystemModule.make(shutdownSignal))
     yield List(
       library.assetController,
+      library.authorController,
       scraping.scrapingController,
       scraping.configController,
+      scraping.authorConfigController,
       scraping.downloadingController,
       scraping.scheduleController,
       mal.controller,

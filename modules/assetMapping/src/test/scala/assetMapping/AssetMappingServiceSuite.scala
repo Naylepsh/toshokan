@@ -9,8 +9,8 @@ import db.transactors.inMemoryTransactor
 import doobie.util.transactor.Transactor
 import library.category.domain.{CategoryName, NewCategory}
 import library.category.{CategoryRepository, CategoryService}
-import library.domain.*
-import library.{AssetRepository, AssetService}
+import library.asset.domain.*
+import library.asset.{AssetRepository, AssetService}
 import myAnimeList.MyAnimeListServiceImpl
 import myAnimeList.domain.ExternalMangaId
 

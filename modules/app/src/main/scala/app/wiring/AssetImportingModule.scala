@@ -26,6 +26,7 @@ object AssetImportingModule:
       library.categoryService,
       mapping.service,
       scraping.configService,
+      library.authorRepository,
       externals.mangadexApi
     )
     val view       = AssetImportingView(navBarItems)

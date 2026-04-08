@@ -8,9 +8,9 @@ import cats.effect.IO
 import cats.mtl.Raise
 import cats.syntax.eq.*
 import core.types.PositiveInt
-import library.AssetRepository
+import library.asset.AssetRepository
 import library.category.domain.CategoryId
-import library.domain.*
+import library.asset.domain.*
 import mangadex.MangadexApi
 import munit.CatsEffectSuite
 import neotype.interop.cats.given
@@ -36,6 +36,8 @@ trait TestAssetRepository extends AssetRepository[IO]:
   def matchCategoriesToAssets(
       categoryIds: NonEmptyList[CategoryId]
   ): IO[Map[CategoryId, List[AssetId]]] = ???
+  def findOrAdd(assets: Set[NewAsset]): IO[Set[ExistingAsset]] = ???
+  def mergeAssets(sourceId: AssetId, targetId: AssetId): IO[Unit] = ???
 
 class AssetDownloadingServiceSuite extends CatsEffectSuite:
   import AssetDownloadingServiceSuite.*
@@ -66,7 +68,12 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
       ): IO[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
         if assetId == AssetId(1) then
           IO.pure(
-            Some((ExistingAsset(AssetId(1), AssetTitle("Test"), None), entries))
+            Some(
+              (
+                ExistingAsset(AssetId(1), AssetTitle("Test"), None, List.empty),
+                entries
+              )
+            )
           )
         else IO.pure(None)
 
@@ -78,7 +85,12 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
             IO.pure(
               Some(
                 (
-                  ExistingAsset(AssetId(1), AssetTitle("Test"), None),
+                  ExistingAsset(
+                    AssetId(1),
+                    AssetTitle("Test"),
+                    None,
+                    List.empty
+                  ),
                   List(entry)
                 )
               )

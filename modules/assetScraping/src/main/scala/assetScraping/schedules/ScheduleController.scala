@@ -1,7 +1,6 @@
 package assetScraping.schedules
 
 import cats.MonadThrow
-import cats.data.NonEmptyList
 import cats.effect.Concurrent
 import cats.mtl.Handle
 import cats.syntax.all.*
@@ -88,7 +87,7 @@ object ScheduleController:
       categoryId: CategoryId,
       days: List[DayOfTheWeek]
   ) derives Decoder:
-    def toDomain: Either[String, ScrapingSchedule] =
+    def toDomain: Either[String, ScrapingSchedule.Category] =
       makeScrapingSchedule(days)(categoryId)
 
   object CreateScheduleDTO:
@@ -96,15 +95,17 @@ object ScheduleController:
       jsonOf[F, CreateScheduleDTO]
 
   case class UpdateScheduleDTO(days: List[DayOfTheWeek]) derives Decoder:
-    val toDomain: CategoryId => Either[String, ScrapingSchedule] =
+    val toDomain: CategoryId => Either[String, ScrapingSchedule.Category] =
       makeScrapingSchedule(days)
 
   object UpdateScheduleDTO:
     given [F[_]: Concurrent]: EntityDecoder[F, UpdateScheduleDTO] =
       jsonOf[F, UpdateScheduleDTO]
 
-  def makeScrapingSchedule(days: List[DayOfTheWeek])(categoryId: CategoryId) =
-    NonEmptyList
-      .fromList(days)
-      .map(ScrapingSchedule(categoryId, _))
+  def makeScrapingSchedule(
+      days: List[DayOfTheWeek]
+  )(categoryId: CategoryId): Either[String, ScrapingSchedule.Category] =
+    DayOfTheWeek
+      .makeAll(days)
+      .map[ScrapingSchedule.Category](ScrapingSchedule.Category(categoryId, _))
       .toRight("At least one day required")

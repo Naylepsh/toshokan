@@ -2,7 +2,7 @@ package assetScraping.downloading.domain
 
 import java.nio.file.Path
 
-import library.domain.*
+import library.asset.domain.*
 
 type DownloadDir = DownloadDir.Type
 object DownloadDir extends neotype.Subtype[Path]:

@@ -46,7 +46,23 @@ object manga:
         .orElse(title.get("ja"))
         .orElse(title.get("ja-ro"))
 
-  case class Manga(attributes: MangaAttributes) derives Decoder
+  case class RelationshipAttributes(name: Option[String]) derives Decoder
+
+  case class Relationship(
+      `type`: String,
+      attributes: Option[RelationshipAttributes]
+  ) derives Decoder
+
+  case class Manga(
+      attributes: MangaAttributes,
+      relationships: Option[List[Relationship]]
+  ) derives Decoder:
+    val authorNames: List[String] =
+      relationships.getOrElse(Nil).collect:
+        case Relationship(t, Some(RelationshipAttributes(Some(name))))
+            if t == "author" || t == "artist" =>
+          name
+      .distinct
 
   case class GetMangaResponse(data: Manga) derives Decoder
 
