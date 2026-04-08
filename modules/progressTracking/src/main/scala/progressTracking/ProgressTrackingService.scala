@@ -5,9 +5,9 @@ import cats.effect.*
 import cats.implicits.*
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
-import library.AssetService
-import library.domain.*
-import library.domain.Releases.given
+import library.asset.AssetService
+import library.asset.domain.*
+import library.asset.domain.Releases.given
 import myAnimeList.MyAnimeListService
 import neotype.interop.cats.given
 

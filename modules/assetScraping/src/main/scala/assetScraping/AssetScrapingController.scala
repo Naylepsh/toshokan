@@ -2,7 +2,7 @@ package assetScraping
 
 import cats.effect.{MonadCancelThrow, Sync}
 import cats.syntax.all.*
-import library.AssetController.AssetIdVar
+import library.asset.AssetController.AssetIdVar
 import library.category.CategoryService
 import library.category.schemas.CategoryIdVar
 import org.http4s.*
@@ -33,7 +33,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Sync](
             lastRelease
               .daysAgo[F]
               .map: days =>
-                library.domain.StaleAsset(asset, lastRelease, days)
+                library.asset.domain.StaleAsset(asset, lastRelease, days)
           .flatMap: staleAssets =>
             Ok(
               view.renderStaleAssets(staleAssets),

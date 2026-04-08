@@ -1,15 +1,15 @@
-package library
+package library.asset
 
 import cats.syntax.all.*
 import core.given
 import http.View.{NavBarItem, dialog, layout}
-import library.domain.*
+import library.asset.domain.*
 import neotype.*
 import neotype.interop.cats.given
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
-import category.domain.*
+import library.category.domain.*
 
 class AssetView(navBarItems: List[NavBarItem]):
   import AssetView.*

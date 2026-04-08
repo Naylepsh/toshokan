@@ -2,7 +2,7 @@ package assetScraping.configs
 
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout, template}
-import library.domain.{AssetId, ExistingAsset}
+import library.asset.domain.{AssetId, ExistingAsset}
 import neotype.*
 import scalatags.Text.all.*
 

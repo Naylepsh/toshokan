@@ -3,7 +3,7 @@ package assetScraping.downloading
 import assetScraping.downloading.domain.AssetEntryDir
 import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
-import library.AssetController.{AssetIdVar, EntryIdVar}
+import library.asset.AssetController.{AssetIdVar, EntryIdVar}
 import org.http4s.*
 import org.http4s.headers.*
 import org.http4s.server.Router

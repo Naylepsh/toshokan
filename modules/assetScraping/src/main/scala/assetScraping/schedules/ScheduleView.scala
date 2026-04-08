@@ -40,7 +40,7 @@ class ScheduleView(navBarItems: List[NavBarItem]):
 
   def renderForm(
       availableCategories: List[ExistingCategory],
-      schedule: Option[ScrapingSchedule]
+      schedule: Option[ScrapingSchedule.Category]
   ): TypedTag[String] =
     val title = inferFormTitle(availableCategories, schedule)
     layout(
@@ -51,7 +51,7 @@ class ScheduleView(navBarItems: List[NavBarItem]):
 
   def formPartial(
       availableCategories: List[ExistingCategory],
-      schedule: Option[ScrapingSchedule],
+      schedule: Option[ScrapingSchedule.Category],
       title: String
   ): TypedTag[String] =
     div(
@@ -131,7 +131,7 @@ class ScheduleView(navBarItems: List[NavBarItem]):
 
   private def inferFormTitle(
       availableCategories: List[ExistingCategory],
-      schedule: Option[ScrapingSchedule]
+      schedule: Option[ScrapingSchedule.Category]
   ) =
     schedule
       .map: schedule =>

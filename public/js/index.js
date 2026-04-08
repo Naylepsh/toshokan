@@ -32,3 +32,52 @@ const removeClosest = (self, selector) => {
     elem.remove();
   }
 };
+
+/**
+ * Collects checked asset IDs (or uses provided IDs) and opens the merge preview modal.
+ * @param {string} authorId
+ * @param {number[]} [preselectedIds]
+ */
+const openMergePreview = (authorId, preselectedIds) => {
+  const ids =
+    preselectedIds ||
+    Array.from(
+      document.querySelectorAll("input[name=merge-asset]:checked")
+    ).map((cb) => parseInt(cb.value));
+
+  if (ids.length < 2) {
+    alert("Select at least 2 assets to merge");
+    return;
+  }
+
+  fetch("/authors/" + authorId + "/merge/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assetIds: ids }),
+  })
+    .then((r) => r.text())
+    .then((html) => {
+      document.getElementById("merge-modal-content").innerHTML = html;
+      document.getElementById("merge_modal").showModal();
+    });
+};
+
+/**
+ * Confirms the merge: moves all entries from non-target assets into the target.
+ * @param {string} authorId
+ * @param {number[]} assetIds
+ */
+const confirmMerge = (authorId, assetIds) => {
+  const targetId = parseInt(
+    document.querySelector("input[name=merge-target]:checked").value
+  );
+  const sourceIds = assetIds.filter((id) => id !== targetId);
+
+  fetch("/authors/" + authorId + "/merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assetIds: sourceIds, targetId: targetId }),
+  }).then(() => {
+    window.location = "/authors/" + authorId;
+  });
+};

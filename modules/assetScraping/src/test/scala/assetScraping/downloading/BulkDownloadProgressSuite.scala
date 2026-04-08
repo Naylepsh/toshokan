@@ -1,7 +1,7 @@
 package assetScraping.downloading
 
 import assetScraping.downloading.domain.BulkDownloadProgress
-import library.domain.{AssetId, EntryId, EntryNo}
+import library.asset.domain.{AssetId, EntryId, EntryNo}
 import munit.CatsEffectSuite
 
 class BulkDownloadProgressSuite extends CatsEffectSuite:

@@ -23,6 +23,8 @@ case class AssetScrapingModule[F[_]](
     scrapingController: AssetScrapingController[F],
     configService: AssetScrapingConfigService[F],
     configController: AssetScrapingConfigController[F],
+    authorConfigService: AuthorScrapingConfigService[F],
+    authorConfigController: AuthorScrapingConfigController[F],
     downloadingService: AssetDownloadingService[F, AssetEntryDir],
     downloadingController: AssetDownloadingController[F],
     scheduleService: ScheduleService[F],
@@ -46,6 +48,13 @@ object AssetScrapingModule:
     val configController =
       AssetScrapingConfigController(configService, configView)
 
+    val authorConfigRepository = AuthorScrapingConfigRepository.make[IO](xa)
+    val authorConfigService = AuthorScrapingConfigService
+      .make[IO](authorConfigRepository, library.authorRepository)
+    val authorConfigView = AuthorScrapingConfigView(navBarItems)
+    val authorConfigController =
+      AuthorScrapingConfigController(authorConfigService, library.authorRepository, authorConfigView)
+
     val scheduleRepository = ScheduleRepository.make[IO](xa)
     val scheduleService = ScheduleService.make(
       scheduleRepository,
@@ -60,14 +69,17 @@ object AssetScrapingModule:
     )
 
     val scraper     = Scraper.make[IO]
-    val siteScraper = SiteScrapers.makeScraperPicker(httpBackend, browser)
+    val siteScrapers = SiteScrapers.make(httpBackend, browser)
     val scrapingService = AssetScrapingService.make[IO](
       library.assetService,
       library.assetRepository,
       configService,
+      authorConfigService,
+      library.authorRepository,
       scheduleService,
       scraper,
-      siteScraper
+      siteScrapers.forAsset,
+      siteScrapers.forAuthor
     )
     val scrapingView = AssetScrapingView(navBarItems)
     val scrapingController = AssetScrapingController[IO](
@@ -95,6 +107,8 @@ object AssetScrapingModule:
       scrapingController = scrapingController,
       configService = configService,
       configController = configController,
+      authorConfigService = authorConfigService,
+      authorConfigController = authorConfigController,
       downloadingService = downloadingService,
       downloadingController = downloadingController,
       scheduleService = scheduleService,

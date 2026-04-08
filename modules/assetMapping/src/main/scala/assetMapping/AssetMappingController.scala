@@ -3,9 +3,9 @@ package assetMapping
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.mtl.Handle
 import cats.syntax.all.*
-import library.AssetController.AssetIdVar
-import library.AssetService
-import library.domain.AssetId
+import library.asset.AssetController.AssetIdVar
+import library.asset.AssetService
+import library.asset.domain.AssetId
 import myAnimeList.domain.Term
 import org.http4s.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher

@@ -4,8 +4,8 @@ import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.mtl.Handle
 import cats.syntax.all.*
 import io.circe.*
-import library.AssetController.AssetIdVar
-import library.domain.AssetId
+import library.asset.AssetController.AssetIdVar
+import library.asset.domain.AssetId
 import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*

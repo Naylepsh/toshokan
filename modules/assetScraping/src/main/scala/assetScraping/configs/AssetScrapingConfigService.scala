@@ -4,8 +4,8 @@ import cats.effect.kernel.Sync
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
-import library.AssetService
-import library.domain.*
+import library.asset.AssetService
+import library.asset.domain.*
 
 import domain.*
 

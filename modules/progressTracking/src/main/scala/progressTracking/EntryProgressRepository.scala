@@ -8,7 +8,7 @@ import core.given
 import db.extensions.*
 import doobie.*
 import doobie.implicits.*
-import library.domain.EntryId
+import library.asset.domain.EntryId
 import neotype.interop.doobie.given
 import org.typelevel.cats.time.*
 

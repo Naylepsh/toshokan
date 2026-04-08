@@ -15,15 +15,20 @@ import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
 import net.ruippeixotog.scalascraper.model.Element
 import scraper.domain.*
 
+private type Language = Language.Type
+private object Language extends neotype.Subtype[String]
+
 class HitomiScraper[F[_]: MonadCancelThrow: Sync](
     browser: Browser,
     timeout: Short
-) extends SiteScraper[F]:
+) extends SiteScraperOfAuthor[F]:
 
   import scraper.util.playwright.*
   import HitomiScraper.*
 
-  override def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
+  override def scrapeForAssets(
+      uri: AuthorScrapingUri
+  ): F[Either[ScrapeError, List[AssetFound]]] =
     browser.makePage
       .use: page =>
         scribe.cats[F].debug(s"Scraping $uri")
@@ -44,22 +49,20 @@ class HitomiScraper[F[_]: MonadCancelThrow: Sync](
         case Left(_) => ScrapeError.Other("Content did not load in time").asLeft
         case Right(_) => ().asRight
 
-  private def parse(page: Page): Either[ScrapeError, List[EntryFound]] =
+  private def parse(page: Page): Either[ScrapeError, List[AssetFound]] =
     val html = JsoupBrowser().parseString(page.content())
     HitomiScraper
       .parse(html >> elementList(".gallery-content > div"))
-      .flatMap:
-        case Nil => ScrapeError.NoEntriesFound.asLeft
-        case entries =>
-          entries
-            .foldLeft(List.empty[EntryFound]):
-              case (acc, (entry, language)) =>
-                if allowedLanguages.contains(language) then entry :: acc
-                else acc
-            .asRight
+      .map: assets =>
+        assets
+          .foldLeft(List.empty[AssetFound]):
+            case (acc, (asset, language)) =>
+              if allowedLanguages.contains(language) then asset :: acc
+              else acc
 
 object HitomiScraper:
-  private val allowedLanguages = List("english", "japanese", "chinese", "N/A")
+  private val allowedLanguages =
+    Language.applyAll("english", "japanese", "chinese", "N/A")
 
   private val uriPattern = "^/(.*)/.*-([0-9]+).html$".r
 
@@ -71,14 +74,14 @@ object HitomiScraper:
 
   private def parse(
       entries: List[Element]
-  ): Either[ScrapeError, List[(EntryFound, String)]] =
+  ): Either[ScrapeError, List[(AssetFound, Language)]] =
     parse(entries, List.empty)
 
   @tailrec
   private def parse(
       entries: List[Element],
-      acc: List[(EntryFound, String)]
-  ): Either[ScrapeError, List[(EntryFound, String)]] =
+      acc: List[(AssetFound, Language)]
+  ): Either[ScrapeError, List[(AssetFound, Language)]] =
     entries match
       case Nil => acc.asRight
       case entry :: tail =>
@@ -90,28 +93,40 @@ object HitomiScraper:
               parse(entry).map(e => (e -> language) :: acc).getOrElse(acc)
             )
 
-  private def parse(entry: Element): Option[EntryFound] =
+  private def parse(entry: Element): Either[ScrapeError, AssetFound] =
     val titleElem = entry >> element(".lillie > a")
     val title     = EntryTitle(titleElem.text)
     val no        = EntryNo("")
     val href      = titleElem >> attr("href")
     val uri       = EntryUri(makeUri(href))
-    parseDate(entry >> element("p.date") >> attr("data-posted")).map: date =>
-      val dateUploaded = DateUploaded(date)
-      EntryFound(title, no, uri, dateUploaded)
+    for
+      artists <- (entry >> elements(".artist-list a[href]") >> texts).toList
+        .traverse(Author.make)
+        .map(_.toSet)
+        .leftMap(error => ScrapeError.Other(error))
+      entry <- Either.fromOption(
+        parseDate(entry >> element("p.date") >> attr("data-posted")).map {
+          date =>
+            val dateUploaded = DateUploaded(date)
+            EntryFound(title, no, uri, dateUploaded)
+        },
+        ScrapeError.Other(s"No date uploaded for ${title}")
+      )
+    yield AssetFound.ofSingleEntry(entry, artists)
 
   private val languageInHrefRegex = ".*index-(.+).html".r
-  private def parseLanguage(entry: Element): Either[ScrapeError, String] =
+  private def parseLanguage(entry: Element): Either[ScrapeError, Language] =
     (entry >?> element("table tr:nth-of-type(3) a[href]"))
       // cannot use `>>` because cats' impl takes precedence
       .extract(attr("href"))
       .map:
-        case languageInHrefRegex(language) => language.asRight
+        case languageInHrefRegex(language) =>
+          Language.make(language).leftMap(ScrapeError.Other(_))
         case other =>
           ScrapeError
             .Other(s"Could not extract language from href: $other")
             .asLeft
-      .getOrElse("N/A".asRight)
+      .getOrElse(Language("N/A").asRight)
 
   private def parseDate(rawDate: String): Option[LocalDate] =
     // It seems like there are entries with data-posted equal to an empty string

@@ -3,7 +3,7 @@ package assetScraping
 import java.net.URI
 
 import cats.syntax.all.*
-import library.domain.AssetId
+import library.asset.domain.AssetId
 
 import configs.domain.*
 

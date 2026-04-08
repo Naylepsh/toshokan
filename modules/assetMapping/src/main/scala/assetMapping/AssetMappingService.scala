@@ -10,9 +10,9 @@ import core.Tuples
 import doobie.{util as _, *}
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import library.AssetService
+import library.asset.AssetService
 import library.category.CategoryService
-import library.domain.*
+import library.asset.domain.*
 import myAnimeList.MyAnimeListService
 import myAnimeList.domain.{ExternalMangaId, Manga, Term}
 

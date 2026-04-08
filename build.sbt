@@ -180,6 +180,18 @@ lazy val app = project
   )
   .disablePlugins(RevolverPlugin)
 
+lazy val migrations = project
+  .in(file("modules/migrations"))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.doobieHikari,
+      Dependencies.hikariCp,
+      Dependencies.sqliteJDBC
+    )
+  )
+  .dependsOn(core, db, library, assetScraping)
+
 lazy val root = project
   .in(file("."))
   .settings(

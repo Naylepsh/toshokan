@@ -46,7 +46,7 @@ object MangadexApi:
         mangaId: String
     ): F[Either[Throwable, GetMangaResponse]] =
       val url =
-        uri"https://api.mangadex.org/manga/$mangaId"
+        uri"https://api.mangadex.org/manga/$mangaId?includes[]=author&includes[]=artist"
 
       basicRequest
         .get(url)

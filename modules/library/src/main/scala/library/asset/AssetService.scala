@@ -1,4 +1,4 @@
-package library
+package library.asset
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
@@ -7,7 +7,7 @@ import cats.mtl.{Handle, Raise}
 import core.types.PositiveInt
 
 import domain.*
-import category.domain.{CategoryId, CategoryName}
+import library.category.domain.{CategoryId, CategoryName}
 
 trait AssetService[F[_]]:
   def findAll
@@ -26,6 +26,7 @@ trait AssetService[F[_]]:
   ): F[List[Either[AddEntryError, ExistingAssetEntry]]]
   def update(asset: ExistingAsset): F[Unit]
   def delete(assetId: AssetId): F[Unit]
+  def mergeAssets(sourceId: AssetId, targetId: AssetId): F[Unit]
 
 object AssetService:
   def make[F[_]: Sync](repository: AssetRepository[F]): AssetService[F] =
@@ -90,3 +91,6 @@ object AssetService:
 
       override def delete(assetId: AssetId): F[Unit] =
         repository.delete(assetId)
+
+      override def mergeAssets(sourceId: AssetId, targetId: AssetId): F[Unit] =
+        repository.mergeAssets(sourceId, targetId)

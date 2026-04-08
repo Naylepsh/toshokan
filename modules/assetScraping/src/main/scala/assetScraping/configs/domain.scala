@@ -5,7 +5,8 @@ import java.net.URI
 import cats.syntax.all.*
 import doobie.util.{Read, Write}
 import io.circe.{Decoder, Encoder}
-import library.domain.AssetId
+import library.author.domain.AuthorId
+import library.asset.domain.AssetId
 
 type AssetScrapingConfigId = AssetScrapingConfigId.Type
 object AssetScrapingConfigId extends neotype.Newtype[Long]
@@ -20,6 +21,8 @@ enum Site:
   case Mangakakalot, Mangadex, Yatta, Hitomi, Empik, DynastyScans, Batoto
 
 object Site:
+  def supportedForAuthors: List[Site] = List(Hitomi)
+
   // SQL
   given Read[Site] = Read[String].map:
     case "mangadex"      => Mangadex
@@ -176,3 +179,63 @@ enum UpdateScrapingConfigError:
   case AssetDoesNotExists
   case ConfigDoesNotExist
   case ConflictingConfigError
+
+type AuthorScrapingConfigId = AuthorScrapingConfigId.Type
+object AuthorScrapingConfigId extends neotype.Newtype[Long]
+
+enum AuthorSite:
+  case Hitomi
+
+object AuthorSite:
+  // SQL
+  given Read[AuthorSite] = Read[String].map:
+    case "hitomi" => Hitomi
+  given Write[AuthorSite] = Write[String].contramap:
+    case Hitomi => "hitomi"
+
+  // JSON
+  given Decoder[AuthorSite] = Decoder[String].emap:
+    case "Hitomi" => Hitomi.asRight
+    case other    => s"'$other' is not a valid site".asLeft
+  given Encoder[AuthorSite] = Encoder[String].contramap(_.toString)
+
+case class NewAuthorScrapingConfig private (
+    uri: ScrapingConfigUri,
+    site: AuthorSite,
+    isEnabled: IsConfigEnabled,
+    authorId: AuthorId
+)
+
+object NewAuthorScrapingConfig:
+  private val hitomiUri = "^https://hitomi.la/artist/(.+).html$".r
+
+  def make(
+      uri: ScrapingConfigUri,
+      site: AuthorSite,
+      isEnabled: IsConfigEnabled,
+      authorId: AuthorId
+  ): Either[String, NewAuthorScrapingConfig] =
+    normalizeUri(uri, site).map: uri =>
+      NewAuthorScrapingConfig(uri, site, isEnabled, authorId)
+
+  def normalizeUri(
+      uri: ScrapingConfigUri,
+      site: AuthorSite
+  ): Either[String, ScrapingConfigUri] =
+    site match
+      case AuthorSite.Hitomi =>
+        uri.toString match
+          case hitomiUri(_) => uri.asRight
+          case other =>
+            s"Uri: $other is not a valid config uri of site: $site".asLeft
+
+case class ExistingAuthorScrapingConfig private (
+    id: AuthorScrapingConfigId,
+    uri: ScrapingConfigUri,
+    site: AuthorSite,
+    isEnabled: IsConfigEnabled,
+    authorId: AuthorId
+)
+
+enum AddAuthorScrapingConfig:
+  case ConfigAlreadyExists, AuthorDoesNotExist

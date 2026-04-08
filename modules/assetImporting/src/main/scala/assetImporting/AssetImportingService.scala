@@ -7,10 +7,12 @@ import assetScraping.configs.domain.*
 import cats.effect.MonadCancelThrow
 import cats.mtl.Handle
 import cats.syntax.all.*
-import library.AssetService
+import library.asset.AssetService
+import library.author.AuthorRepository
+import library.author.domain.AuthorName
 import library.category.CategoryService
 import library.category.domain.{CategoryDoesNotExist, ExistingCategory}
-import library.domain.*
+import library.asset.domain.*
 import mangadex.MangadexApi
 import mangadex.schemas.manga.GetMangaResponse
 import myAnimeList.domain.ExternalMangaId
@@ -22,6 +24,7 @@ class AssetImportingService[F[_]: MonadCancelThrow](
     categoryService: CategoryService[F],
     assetMappingService: AssetMappingService[F],
     assetScrapingConfigService: AssetScrapingConfigService[F],
+    authorRepository: AuthorRepository[F],
     mangadex: MangadexApi[F]
 ):
   def importFromMangadex(
@@ -55,11 +58,14 @@ class AssetImportingService[F[_]: MonadCancelThrow](
     for
       title <- mangaResponse.data.attributes.preferredTitle
         .liftTo[F](new RuntimeException(NoTitleTranslation.toString))
+      authors <- authorRepository.findOrAdd(
+        mangaResponse.data.authorNames.map(AuthorName(_)).toSet
+      )
       result <-
         Handle
           .allow[AddAssetError]:
             assetService
-              .add(NewAsset(AssetTitle(title), manga.id.some))
+              .add(NewAsset(AssetTitle(title), manga.id.some, authors.map(_.id).toList))
           .rescue: error =>
             MonadCancelThrow[F].raiseError(new RuntimeException(error.toString))
     yield result

@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 
 import cats.syntax.all.*
 import library.category.domain.CategoryName
-import library.domain.{AssetId, EntryId, EntryNo}
+import library.asset.domain.{AssetId, EntryId, EntryNo}
 import myAnimeList.domain.{ExternalMangaId, LatestChapter}
 import neotype.*
 

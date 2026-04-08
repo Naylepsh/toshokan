@@ -3,8 +3,8 @@ package progressTracking
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.mtl.Handle
 import cats.syntax.all.*
-import library.AssetController.{AssetIdVar, EntryIdVar}
-import library.domain.{AssetId, UpdateEntryError}
+import library.asset.AssetController.{AssetIdVar, EntryIdVar}
+import library.asset.domain.{AssetId, UpdateEntryError}
 import myAnimeList.domain.Term
 import org.http4s.*
 import org.http4s.dsl.impl.{

@@ -1,59 +1,42 @@
 package scraper
 
-import java.net.URI
-
 import cats.syntax.all.*
 import cats.{Applicative, Parallel}
 import scraper.domain.*
-
-type ScrapeJobError   = (JobLabel, ScrapeError)
-type ScrapeJobSuccess = (JobLabel, List[EntryFound])
-type ScrapeResults    = (List[ScrapeJobError], List[ScrapeJobSuccess])
-object ScrapeResults:
-  val empty: ScrapeResults = (List.empty, List.empty)
-
-type Instruction[F[_]] = (JobLabel, URI, SiteScraper[F])
 
 trait Scraper[F[_]]:
   def scrape(instructions: List[Instruction[F]]): F[ScrapeResults]
 
 object Scraper:
-  def noop[F[_]: Applicative]: Scraper[F] = new:
-    def scrape(
-        instructions: List[Instruction[F]]
-    ): F[ScrapeResults] =
-      (List.empty, List.empty).pure
-
   def make[F[_]: Applicative: Parallel]: Scraper[F] = new:
     def scrape(instructions: List[Instruction[F]]): F[ScrapeResults] =
-      instructions
-        .groupBy(_._3)
-        .values
-        .toList
-        .parTraverse: instructions =>
-          instructions.traverse(findEntries.tupled)
-        .map: results =>
-          combineResults(results.flatten)
+      val (assetInstructions, authorInstructions) = instructions.foldMap:
+        case i: Instruction.ScrapeAsset[F] =>
+          Map(i.scraper -> List(i)) -> Map.empty
+        case i: Instruction.ScrapeAuthor[F] =>
+          Map.empty -> Map(i.scraper -> List(i))
 
-    private def findEntries(
-        label: JobLabel,
-        uri: URI,
-        siteScraper: SiteScraper[F]
-    ) =
-      siteScraper
-        .findEntries(uri)
-        .map:
-          case Left(reason)   => (label -> reason).asLeft
-          case Right(entries) => (label -> entries).asRight
+      (
+        assetInstructions.values.toList.parFlatTraverse(
+          _.traverse(findEntries)
+        ),
+        authorInstructions.values.toList.parFlatTraverse(_.traverse(findAssets))
+      ).parTupled.map: (assetResults, authorResults) =>
+        val (assetFailures, assetSuccesses)   = assetResults.separate
+        val (authorFailures, authorSuccesses) = authorResults.separate
 
-    private def combineResults(
-        results: List[Either[
-          ScrapeJobError,
-          ScrapeJobSuccess
-        ]]
-    ) =
-      results.foldLeft(ScrapeResults.empty):
-        case ((errors, successes), result) =>
-          result match
-            case Left(error)    => (error :: errors) -> successes
-            case Right(success) => errors            -> (success :: successes)
+        ScrapeResults(
+          assetSuccesses,
+          authorSuccesses,
+          assetFailures ++ authorFailures
+        )
+
+    private def findEntries(instruction: Instruction.ScrapeAsset[F]) =
+      instruction.scraper
+        .findEntries(instruction.uri)
+        .map(_.bimap(instruction.label -> _, instruction.label -> _))
+
+    private def findAssets(instruction: Instruction.ScrapeAuthor[F]) =
+      instruction.scraper
+        .scrapeForAssets(instruction.uri)
+        .map(_.bimap(instruction.label -> _, instruction.label -> _))

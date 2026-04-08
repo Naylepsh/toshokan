@@ -3,7 +3,7 @@ package assetMapping
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout}
 import io.circe.syntax.*
-import library.domain.*
+import library.asset.domain.*
 import myAnimeList.MyAnimeListClient
 import myAnimeList.domain.Manga
 import scalatags.Text.TypedTag
