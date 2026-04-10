@@ -9,7 +9,8 @@ import neotype.interop.cats.given
 import cats.kernel.Order
 
 type EntryNo = EntryNo.Type
-object EntryNo extends neotype.Subtype[String]
+object EntryNo extends neotype.Subtype[String]:
+  val empty: EntryNo = EntryNo("")
 
 type EntryTitle = EntryTitle.Type
 object EntryTitle extends neotype.Subtype[String]

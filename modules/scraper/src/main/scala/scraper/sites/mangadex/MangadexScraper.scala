@@ -41,7 +41,7 @@ class MangadexScraper[F[_]: Monad: Temporal](api: MangadexApi[F])
               chapter.attributes.title
                 .getOrElse(s"Chapter ${chapter.attributes.chapter}")
             ),
-            EntryNo(chapter.attributes.chapter),
+            chapter.attributes.chapter.map(EntryNo(_)).getOrElse(EntryNo.empty),
             EntryUri(chapter.url),
             DateUploaded(chapter.attributes.createdAt)
           )

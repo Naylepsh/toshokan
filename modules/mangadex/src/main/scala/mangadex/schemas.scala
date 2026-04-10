@@ -22,7 +22,7 @@ object CreatedAt extends neotype.Subtype[LocalDate]:
 object feed:
   case class ChapterAttributes(
       title: Option[String],
-      chapter: String,
+      chapter: Option[String],
       externalUrl: Option[String],
       createdAt: CreatedAt
   ) derives Decoder
