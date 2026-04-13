@@ -8,13 +8,14 @@ import cats.mtl.Handle
 import cats.syntax.all.*
 import core.Measure.*
 import core.types.PositiveInt
-import library.category.domain.CategoryId
 import library.asset.domain.*
 import library.asset.{AssetRepository, AssetService}
+import library.author.AuthorRepository
+import library.category.domain.CategoryId
 import neotype.*
+import neotype.interop.cats.given
 import scraper.Scraper
 import scraper.domain.*
-import neotype.interop.cats.given
 
 import configs.{AssetScrapingConfigService, AuthorScrapingConfigService}
 import configs.domain.{
@@ -25,7 +26,6 @@ import configs.domain.{
 }
 import schedules.ScheduleService
 import scrapes.domain.ScrapingSummary
-import library.author.AuthorRepository
 
 trait AssetScrapingService[F[_]]:
   def getNewReleases: F[ScrapingSummary]
@@ -70,11 +70,12 @@ object AssetScrapingService:
 
     override def getNewReleasesAccordingToSchedule: F[ScrapingSummary] =
       for
-        assetIds      <- scheduleService.findAssetsEligibleForScrape
-        assetConfigs  <- configService.findAllEnabled
-        isAuthorDay   <- scheduleService.isAuthorScrapeDay
-        authorConfigs <- if isAuthorDay then authorConfigService.findAllEnabled
-                         else List.empty.pure
+        assetIds     <- scheduleService.findAssetsEligibleForScrape
+        assetConfigs <- configService.findAllEnabled
+        isAuthorDay  <- scheduleService.isAuthorScrapeDay
+        authorConfigs <-
+          if isAuthorDay then authorConfigService.findAllEnabled
+          else List.empty.pure
         assetInstructions  = makeInstructionsForAssets(assetIds, assetConfigs)
         authorInstructions = authorConfigs.map(makeAuthorInstruction)
         results <- getNewReleases(assetInstructions ++ authorInstructions)

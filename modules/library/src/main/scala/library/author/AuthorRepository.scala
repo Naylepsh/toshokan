@@ -16,7 +16,9 @@ trait AuthorRepository[F[_]]:
   def findAll: F[List[ExistingAuthor]]
   def findByIds(ids: List[AuthorId]): F[List[ExistingAuthor]]
   def findOrAdd(authors: Set[AuthorName]): F[Set[ExistingAuthor]]
-  def findAssetsByAuthor(authorId: AuthorId): F[List[library.asset.domain.ExistingAsset]]
+  def findAssetsByAuthor(
+      authorId: AuthorId
+  ): F[List[library.asset.domain.ExistingAsset]]
 
 object AuthorRepository:
   def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AuthorRepository[F] =
@@ -88,7 +90,9 @@ object AuthorRepository:
         else
           for
             existingAuthors <- findByNames(authors)
-            newAuthors <- add(authors.diff(existingAuthors.map(_.name)).map(NewAuthor.apply))
+            newAuthors <- add(
+              authors.diff(existingAuthors.map(_.name)).map(NewAuthor.apply)
+            )
           yield existingAuthors ++ newAuthors
 
       override def findAssetsByAuthor(
@@ -101,12 +105,23 @@ object AuthorRepository:
         WHERE aa.author_id = $authorId
         ORDER BY a.title
         """
-          .query[(library.asset.domain.AssetId, library.asset.domain.AssetTitle, Option[library.category.domain.CategoryId])]
+          .query[
+            (
+                library.asset.domain.AssetId,
+                library.asset.domain.AssetTitle,
+                Option[library.category.domain.CategoryId]
+            )
+          ]
           .to[List]
           .transact(xa)
           .map: rows =>
             rows.map: (id, title, categoryId) =>
-              library.asset.domain.ExistingAsset(id, title, categoryId, List(authorId))
+              library.asset.domain.ExistingAsset(
+                id,
+                title,
+                categoryId,
+                List(authorId)
+              )
 
       private def findByNames(names: Set[AuthorName]): F[Set[ExistingAuthor]] =
         val namesFragment =

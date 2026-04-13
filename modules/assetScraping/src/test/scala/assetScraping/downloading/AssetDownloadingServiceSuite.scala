@@ -9,8 +9,8 @@ import cats.mtl.Raise
 import cats.syntax.eq.*
 import core.types.PositiveInt
 import library.asset.AssetRepository
-import library.category.domain.CategoryId
 import library.asset.domain.*
+import library.category.domain.CategoryId
 import mangadex.MangadexApi
 import munit.CatsEffectSuite
 import neotype.interop.cats.given
@@ -36,7 +36,7 @@ trait TestAssetRepository extends AssetRepository[IO]:
   def matchCategoriesToAssets(
       categoryIds: NonEmptyList[CategoryId]
   ): IO[Map[CategoryId, List[AssetId]]] = ???
-  def findOrAdd(assets: Set[NewAsset]): IO[Set[ExistingAsset]] = ???
+  def findOrAdd(assets: Set[NewAsset]): IO[Set[ExistingAsset]]    = ???
   def mergeAssets(sourceId: AssetId, targetId: AssetId): IO[Unit] = ???
 
 class AssetDownloadingServiceSuite extends CatsEffectSuite:

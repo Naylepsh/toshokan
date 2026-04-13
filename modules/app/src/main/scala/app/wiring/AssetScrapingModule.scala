@@ -53,7 +53,11 @@ object AssetScrapingModule:
       .make[IO](authorConfigRepository, library.authorRepository)
     val authorConfigView = AuthorScrapingConfigView(navBarItems)
     val authorConfigController =
-      AuthorScrapingConfigController(authorConfigService, library.authorRepository, authorConfigView)
+      AuthorScrapingConfigController(
+        authorConfigService,
+        library.authorRepository,
+        authorConfigView
+      )
 
     val scheduleRepository = ScheduleRepository.make[IO](xa)
     val scheduleService = ScheduleService.make(
@@ -68,7 +72,7 @@ object AssetScrapingModule:
       scheduleView
     )
 
-    val scraper     = Scraper.make[IO]
+    val scraper      = Scraper.make[IO]
     val siteScrapers = SiteScrapers.make(httpBackend, browser)
     val scrapingService = AssetScrapingService.make[IO](
       library.assetService,

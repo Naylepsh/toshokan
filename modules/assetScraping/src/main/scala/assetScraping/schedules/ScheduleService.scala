@@ -8,16 +8,15 @@ import cats.mtl.implicits.*
 import cats.syntax.all.*
 import core.given
 import library.asset.AssetService
+import library.asset.domain.AssetId
 import library.category.CategoryService
 import library.category.domain.{CategoryId, ExistingCategory}
-import library.asset.domain.AssetId
 import neotype.interop.cats.given
 
 import domain.{DayOfTheWeek, ScrapingSchedule, AddScheduleError}
 
-/**
- * TODO: Add support for ScrapingSchedule.Authors
- */
+/** TODO: Add support for ScrapingSchedule.Authors
+  */
 
 trait ScheduleService[F[_]]:
   def findAssetsEligibleForScrape: F[List[AssetId]]

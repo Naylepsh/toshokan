@@ -5,8 +5,8 @@ import java.net.URI
 import cats.syntax.all.*
 import doobie.util.{Read, Write}
 import io.circe.{Decoder, Encoder}
-import library.author.domain.AuthorId
 import library.asset.domain.AssetId
+import library.author.domain.AuthorId
 
 type AssetScrapingConfigId = AssetScrapingConfigId.Type
 object AssetScrapingConfigId extends neotype.Newtype[Long]

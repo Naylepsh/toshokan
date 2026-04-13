@@ -3,8 +3,8 @@ package library.asset
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.implicits.*
 import cats.mtl.Handle
-import library.category.CategoryService
 import library.asset.domain.*
+import library.category.CategoryService
 import neotype.*
 import org.http4s.*
 import org.http4s.circe.*

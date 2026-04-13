@@ -2,10 +2,11 @@ package assetScraping.schedules.domain
 
 import java.time.{DayOfWeek, LocalDate}
 
+import scala.collection.immutable.SortedSet
+
 import cats.data.{NonEmptyList, NonEmptySet}
 import cats.effect.kernel.Sync
 import library.category.domain.CategoryId
-import scala.collection.immutable.SortedSet
 
 type DayOfTheWeek = DayOfTheWeek.Type
 object DayOfTheWeek extends neotype.Subtype[DayOfWeek]:

@@ -4,8 +4,8 @@ package domain
 import java.time.LocalDateTime
 
 import cats.syntax.all.*
-import library.category.domain.CategoryName
 import library.asset.domain.{AssetId, EntryId, EntryNo}
+import library.category.domain.CategoryName
 import myAnimeList.domain.{ExternalMangaId, LatestChapter}
 import neotype.*
 

@@ -12,12 +12,12 @@ import cats.kernel.Order
 import cats.syntax.all.*
 import io.circe.Decoder
 import io.github.arainko.ducktape.*
+import library.author.domain.{AuthorId, AuthorName}
+import library.category.domain.CategoryId
 import neotype.interop.circe.given
 import org.typelevel.cats.time.*
 
 import util.control.NoStackTrace
-import library.category.domain.CategoryId
-import library.author.domain.AuthorId
 
 /** Asset
   */
@@ -28,8 +28,11 @@ object AssetId extends neotype.Newtype[Long]
 type AssetTitle = AssetTitle.Type
 object AssetTitle extends neotype.Subtype[String]
 
-case class NewAsset(title: AssetTitle, categoryId: Option[CategoryId], authors: List[AuthorId])
-    derives Decoder:
+case class NewAsset(
+    title: AssetTitle,
+    categoryId: Option[CategoryId],
+    authors: List[AuthorId]
+) derives Decoder:
   def asExisting(id: AssetId): ExistingAsset =
     this.into[ExistingAsset].transform(Field.const(_.id, id))
 case class ExistingAsset(
@@ -150,7 +153,8 @@ object ExistingAssetEntry:
       .sortBy(_.no.toIntOption)(using Ordering[Option[Int]].reverse)
       .pipe(pickLatestEntryInternals)
 
-type Releases = (DateUploaded, List[(ExistingAsset, ExistingAssetEntry)])
+type Releases =
+  (DateUploaded, List[(ExistingAsset, ExistingAssetEntry, Set[AuthorName])])
 object Releases:
   given Order[Releases] with
     def compare(x: Releases, y: Releases): Int =

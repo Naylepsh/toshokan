@@ -3,8 +3,8 @@ package library.author
 import cats.syntax.all.*
 import http.View.{NavBarItem, dialog, layout}
 import library.asset.AssetGroup
-import library.author.domain.*
 import library.asset.domain.ExistingAsset
+import library.author.domain.*
 import neotype.*
 import neotype.interop.cats.given
 import scalatags.Text.TypedTag
@@ -56,9 +56,9 @@ class AuthorView(navBarItems: List[NavBarItem]):
       div(
         cls := "mt-5 flex flex-col justify-center w-1/2 mx-auto",
         form(
-          cls             := "mb-0",
-          attr("hx-put")  := s"/authors/${author.id}",
-          attr("hx-ext")  := "json-enc",
+          cls            := "mb-0",
+          attr("hx-put") := s"/authors/${author.id}",
+          attr("hx-ext") := "json-enc",
           label(
             `for` := "name",
             cls   := "form-control w-full",
@@ -84,16 +84,24 @@ class AuthorView(navBarItems: List[NavBarItem]):
         if suggestions.nonEmpty then
           div(
             cls := "mt-5",
-            h3(cls := "text-lg font-semibold mb-2", s"Merge suggestions (${suggestions.size})"),
+            h3(
+              cls := "text-lg font-semibold mb-2",
+              s"Merge suggestions (${suggestions.size})"
+            ),
             suggestions.map: group =>
               div(
                 cls := "card card-bordered mb-3 p-4",
                 div(
                   cls := "flex justify-between items-center mb-2",
-                  span(cls := "font-mono text-sm opacity-60", group.normalizedTitle),
+                  span(
+                    cls := "font-mono text-sm opacity-60",
+                    group.normalizedTitle
+                  ),
                   button(
                     cls := "btn btn-warning btn-sm",
-                    attr("onclick") := s"openMergePreview('${author.id}', [${group.assets.map(_.id.unwrap).mkString(",")}])",
+                    attr(
+                      "onclick"
+                    ) := s"openMergePreview('${author.id}', [${group.assets.map(_.id.unwrap).mkString(",")}])",
                     s"Merge ${group.assets.size} assets"
                   )
                 ),
@@ -102,7 +110,10 @@ class AuthorView(navBarItems: List[NavBarItem]):
                   group.assets.map: asset =>
                     li(
                       a(href := s"/assets/${asset.id}", asset.title),
-                      span(cls := "font-mono text-xs opacity-50 ml-1", s"#${asset.id.unwrap}")
+                      span(
+                        cls := "font-mono text-xs opacity-50 ml-1",
+                        s"#${asset.id.unwrap}"
+                      )
                     )
                 )
               )
@@ -115,7 +126,7 @@ class AuthorView(navBarItems: List[NavBarItem]):
           else
             div(
               button(
-                cls := "btn btn-warning mb-3",
+                cls             := "btn btn-warning mb-3",
                 attr("onclick") := s"openMergePreview('${author.id}')",
                 "Merge selected"
               ),
@@ -170,7 +181,10 @@ class AuthorView(navBarItems: List[NavBarItem]):
     val assetIdsJson = assets.map(_.id.unwrap).mkString("[", ",", "]")
     div(
       h3(cls := "text-lg font-semibold mb-3", "Merge assets"),
-      p(cls := "mb-3", "Select which asset to keep. All entries from the other assets will be moved into it."),
+      p(
+        cls := "mb-3",
+        "Select which asset to keep. All entries from the other assets will be moved into it."
+      ),
       div(
         cls := "space-y-2",
         assets.map: asset =>
@@ -194,7 +208,7 @@ class AuthorView(navBarItems: List[NavBarItem]):
           button(cls := "btn", "Cancel")
         ),
         button(
-          cls := "btn btn-warning",
+          cls             := "btn btn-warning",
           attr("onclick") := s"confirmMerge('${authorId}', $assetIdsJson)",
           "Confirm merge"
         )

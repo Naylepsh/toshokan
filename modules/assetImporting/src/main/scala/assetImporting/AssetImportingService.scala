@@ -8,11 +8,11 @@ import cats.effect.MonadCancelThrow
 import cats.mtl.Handle
 import cats.syntax.all.*
 import library.asset.AssetService
+import library.asset.domain.*
 import library.author.AuthorRepository
 import library.author.domain.AuthorName
 import library.category.CategoryService
 import library.category.domain.{CategoryDoesNotExist, ExistingCategory}
-import library.asset.domain.*
 import mangadex.MangadexApi
 import mangadex.schemas.manga.GetMangaResponse
 import myAnimeList.domain.ExternalMangaId
@@ -65,7 +65,13 @@ class AssetImportingService[F[_]: MonadCancelThrow](
         Handle
           .allow[AddAssetError]:
             assetService
-              .add(NewAsset(AssetTitle(title), manga.id.some, authors.map(_.id).toList))
+              .add(
+                NewAsset(
+                  AssetTitle(title),
+                  manga.id.some,
+                  authors.map(_.id).toList
+                )
+              )
           .rescue: error =>
             MonadCancelThrow[F].raiseError(new RuntimeException(error.toString))
     yield result

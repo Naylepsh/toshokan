@@ -4,12 +4,11 @@ import cats.syntax.all.*
 import core.given
 import http.View.{NavBarItem, dialog, layout}
 import library.asset.domain.*
+import library.category.domain.*
 import neotype.*
 import neotype.interop.cats.given
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
-
-import library.category.domain.*
 
 class AssetView(navBarItems: List[NavBarItem]):
   import AssetView.*

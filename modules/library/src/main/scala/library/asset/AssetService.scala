@@ -5,9 +5,9 @@ import cats.effect.kernel.Sync
 import cats.implicits.*
 import cats.mtl.{Handle, Raise}
 import core.types.PositiveInt
+import library.category.domain.{CategoryId, CategoryName}
 
 import domain.*
-import library.category.domain.{CategoryId, CategoryName}
 
 trait AssetService[F[_]]:
   def findAll

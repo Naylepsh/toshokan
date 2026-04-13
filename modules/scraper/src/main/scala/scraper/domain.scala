@@ -5,8 +5,8 @@ import java.net.URI
 import java.time.LocalDate
 
 import cats.data.NonEmptySet
-import neotype.interop.cats.given
 import cats.kernel.Order
+import neotype.interop.cats.given
 
 type EntryNo = EntryNo.Type
 object EntryNo extends neotype.Subtype[String]:

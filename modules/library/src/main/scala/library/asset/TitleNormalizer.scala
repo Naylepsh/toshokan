@@ -2,13 +2,13 @@ package library.asset
 
 object TitleNormalizer:
   private val altTitleSeparator = "\\s*\\|.*$".r
-  private val parenthetical    = "\\s*\\([^)]*\\)\\s*$".r
-  private val trailingNumber   = "\\s+(\\d+)\\s*$".r
+  private val parenthetical     = "\\s*\\([^)]*\\)\\s*$".r
+  private val trailingNumber    = "\\s+(\\d+)\\s*$".r
   private val volumeChapter =
     "(?i)\\s*(vol\\.?|ch\\.?|chapter|part|#)\\s*\\d+\\s*$".r
-  private val trailingSono     = "(?i)\\s+sono\\s+\\d+\\s*$".r
+  private val trailingSono      = "(?i)\\s+sono\\s+\\d+\\s*$".r
   private val commonPunctuation = "[.,\\-~!?:;'\"]+".r
-  private val multipleSpaces   = "\\s+".r
+  private val multipleSpaces    = "\\s+".r
 
   def normalize(title: String): String =
     var t = title

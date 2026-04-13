@@ -30,8 +30,9 @@ object LibraryModule:
     val assetView          = AssetView(navBarItems)
     val assetController =
       AssetController(assetService, categoryService, assetView)
-    val authorView       = AuthorView(navBarItems)
-    val authorController = AuthorController(authorRepository, assetService, authorView)
+    val authorView = AuthorView(navBarItems)
+    val authorController =
+      AuthorController(authorRepository, assetService, authorView)
 
     LibraryModule(
       assetRepository = assetRepository,

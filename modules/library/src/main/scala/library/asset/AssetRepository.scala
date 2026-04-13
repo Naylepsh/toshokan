@@ -1,23 +1,23 @@
 package library.asset
 
-import io.github.arainko.ducktape.*
 import cats.data.{NonEmptyList, OptionT}
 import cats.effect.MonadCancelThrow
 import cats.implicits.*
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
-import core.{Tuples, given}
 import core.types.PositiveInt
+import core.{Tuples, given}
 import db.extensions.*
 import doobie.*
 import doobie.implicits.*
+import io.github.arainko.ducktape.*
+import library.author.domain.AuthorId
+import library.category.Categories
+import library.category.domain.{CategoryId, CategoryName}
 import neotype.interop.doobie.given
 import org.typelevel.cats.time.*
 
 import domain.*
-import library.category.domain.{CategoryId, CategoryName}
-import library.category.Categories
-import library.author.domain.AuthorId
 
 /** TODO:
   *   - There are some unnecessary separate queries. For example of one refer to
@@ -107,7 +107,7 @@ object AssetRepository:
             .groupBy(row => (row._1, row._2, row._3, row._4))
             .map: (asset, records) =>
               val (id, title, categoryId, categoryName) = asset
-              val authors                               = records.mapFilter(_._5)
+              val authors = records.mapFilter(_._5)
               val entries = records
                 .map: record =>
                   (
@@ -231,13 +231,13 @@ object AssetRepository:
 
     override def mergeAssets(sourceId: AssetId, targetId: AssetId): F[Unit] =
       val merge = for
-        _ <- sql"UPDATE ${AssetEntries} SET ${AssetEntries.assetId} = $targetId WHERE ${AssetEntries.assetId} = $sourceId"
-          .update.run
-        _ <- sql"""INSERT OR IGNORE INTO ${AssetsAuthors} (${AssetsAuthors.assetId}, ${AssetsAuthors.authorId})
-              SELECT $targetId, ${AssetsAuthors.authorId} FROM ${AssetsAuthors} WHERE ${AssetsAuthors.assetId} = $sourceId"""
-          .update.run
-        _ <- sql"DELETE FROM ${Assets} WHERE ${Assets.id} = $sourceId"
-          .update.run
+        _ <-
+          sql"UPDATE ${AssetEntries} SET ${AssetEntries.assetId} = $targetId WHERE ${AssetEntries.assetId} = $sourceId".update.run
+        _ <-
+          sql"""INSERT OR IGNORE INTO ${AssetsAuthors} (${AssetsAuthors.assetId}, ${AssetsAuthors.authorId})
+              SELECT $targetId, ${AssetsAuthors.authorId} FROM ${AssetsAuthors} WHERE ${AssetsAuthors.assetId} = $sourceId""".update.run
+        _ <-
+          sql"DELETE FROM ${Assets} WHERE ${Assets.id} = $sourceId".update.run
       yield ()
       merge.transact(xa)
 

@@ -5,11 +5,10 @@ import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
 import core.types.AtLeastTwoUnique
 import io.circe.Decoder
-import library.asset.AssetGroup
-import library.asset.AssetService
+import library.asset.domain.AssetId
+import library.asset.{AssetGroup, AssetService}
 import library.author.domain.*
 import library.author.schemas.AuthorIdVar
-import library.asset.domain.AssetId
 import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*

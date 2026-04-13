@@ -26,14 +26,18 @@ class AuthorScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
   private val httpRoutes = HttpRoutes.of[F]:
 
     case GET -> Root / "authors" / AuthorIdVar(authorId) / "configs" =>
-      authorRepository.find(authorId).flatMap:
-        case None => NotFound(s"Author with id:$authorId could not be found")
-        case Some(author) =>
-          service.findByAuthorId(authorId).flatMap: configs =>
-            Ok(
-              view.renderForms(author, configs),
-              `Content-Type`(MediaType.text.html)
-            )
+      authorRepository
+        .find(authorId)
+        .flatMap:
+          case None => NotFound(s"Author with id:$authorId could not be found")
+          case Some(author) =>
+            service
+              .findByAuthorId(authorId)
+              .flatMap: configs =>
+                Ok(
+                  view.renderForms(author, configs),
+                  `Content-Type`(MediaType.text.html)
+                )
 
     case req @ POST -> Root / "authors" / AuthorIdVar(authorId) / "configs" =>
       withJsonErrorsHandled[AuthorScrapingConfigDTO](req): newConfig =>

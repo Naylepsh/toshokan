@@ -6,12 +6,12 @@ import cats.effect.IO
 import db.migrations.applyMigrations
 import db.transactors.inMemoryTransactor
 import doobie.Transactor
+import library.asset.domain.*
+import library.asset.{AssetRepository, AssetService}
 import library.author.AuthorRepository
 import library.author.domain.AuthorName
 import library.category.domain.{CategoryName, NewCategory}
 import library.category.{CategoryRepository, CategoryService}
-import library.asset.domain.*
-import library.asset.{AssetRepository, AssetService}
 
 import testUtils.*
 
@@ -25,8 +25,8 @@ class AssetImportingServiceSuite extends munit.CatsEffectSuite:
   withService.test("imports asset with authors from Mangadex"):
     (service, assetService, authorRepo) =>
       for
-        asset <- service.importFromMangadex(testMangadexUri)
-        found <- assetService.find(asset.id)
+        asset   <- service.importFromMangadex(testMangadexUri)
+        found   <- assetService.find(asset.id)
         authors <- authorRepo.findByIds(asset.authors)
       yield
         assertEquals(asset.title, AssetTitle("Test Manga"))
@@ -63,7 +63,9 @@ class AssetImportingServiceSuite extends munit.CatsEffectSuite:
 
 object AssetImportingServiceSuite:
   val testMangadexUri =
-    domain.MangadexMangaUri(URI("https://mangadex.org/title/abc-123/test-manga"))
+    domain.MangadexMangaUri(
+      URI("https://mangadex.org/title/abc-123/test-manga")
+    )
   val testMangadexUri2 =
     domain.MangadexMangaUri(
       URI("https://mangadex.org/title/abc-123/test-manga-duplicate")
@@ -74,14 +76,16 @@ object AssetImportingServiceSuite:
     )
 
   def makeServices(xa: Transactor[IO]) =
-    val assetRepo    = AssetRepository.make[IO](xa)
-    val categoryRepo = CategoryRepository.make[IO](xa)
-    val authorRepo   = AuthorRepository.make[IO](xa)
+    val assetRepo       = AssetRepository.make[IO](xa)
+    val categoryRepo    = CategoryRepository.make[IO](xa)
+    val authorRepo      = AuthorRepository.make[IO](xa)
     val assetService    = AssetService.make(assetRepo)
     val categoryService = CategoryService.make(categoryRepo)
-    val configRepo      = assetScraping.configs.AssetScrapingConfigRepository.make[IO](xa)
+    val configRepo =
+      assetScraping.configs.AssetScrapingConfigRepository.make[IO](xa)
     val configService =
-      assetScraping.configs.AssetScrapingConfigService.make(configRepo, assetService)
+      assetScraping.configs.AssetScrapingConfigService
+        .make(configRepo, assetService)
     for
       malService <- myAnimeList.MyAnimeListServiceImpl.make(xa, noopMalClient)
       mappingService = assetMapping.AssetMappingService(
@@ -102,5 +106,7 @@ object AssetImportingServiceSuite:
       _ <- cats.mtl.Handle
         .allow[library.category.domain.CategoryAlreadyExists]:
           categoryService.add(NewCategory(CategoryName("manga")))
-        .rescue(_ => IO.raiseError(RuntimeException("Failed to create manga category")))
+        .rescue(_ =>
+          IO.raiseError(RuntimeException("Failed to create manga category"))
+        )
     yield (service, assetService, authorRepo)

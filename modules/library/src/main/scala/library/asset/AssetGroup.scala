@@ -7,7 +7,8 @@ case class AssetGroup(normalizedTitle: String, assets: List[ExistingAsset]):
 
 object AssetGroup:
   def fromAssets(assets: List[ExistingAsset]): List[AssetGroup] =
-    val (magazines, groupable) = assets.partition(a => TitleNormalizer.isMagazineTitle(a.title))
+    val (magazines, groupable) =
+      assets.partition(a => TitleNormalizer.isMagazineTitle(a.title))
 
     val exactGroups = groupable
       .groupBy(a => TitleNormalizer.normalize(a.title))
@@ -16,7 +17,9 @@ object AssetGroup:
 
     val (multi, singles) = exactGroups.partition(_.isMergeSuggestion)
     val fuzzyGroups      = mergeSimilarGroups(singles)
-    val magazineGroups   = magazines.map(a => AssetGroup(TitleNormalizer.normalize(a.title), List(a)))
+    val magazineGroups = magazines.map(a =>
+      AssetGroup(TitleNormalizer.normalize(a.title), List(a))
+    )
 
     (multi ++ fuzzyGroups ++ magazineGroups).sortBy(_.normalizedTitle)
 

@@ -1,5 +1,7 @@
 package assetScraping.schedules
 
+import scala.collection.immutable.SortedSet
+
 import cats.data.{NonEmptyList, NonEmptySet}
 import cats.effect.MonadCancelThrow
 import cats.mtl.Raise
@@ -13,7 +15,6 @@ import neotype.interop.cats.given
 import neotype.interop.doobie.given
 
 import domain.*
-import scala.collection.immutable.SortedSet
 
 trait ScheduleRepository[F[_]]:
   def findAllCategorySchedules: F[List[ScrapingSchedule.Category]]

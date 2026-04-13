@@ -53,16 +53,20 @@ class TitleNormalizerSuite extends munit.FunSuite:
     assertEquals(normalize("3P"), "3p")
 
   test("areSimilar: small spacing difference"):
-    assert(TitleNormalizer.areSimilar(
-      normalize("Danshi o Muku na mama Sodatete"),
-      normalize("Danshi o Mukuna mama Sodatete")
-    ))
+    assert(
+      TitleNormalizer.areSimilar(
+        normalize("Danshi o Muku na mama Sodatete"),
+        normalize("Danshi o Mukuna mama Sodatete")
+      )
+    )
 
   test("areSimilar: completely different titles"):
-    assert(!TitleNormalizer.areSimilar(
-      normalize("Foo Bar Baz Qux Quux"),
-      normalize("Something Else Entirely Different")
-    ))
+    assert(
+      !TitleNormalizer.areSimilar(
+        normalize("Foo Bar Baz Qux Quux"),
+        normalize("Something Else Entirely Different")
+      )
+    )
 
   test("areSimilar: short titles require exact match"):
     assert(!TitleNormalizer.areSimilar("abc", "abd"))
