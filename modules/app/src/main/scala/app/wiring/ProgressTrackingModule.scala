@@ -23,7 +23,8 @@ object ProgressTrackingModule:
       malModule.service,
       library.assetService,
       mappingModule.service,
-      entryProgressRepository
+      entryProgressRepository,
+      library.authorRepository
     )
     val view       = ProgressTrackingView(navBarItems)
     val controller = ProgressTrackingController(service, view)

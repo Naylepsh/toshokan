@@ -3,6 +3,7 @@ package progressTracking
 import cats.syntax.all.*
 import http.View.{NavBarItem, layout}
 import library.asset.domain.*
+import library.author.domain.AuthorName
 import neotype.interop.cats.given
 import org.typelevel.cats.time.*
 import scalatags.Text.TypedTag
@@ -46,10 +47,10 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
           cls := "collapse-content",
           div(
             results
-              .flatMap: (asset, entry) =>
+              .flatMap: (asset, entry, authors) =>
                 Seq[Frag](
                   div(cls := "divider"),
-                  entryPartial(asset, entry, WasEntrySeen(false))
+                  entryPartial(asset, entry, authors, WasEntrySeen(false))
                 )
               .tail
           )
@@ -77,6 +78,7 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
   def entryPartial(
       asset: ExistingAsset,
       entry: ExistingAssetEntry,
+      authors: Set[AuthorName],
       wasSeen: WasEntrySeen
   ): TypedTag[String] =
     val linkToEntry = a(
@@ -102,6 +104,7 @@ class ProgressTrackingView(navbarItems: List[NavBarItem]):
         href := s"/assets/${asset.id}",
         h5(cls := headerClass, asset.title.show)
       ),
+      p(cls   := "text-sm text-gray-500", authors.map(_.show).mkString(", ")),
       div(cls := "flex gap-2 items-center", markingAction, linkToEntry)
     )
 

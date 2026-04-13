@@ -4,10 +4,12 @@ import assetMapping.AssetMappingService
 import cats.effect.*
 import cats.implicits.*
 import cats.mtl.Raise
-import cats.mtl.syntax.all.*
+import core.syntax.*
 import library.asset.AssetService
 import library.asset.domain.*
 import library.asset.domain.Releases.given
+import library.author.AuthorRepository
+import library.author.domain.AuthorName
 import myAnimeList.MyAnimeListService
 import neotype.interop.cats.given
 
@@ -18,7 +20,9 @@ trait ProgressTrackingService[F[_]]:
       assetId: AssetId,
       entryId: EntryId,
       wasEntrySeen: WasEntrySeen
-  ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)]
+  ): Raise[F, UpdateEntryError] ?=> F[
+    (ExistingAsset, ExistingAssetEntry, Set[AuthorName])
+  ]
   def binge(assetId: AssetId): F[Unit]
   def findNotSeenReleases: F[List[Releases]]
 
@@ -27,30 +31,30 @@ object ProgressTrackingService:
       malService: MyAnimeListService[F],
       assetService: AssetService[F],
       assetMappingService: AssetMappingService[F],
-      entryProgressRepository: EntryProgressRepository[F]
+      entryProgressRepository: EntryProgressRepository[F],
+      authorRepository: AuthorRepository[F]
   ): ProgressTrackingService[F] = new:
     override def updateProgress(
         assetId: AssetId,
         entryId: EntryId,
         wasEntrySeen: WasEntrySeen
-    ): Raise[F, UpdateEntryError] ?=> F[(ExistingAsset, ExistingAssetEntry)] =
-      assetService
-        .find(assetId)
-        .flatMap:
-          case None => UpdateEntryError.AssetDoesNotExists.raise
-          case Some(asset, entries) =>
-            entries.find(_.id.eqv(entryId)) match
-              case None => UpdateEntryError.EntryDoesNotExist.raise
-              case Some(entry) =>
-                (
-                  entryProgressRepository.setSeen(entryId, wasEntrySeen),
-                  if wasEntrySeen
-                  then
-                    updateProgressExternally(asset, entries, entry.no)
-                      .handleErrorWith: error =>
-                        scribe.cats[F].error(error.toString).void
-                  else Sync[F].unit
-                ).tupled.as((asset, entry))
+    ): Raise[F, UpdateEntryError] ?=> F[
+      (ExistingAsset, ExistingAssetEntry, Set[AuthorName])
+    ] =
+      for
+        result           <- assetService.find(assetId)
+        (asset, entries) <- result.orRaise(UpdateEntryError.AssetDoesNotExists)
+        entry <- entries
+          .find(_.id.eqv(entryId))
+          .orRaise(UpdateEntryError.EntryDoesNotExist)
+        authors <- authorRepository.findByIds(asset.authors)
+        _       <- entryProgressRepository.setSeen(entryId, wasEntrySeen)
+        _ <-
+          updateProgressExternally(asset, entries, entry.no)
+            .whenA(wasEntrySeen)
+            .handleErrorWith: error =>
+              scribe.cats[F].error(error.toString).void
+      yield (asset, entry, authors.map(_.name).toSet)
 
     override def binge(assetId: AssetId): F[Unit] =
       assetService
@@ -86,12 +90,15 @@ object ProgressTrackingService:
       for
         seenEntryIds <- entryProgressRepository.findSeenEntries.map(_.toSet)
         allAssets    <- assetService.findAll
+        authors <- authorRepository.findAll.map: authors =>
+          authors.map(author => author.id -> author.name).toMap
         unseenReleases = allAssets
           .flatMap: (asset, _, entries) =>
+            val authorsOfThis = asset.authors.flatMap(authors.get).toSet
             entries
               .filterNot(entry => seenEntryIds.contains(entry.id))
-              .map(entry => asset -> entry)
-          .groupBy: (_, entry) =>
+              .map(entry => (asset, entry, authorsOfThis))
+          .groupBy: (_, entry, _) =>
             entry.dateUploaded
           .map: (key, assetsAndEntries) =>
             key -> assetsAndEntries.sortBy(_._1.id)

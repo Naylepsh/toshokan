@@ -60,8 +60,8 @@ class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
           .allow[UpdateEntryError]:
             service
               .updateProgress(assetId, entryId, dto.wasEntrySeen)
-              .flatMap: (asset, entry) =>
-                Ok(view.entryPartial(asset, entry, dto.wasEntrySeen))
+              .flatMap: (asset, entry, authors) =>
+                Ok(view.entryPartial(asset, entry, authors, dto.wasEntrySeen))
           .rescue:
             case UpdateEntryError.AssetDoesNotExists =>
               NotFound("Asset does not exist")
