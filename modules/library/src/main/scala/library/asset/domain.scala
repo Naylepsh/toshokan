@@ -10,11 +10,9 @@ import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import cats.kernel.Order
 import cats.syntax.all.*
-import io.circe.Decoder
 import io.github.arainko.ducktape.*
 import library.author.domain.{AuthorId, AuthorName}
 import library.category.domain.CategoryId
-import neotype.interop.circe.given
 import org.typelevel.cats.time.*
 
 import util.control.NoStackTrace
@@ -32,7 +30,7 @@ case class NewAsset(
     title: AssetTitle,
     categoryId: Option[CategoryId],
     authors: List[AuthorId]
-) derives Decoder:
+):
   def asExisting(id: AssetId): ExistingAsset =
     this.into[ExistingAsset].transform(Field.const(_.id, id))
 case class ExistingAsset(

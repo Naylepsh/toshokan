@@ -3,9 +3,12 @@ package library.asset
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.implicits.*
 import cats.mtl.Handle
+import io.circe.Decoder
 import library.asset.domain.*
 import library.category.CategoryService
+import library.category.domain.CategoryId
 import neotype.*
+import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.headers.*
@@ -53,11 +56,11 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
           )
 
     case req @ POST -> Root =>
-      withJsonErrorsHandled[NewAsset](req): newAsset =>
+      withJsonErrorsHandled[NewAssetDto](req): newAsset =>
         Handle
           .allow[AddAssetError]:
             assetService
-              .add(newAsset)
+              .add(newAsset.toDomain)
               .flatMap: asset =>
                 Ok(
                   asset.id.unwrap.toString,
@@ -71,7 +74,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
               Conflict(s"${newAsset.title} already exists")
 
     case req @ PUT -> Root / AssetIdVar(id) =>
-      withJsonErrorsHandled[NewAsset](req): newAsset =>
+      withJsonErrorsHandled[NewAssetDto](req): newAsset =>
         val asset = newAsset.asExisting(id)
         assetService.update(asset) *> Ok(
           asset.id.unwrap.toString,
@@ -92,7 +95,16 @@ object AssetController:
     def unapply(str: String): Option[EntryId] =
       str.toIntOption.map(EntryId(_))
 
-  given [F[_]: Concurrent]: EntityDecoder[F, NewAsset] = jsonOf[F, NewAsset]
+  case class NewAssetDto(
+      title: AssetTitle,
+      categoryId: Option[CategoryId]
+  ) derives Decoder:
+    def toDomain: NewAsset = NewAsset(title, categoryId, Nil)
+    def asExisting(id: AssetId): ExistingAsset =
+      toDomain.asExisting(id)
+
+  given [F[_]: Concurrent]: EntityDecoder[F, NewAssetDto] =
+    jsonOf[F, NewAssetDto]
 
   private def addRedirectHeaderIfHtmxRequest[F[_]](
       request: Request[F],
