@@ -113,17 +113,17 @@ object AssetScrapingService:
         (newEntriesCount, savingTime) <- saveEntries(
           results.successfulAssetJobs
         )
-        // TODO: We should include the metric of how long it took to save author results
-        // and the entry count of it as well
-        _ <- saveAssets(results.successfulAuthorJobs)
+        (newEntriesOfAuthorsCount, assetSavingnTime) <- saveAssets(
+          results.successfulAuthorJobs
+        )
         _ = scribe.info("Done with the scrape")
         _ = results.failures.foreach(error => scribe.error(error.toString))
       yield ScrapingSummary(
-        newEntriesCount,
+        newEntriesCount + newEntriesOfAuthorsCount,
         instructions.length,
         results.failures.length,
         scrapingTime.toSeconds,
-        savingTime.toSeconds
+        (savingTime + assetSavingnTime).toSeconds
       )
 
     private def makeInstructionsForAssets(
