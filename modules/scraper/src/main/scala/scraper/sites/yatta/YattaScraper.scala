@@ -21,22 +21,22 @@ object YattaScraper:
   private val entryNoPattern = """.*#(\d+)""".r
 
   def parseContent(document: Document): Either[ScrapeError, List[EntryFound]] =
-    val entries =
+    val allEntries =
       document >> elementList("#katalog_content #product_container_large")
-    val results = entries.traverse: entry =>
-      val href = entry >> element("a") >> attr("href")
-      EntryUri(s"https:${href}").map: uri =>
-        val title = EntryTitle((entry >> element(".product-title")).text)
-        val no = title match
-          case entryNoPattern(rawNo) => Some(rawNo)
-          case _                     => None
-        // Yatta does not store date uploaded so let's just default to "now"
-        val dateUploaded = DateUploaded(LocalDate.now())
+    if allEntries.isEmpty then ScrapeError.NoEntriesFound.asLeft
+    else
+      val entries = allEntries.filterNot(_.text.contains("brak produktu"))
+      val results = entries.traverse: entry =>
+        val href = entry >> element("a") >> attr("href")
+        EntryUri(s"https:${href}").map: uri =>
+          val title = EntryTitle((entry >> element(".product-title")).text)
+          val no = title match
+            case entryNoPattern(rawNo) => Some(rawNo)
+            case _                     => None
+          val dateUploaded = DateUploaded(LocalDate.now())
+          EntryFound(title, EntryNo(no.getOrElse("")), uri, dateUploaded)
 
-        EntryFound(title, EntryNo(no.getOrElse("")), uri, dateUploaded)
-
-    results match
-      case Left(error) => ScrapeError.Other(error).asLeft
-      case Right(Nil)  => ScrapeError.NoEntriesFound.asLeft
-      case Right(entries) =>
-        entries.filter(!_.title.startsWith("Prenumerata")).asRight
+      results match
+        case Left(error) => ScrapeError.Other(error).asLeft
+        case Right(entries) =>
+          entries.filter(!_.title.startsWith("Prenumerata")).asRight
