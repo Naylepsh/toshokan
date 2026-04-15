@@ -36,11 +36,11 @@ class MangadexScraper[F[_]: Monad: Temporal](api: MangadexApi[F])
           // viz.com results are not viewable in PL
           chapter.url.getHost != "viz.com"
         .map: chapter =>
+          val title = chapter.attributes.title
+            .orElse(chapter.attributes.chapter.map(c => s"Chapter $c"))
+            .getOrElse("?")
           EntryFound(
-            EntryTitle(
-              chapter.attributes.title
-                .getOrElse(s"Chapter ${chapter.attributes.chapter}")
-            ),
+            EntryTitle(title),
             chapter.attributes.chapter.map(EntryNo(_)).getOrElse(EntryNo.empty),
             EntryUri(chapter.url),
             DateUploaded(chapter.attributes.createdAt)
