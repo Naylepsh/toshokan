@@ -1,3 +1,36 @@
+[data-theme="toshokan"] {
+  color-scheme: light;
+  --p: 0.5632 0.0940 170.50;
+  --pc: 1 0 0;
+  --s: 0.4464 0.0159 256.80;
+  --sc: 1 0 0;
+  --a: 0.6680 0.0820 172.00;
+  --ac: 1 0 0;
+  --n: 0.2650 0.0220 175.00;
+  --nc: 0.9600 0.0050 165.00;
+  --b1: 0.9950 0.0020 165.00;
+  --b2: 0.9620 0.0060 160.00;
+  --b3: 0.9200 0.0090 162.00;
+  --bc: 0.2650 0.0220 175.00;
+  --in: 0.6232 0.2138 259.81;
+  --inc: 1 0 0;
+  --su: 0.7233 0.2094 142.50;
+  --suc: 1 0 0;
+  --wa: 0.7689 0.1694 70.08;
+  --wac: 0.2650 0.0220 175.00;
+  --er: 0.6268 0.2577 29.23;
+  --erc: 1 0 0;
+  --rounded-box: 0.5rem;
+  --rounded-btn: 0.375rem;
+  --rounded-badge: 1.9rem;
+  --animation-btn: 0.2s;
+  --animation-input: 0.2s;
+  --btn-focus-scale: 0.98;
+  --border-btn: 1px;
+  --tab-border: 1px;
+  --tab-radius: 0.375rem;
+}
+
 .div-striped > *:nth-of-type(2n) {
   --tw-bg-opacity: 1;
   background-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-bg-opacity)));
