@@ -18,7 +18,7 @@ object View:
       case Some(sub) => s"$sub | Toshokan"
       case None      => "Toshokan"
     html(
-      attr("data-theme") := "cupcake",
+      attr("data-theme") := "toshokan",
       head(
         title(titleContent),
         meta(
