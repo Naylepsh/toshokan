@@ -31,7 +31,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Sync](
         assets
           .traverse: (asset, lastRelease) =>
             lastRelease
-              .daysAgo[F]
+              .traverse(_.daysAgo[F])
               .map: days =>
                 library.asset.domain.StaleAsset(asset, lastRelease, days)
           .flatMap: staleAssets =>

@@ -51,7 +51,7 @@ trait AssetRepository[F[_]]:
   ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def findStale(
       minDaysToBeStale: PositiveInt
-  ): F[List[(ExistingAsset, DateUploaded)]]
+  ): F[List[(ExistingAsset, Option[DateUploaded])]]
   def add(asset: NewAsset): Raise[F, AddAssetError] ?=> F[ExistingAsset]
   def add(
       entry: NewAssetEntry
@@ -154,7 +154,7 @@ object AssetRepository:
 
     override def findStale(
         minDaysToBeStale: PositiveInt
-    ): F[List[(ExistingAsset, DateUploaded)]] =
+    ): F[List[(ExistingAsset, Option[DateUploaded])]] =
       val cutoff =
         Fragment.const0(s"""date('now', '-${minDaysToBeStale} day')""")
       val findAssets = sql"""
@@ -165,7 +165,7 @@ object AssetRepository:
       HAVING last_upload IS NULL OR date(last_upload) < ${cutoff}
       ORDER BY last_upload ASC
       """
-        .query[(AssetModel, DateUploaded)]
+        .query[(AssetModel, Option[DateUploaded])]
         .to[List]
         .transact(xa)
       for

@@ -41,7 +41,9 @@ object AssetService:
           .findStale(minDaysToBeStale = PositiveInt(90))
           .flatMap: assets =>
             assets.traverse: (asset, lastRelease) =>
-              lastRelease.daysAgo[F].map(StaleAsset(asset, lastRelease, _))
+              lastRelease
+                .traverse(_.daysAgo[F])
+                .map(StaleAsset(asset, lastRelease, _))
 
       override def find(
           id: AssetId

@@ -50,8 +50,8 @@ object DaysSinceRelease extends neotype.Subtype[Long]
 
 case class StaleAsset(
     asset: ExistingAsset,
-    lastRelease: DateUploaded,
-    daysSinceLastRelease: DaysSinceRelease
+    lastRelease: Option[DateUploaded],
+    daysSinceLastRelease: Option[DaysSinceRelease]
 )
 
 /** Asset Entry

@@ -108,8 +108,8 @@ class AssetView(navBarItems: List[NavBarItem]):
             assets.map: asset =>
               tr(
                 td(asset.asset.title),
-                td(asset.lastRelease.toString),
-                td(asset.daysSinceLastRelease.toString),
+                td(asset.lastRelease.fold("No entries")(_.toString)),
+                td(asset.daysSinceLastRelease.fold("-")(_.toString)),
                 td(
                   a(
                     cls  := "text-light",

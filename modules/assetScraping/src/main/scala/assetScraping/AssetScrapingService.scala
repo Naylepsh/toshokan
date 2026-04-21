@@ -34,7 +34,8 @@ trait AssetScrapingService[F[_]]:
   def getNewReleasesOfCategory(
       categoryId: CategoryId
   ): F[Option[ScrapingSummary]]
-  def findStale: F[List[(ExistingAsset, library.asset.domain.DateUploaded)]]
+  def findStale
+      : F[List[(ExistingAsset, Option[library.asset.domain.DateUploaded])]]
 
 object AssetScrapingService:
   def make[F[_]: Sync: Clock](
@@ -96,7 +97,7 @@ object AssetScrapingService:
             .getOrElse(None.pure)
 
     override def findStale
-        : F[List[(ExistingAsset, library.asset.domain.DateUploaded)]] =
+        : F[List[(ExistingAsset, Option[library.asset.domain.DateUploaded])]] =
       for
         allStale       <- assetRepository.findStale(PositiveInt(90))
         enabledConfigs <- configService.findAllEnabled
