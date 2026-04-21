@@ -90,7 +90,7 @@ class AssetScrapingConfigView(navBarItems: List[NavBarItem]):
       cls               := "config-form grid grid-cols-12 mb-0 py-2",
       hxMethod          := url,
       attr("hx-ext")    := "json-enc",
-      attr("hx-target") := ".config-form",
+      attr("hx-target") := "this",
       attr("hx-swap")   := "outerHTML",
       div(
         cls := "flex col-span-1",
