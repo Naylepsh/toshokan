@@ -4,6 +4,8 @@ import cats.data.NonEmptySet
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
 import core.types.AtLeastTwoUnique
+import doobie.*
+import doobie.implicits.*
 import io.circe.Decoder
 import library.asset.AssetService
 import library.asset.domain.{AssetGroup, AssetId}
@@ -18,30 +20,35 @@ import org.http4s.server.Router
 import org.typelevel.ci.CIString
 
 class AuthorController[F[_]: MonadCancelThrow: Concurrent](
-    repository: AuthorRepository[F],
+    repository: AuthorRepository,
     assetService: AssetService[F],
-    view: AuthorView
+    view: AuthorView,
+    xa: Transactor[F]
 ) extends http.Controller[F]:
   import http.Controller.given
   import AuthorController.{*, given}
 
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
-      repository.findAll.flatMap: authors =>
-        val groups = AuthorGroup.fromAuthors(authors)
-        Ok(
-          view.renderAuthors(groups),
-          `Content-Type`(MediaType.text.html)
-        )
+      repository.findAll
+        .transact(xa)
+        .flatMap: authors =>
+          val groups = AuthorGroup.fromAuthors(authors)
+          Ok(
+            view.renderAuthors(groups),
+            `Content-Type`(MediaType.text.html)
+          )
 
     case GET -> Root / AuthorIdVar(id) =>
       repository
         .find(id)
+        .transact(xa)
         .flatMap:
           case None => NotFound(s"Author ${id} not found")
           case Some(author) =>
             repository
               .findAssetsByAuthor(id)
+              .transact(xa)
               .flatMap: assets =>
                 val grouped = AssetGroup.fromAssets(assets)
                 Ok(
@@ -53,6 +60,7 @@ class AuthorController[F[_]: MonadCancelThrow: Concurrent](
       withJsonErrorsHandled[MergeRequest](req): merge =>
         repository
           .findAssetsByAuthor(authorId)
+          .transact(xa)
           .flatMap: allAssets =>
             val selected = allAssets.filter(a => merge.assetIds.contains(a.id))
             if selected.size != merge.assetIds.toList.size then

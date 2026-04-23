@@ -7,6 +7,8 @@ import assetScraping.configs.domain.*
 import cats.effect.MonadCancelThrow
 import cats.mtl.Handle
 import cats.syntax.all.*
+import doobie.*
+import doobie.implicits.*
 import library.asset.AssetService
 import library.asset.domain.*
 import library.author.AuthorRepository
@@ -24,8 +26,9 @@ class AssetImportingService[F[_]: MonadCancelThrow](
     categoryService: CategoryService[F],
     assetMappingService: AssetMappingService[F],
     assetScrapingConfigService: AssetScrapingConfigService[F],
-    authorRepository: AuthorRepository[F],
-    mangadex: MangadexApi[F]
+    authorRepository: AuthorRepository,
+    mangadex: MangadexApi[F],
+    xa: Transactor[F]
 ):
   def importFromMangadex(
       uri: MangadexMangaUri
@@ -58,9 +61,11 @@ class AssetImportingService[F[_]: MonadCancelThrow](
     for
       title <- mangaResponse.data.attributes.preferredTitle
         .liftTo[F](new RuntimeException(NoTitleTranslation.toString))
-      authors <- authorRepository.findOrAdd(
-        mangaResponse.data.authorNames.map(AuthorName(_)).toSet
-      )
+      authors <- authorRepository
+        .findOrAdd(
+          mangaResponse.data.authorNames.map(AuthorName(_)).toSet
+        )
+        .transact(xa)
       result <-
         Handle
           .allow[AddAssetError]:

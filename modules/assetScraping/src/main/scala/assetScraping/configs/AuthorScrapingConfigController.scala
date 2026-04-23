@@ -3,6 +3,8 @@ package assetScraping.configs
 import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.mtl.Handle
 import cats.syntax.all.*
+import doobie.*
+import doobie.implicits.*
 import io.circe.*
 import library.author.AuthorRepository
 import library.author.domain.AuthorId
@@ -17,8 +19,9 @@ import domain.*
 
 class AuthorScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
     service: AuthorScrapingConfigService[F],
-    authorRepository: AuthorRepository[F],
-    view: AuthorScrapingConfigView
+    authorRepository: AuthorRepository,
+    view: AuthorScrapingConfigView,
+    xa: Transactor[F]
 ) extends http.Controller[F]:
   import http.Controller.given
   import AuthorScrapingController.{*, given}
@@ -28,6 +31,7 @@ class AuthorScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
     case GET -> Root / "authors" / AuthorIdVar(authorId) / "configs" =>
       authorRepository
         .find(authorId)
+        .transact(xa)
         .flatMap:
           case None => NotFound(s"Author with id:$authorId could not be found")
           case Some(author) =>

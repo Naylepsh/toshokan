@@ -4,6 +4,8 @@ import cats.data.{NonEmptyList, NonEmptySet}
 import cats.effect.Concurrent
 import cats.syntax.all.*
 import core.types.AtLeastTwoUnique
+import doobie.*
+import doobie.implicits.*
 import io.circe.Decoder
 import library.author.domain.*
 import library.author.{AuthorRepository, AuthorView}
@@ -17,8 +19,9 @@ import org.typelevel.ci.CIString
 
 class AuthorMergeController[F[_]: Concurrent](
     mergeService: AuthorMergeService[F],
-    repository: AuthorRepository[F],
-    view: AuthorView
+    repository: AuthorRepository,
+    view: AuthorView,
+    xa: Transactor[F]
 ) extends http.Controller[F]:
   import http.Controller.given
   import AuthorMergeController.{*, given}
@@ -28,6 +31,7 @@ class AuthorMergeController[F[_]: Concurrent](
       withJsonErrorsHandled[AuthorMergeRequest](req): merge =>
         repository
           .findByIds(merge.authorIds.toList)
+          .transact(xa)
           .flatMap: authors =>
             if authors.size < 2 then
               BadRequest("Some selected authors were not found")

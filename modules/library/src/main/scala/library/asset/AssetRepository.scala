@@ -1,10 +1,7 @@
 package library.asset
 
 import cats.data.{NonEmptyList, OptionT}
-import cats.effect.MonadCancelThrow
-import cats.implicits.*
-import cats.mtl.Raise
-import cats.mtl.syntax.all.*
+import cats.syntax.all.*
 import core.types.PositiveInt
 import core.{Tuples, given}
 import db.extensions.*
@@ -19,62 +16,38 @@ import org.typelevel.cats.time.*
 
 import domain.*
 
-/** TODO:
-  *   - There are some unnecessary separate queries. For example of one refer to
-  *     the snippet `(1)`. This could / should be just a single query. Arguably
-  *     we could make a pseudo-hybrid approach with transactions, so instead of
-  *     returnig F[???] we return `Free[ConnectionOp, Option[Int]]`
-  *   - Maybe within a module (in this case library) all the tables should be
-  *     available to everyone to read, but only a given repo can write? This
-  *     would unlock the single-query thing
-  */
-// scalafmt: off
-/* Snippet (1)
-for
-  assetModel <- addWithoutChecking(asset)
-  authors    <- findAuthors(assetModel.id)
-yield assetModel.toDomain(authors)
- */
-// scalafmt: on
-
-trait AssetRepository[F[_]]:
-  def findAll
-      : F[List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]]
-  def findById(assetId: AssetId): F[Option[
-    (
-        ExistingAsset,
-        List[ExistingAssetEntry]
-    )
+trait AssetRepository:
+  def findAll: ConnectionIO[
+    List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]
+  ]
+  def findById(assetId: AssetId): ConnectionIO[Option[
+    (ExistingAsset, List[ExistingAssetEntry])
   ]]
   def findByEntryId(
       entryId: EntryId
-  ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]]
+  ): ConnectionIO[Option[(ExistingAsset, List[ExistingAssetEntry])]]
   def findStale(
       minDaysToBeStale: PositiveInt
-  ): F[List[(ExistingAsset, Option[DateUploaded])]]
-  def add(asset: NewAsset): Raise[F, AddAssetError] ?=> F[ExistingAsset]
+  ): ConnectionIO[List[(ExistingAsset, Option[DateUploaded])]]
+  def add(asset: NewAsset): ConnectionIO[Either[AddAssetError, ExistingAsset]]
   def add(
       entry: NewAssetEntry
-  ): Raise[F, AddEntryError] ?=> F[ExistingAssetEntry]
-  def addToAsset(asset: ExistingAsset, category: CategoryId): F[Unit]
-  def update(asset: ExistingAsset): F[Unit]
-  def update(entry: ExistingAssetEntry): F[Unit]
-  def delete(assetId: AssetId): F[Unit]
-  def mergeAssets(sourceId: AssetId, targetId: AssetId): F[Unit]
+  ): ConnectionIO[Either[AddEntryError, ExistingAssetEntry]]
+  def addToAsset(asset: ExistingAsset, category: CategoryId): ConnectionIO[Unit]
+  def update(asset: ExistingAsset): ConnectionIO[Unit]
+  def update(entry: ExistingAssetEntry): ConnectionIO[Unit]
+  def delete(assetId: AssetId): ConnectionIO[Unit]
+  def mergeAsset(sourceId: AssetId, targetId: AssetId): ConnectionIO[Unit]
   def matchCategoriesToAssets(
       categoryIds: NonEmptyList[CategoryId]
-  ): F[Map[CategoryId, List[AssetId]]]
-  def findOrAdd(assets: Set[NewAsset]): F[Set[ExistingAsset]]
-  def findAssetsByAuthorIO(
+  ): ConnectionIO[Map[CategoryId, List[AssetId]]]
+  def findOrAdd(assets: Set[NewAsset]): ConnectionIO[Set[ExistingAsset]]
+  def findAssetsByAuthor(
       authorId: AuthorId
   ): ConnectionIO[List[(AssetId, AssetTitle)]]
   def relinkAuthorAssets(
       sourceAssetId: AssetId,
       targetAuthorId: AuthorId
-  ): ConnectionIO[Unit]
-  def mergeAssetIO(
-      sourceAssetId: AssetId,
-      targetAssetId: AssetId
   ): ConnectionIO[Unit]
 
 object AssetRepository:
@@ -97,9 +70,9 @@ object AssetRepository:
       AE(_.dateUploaded).option
     )
 
-  def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AssetRepository[F] = new:
+  val make: AssetRepository = new:
 
-    override def findAll: F[
+    override def findAll: ConnectionIO[
       List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]
     ] =
       sql"""
@@ -112,7 +85,6 @@ object AssetRepository:
       """
         .queryOf(findAllColumns)
         .to[List]
-        .transact(xa)
         .map: rows =>
           rows
             .groupBy(row => (row._1, row._2, row._3, row._4))
@@ -139,15 +111,9 @@ object AssetRepository:
               )
             .toList
 
-    override def findById(assetId: AssetId): F[Option[
-      (
-          ExistingAsset,
-          List[ExistingAssetEntry]
-      )
+    override def findById(assetId: AssetId): ConnectionIO[Option[
+      (ExistingAsset, List[ExistingAssetEntry])
     ]] =
-      /** Ideally this would be done in one query, but I cba to do the sql ->
-        * domain nested transformation
-        */
       (
         findAsset(assetId),
         findEntries(assetId),
@@ -157,7 +123,7 @@ object AssetRepository:
 
     override def findByEntryId(
         entryId: EntryId
-    ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
+    ): ConnectionIO[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
       (for
         assetId <- OptionT(findAssetId(entryId))
         result  <- OptionT(findById(assetId))
@@ -165,7 +131,7 @@ object AssetRepository:
 
     override def findStale(
         minDaysToBeStale: PositiveInt
-    ): F[List[(ExistingAsset, Option[DateUploaded])]] =
+    ): ConnectionIO[List[(ExistingAsset, Option[DateUploaded])]] =
       val cutoff =
         Fragment.const0(s"""date('now', '-${minDaysToBeStale} day')""")
       val findAssets = sql"""
@@ -178,7 +144,6 @@ object AssetRepository:
       """
         .query[(AssetModel, Option[DateUploaded])]
         .to[List]
-        .transact(xa)
       for
         assets  <- findAssets
         authors <- findAuthors(assets.map(_._1.id))
@@ -187,28 +152,30 @@ object AssetRepository:
 
     override def add(
         asset: NewAsset
-    ): Raise[F, AddAssetError] ?=> F[ExistingAsset] =
+    ): ConnectionIO[Either[AddAssetError, ExistingAsset]] =
       doesAssetExist(asset.title).flatMap:
-        case true => AssetAlreadyExists.raise
+        case true => AssetAlreadyExists.asLeft.pure[ConnectionIO]
         case false =>
           for
             assetModel <- addWithoutChecking(asset)
             authors    <- findAuthors(assetModel.id)
-          yield assetModel.toDomain(authors)
+          yield assetModel.toDomain(authors).asRight
 
     override def add(
         entry: NewAssetEntry
-    ): Raise[F, AddEntryError] ?=> F[ExistingAssetEntry] =
+    ): ConnectionIO[Either[AddEntryError, ExistingAssetEntry]] =
       (doesAssetExist(entry.assetId), doesEntryExist(entry.uri)).tupled.flatMap:
         (assetExists, entryExists) =>
-          if entryExists then AddEntryError.EntryAlreadyExists.raise
-          else if !assetExists then AddEntryError.AssetDoesNotExists.raise
-          else addWithoutChecking(entry)
+          if entryExists then
+            AddEntryError.EntryAlreadyExists.asLeft.pure[ConnectionIO]
+          else if !assetExists then
+            AddEntryError.AssetDoesNotExists.asLeft.pure[ConnectionIO]
+          else addWithoutChecking(entry).map(_.asRight)
 
     override def addToAsset(
         asset: ExistingAsset,
         categoryId: CategoryId
-    ): F[Unit] =
+    ): ConnectionIO[Unit] =
       sql"""
       ${Assets.updateTableX(
           NonEmptyList.of(
@@ -216,15 +183,15 @@ object AssetRepository:
           )
         )}
       WHERE ${Assets.id === asset.id}
-      """.update.run.transact(xa).void
+      """.update.run.void
 
-    override def update(asset: ExistingAsset): F[Unit] =
+    override def update(asset: ExistingAsset): ConnectionIO[Unit] =
       sql"""
       ${Assets.updateTableX(NonEmptyList.of(_.title --> asset.title))}
       WHERE ${Assets.id === asset.id}
-      """.update.run.transact(xa).void
+      """.update.run.void
 
-    override def update(entry: ExistingAssetEntry): F[Unit] =
+    override def update(entry: ExistingAssetEntry): ConnectionIO[Unit] =
       sql"""
       ${AssetEntries.updateTableX(
           NonEmptyList.of(
@@ -233,17 +200,12 @@ object AssetRepository:
           )
         )}
       WHERE ${AssetEntries.id === entry.id}
-      """.update.run.transact(xa).void
+      """.update.run.void
 
-    override def delete(assetId: AssetId): F[Unit] =
-      sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}".update.run
-        .transact(xa)
-        .void
+    override def delete(assetId: AssetId): ConnectionIO[Unit] =
+      sql"DELETE FROM ${Assets} WHERE ${Assets.id} = ${assetId}".update.run.void
 
-    override def mergeAssets(sourceId: AssetId, targetId: AssetId): F[Unit] =
-      mergeAssetIO(sourceId, targetId).transact(xa)
-
-    override def mergeAssetIO(
+    override def mergeAsset(
         sourceAssetId: AssetId,
         targetAssetId: AssetId
     ): ConnectionIO[Unit] =
@@ -257,7 +219,7 @@ object AssetRepository:
           sql"DELETE FROM ${Assets} WHERE ${Assets.id} = $sourceAssetId".update.run
       yield ()
 
-    override def findAssetsByAuthorIO(
+    override def findAssetsByAuthor(
         authorId: AuthorId
     ): ConnectionIO[List[(AssetId, AssetTitle)]] =
       val A    = Assets `as` "a"
@@ -283,7 +245,7 @@ object AssetRepository:
 
     override def matchCategoriesToAssets(
         categoryIds: NonEmptyList[CategoryId]
-    ): F[Map[CategoryId, List[AssetId]]] =
+    ): ConnectionIO[Map[CategoryId, List[AssetId]]] =
       val query = sql"""
       SELECT ${Assets.id}, ${Assets.categoryId}
       FROM ${Assets}
@@ -291,7 +253,6 @@ object AssetRepository:
       query
         .queryOf(Columns(Assets.id, Assets.categoryId))
         .to[List]
-        .transact(xa)
         .map: rows =>
           rows
             .groupBy(_._2)
@@ -300,10 +261,12 @@ object AssetRepository:
                 acc + (categoryId -> group.map(_._1))
               case (acc, _) => acc
 
-    override def findOrAdd(assets: Set[NewAsset]): F[Set[ExistingAsset]] =
+    override def findOrAdd(
+        assets: Set[NewAsset]
+    ): ConnectionIO[Set[ExistingAsset]] =
       NonEmptyList
         .fromList(assets.toList)
-        .fold(Set.empty.pure): newAssets =>
+        .fold(Set.empty.pure[ConnectionIO]): newAssets =>
           val titles        = newAssets.map(_.title)
           val assetsByTitle = newAssets.map(a => a.title -> a).toList.toMap
           val query = sql"""
@@ -313,7 +276,6 @@ object AssetRepository:
           query
             .queryOf(Assets.*)
             .to[List]
-            .transact(xa)
             .map: rows =>
               val existing = rows.map: row =>
                 val model = Tuples.from[AssetModel](row)
@@ -333,7 +295,7 @@ object AssetRepository:
                   (existing ++ added
                     .map(a => a.toDomain(assetsByTitle(a.title).authors))).toSet
 
-    private def findAsset(assetId: AssetId): F[Option[AssetModel]] =
+    private def findAsset(assetId: AssetId): ConnectionIO[Option[AssetModel]] =
       sql"""
         SELECT ${Assets.*}
         FROM ${Assets}
@@ -341,11 +303,9 @@ object AssetRepository:
       """
         .queryOf(Assets.*)
         .option
-        .transact(xa)
-        .map: row =>
-          row.map(Tuples.from[AssetModel](_))
+        .map(_.map(Tuples.from[AssetModel](_)))
 
-    private def findAssetId(entryId: EntryId): F[Option[AssetId]] =
+    private def findAssetId(entryId: EntryId): ConnectionIO[Option[AssetId]] =
       sql"""
         SELECT ${AssetEntries.assetId}
         FROM ${AssetEntries}
@@ -353,9 +313,10 @@ object AssetRepository:
       """
         .queryOf(AssetEntries.assetId)
         .option
-        .transact(xa)
 
-    private def findEntries(assetId: AssetId): F[List[ExistingAssetEntry]] =
+    private def findEntries(
+        assetId: AssetId
+    ): ConnectionIO[List[ExistingAssetEntry]] =
       sql"""
         SELECT ${AssetEntries.*} 
         FROM ${AssetEntries} 
@@ -363,12 +324,10 @@ object AssetRepository:
       """
         .queryOf(AssetEntries.*)
         .to[List]
-        .transact(xa)
-        .map: rows =>
-          rows.map(Tuples.from[ExistingAssetEntry](_))
+        .map(_.map(Tuples.from[ExistingAssetEntry](_)))
 
-    private def addWithoutChecking(asset: NewAsset): F[AssetModel] =
-      val insert = for
+    private def addWithoutChecking(asset: NewAsset): ConnectionIO[AssetModel] =
+      for
         row <- Assets
           .insertIntoReturning(
             NonEmptyList.of(
@@ -384,11 +343,10 @@ object AssetRepository:
           sql"INSERT INTO ${AssetsAuthors} (${AssetsAuthors.assetId}, ${AssetsAuthors.authorId}) VALUES (${model.id}, $authorId)".update.run
         )
       yield model
-      insert.transact(xa)
 
     private def addWithoutChecking(
         entry: NewAssetEntry
-    ): F[ExistingAssetEntry] =
+    ): ConnectionIO[ExistingAssetEntry] =
       AssetEntries
         .insertIntoReturning(
           NonEmptyList.of(
@@ -402,40 +360,39 @@ object AssetRepository:
         )
         .queryOf(AssetEntries.*)
         .unique
-        .transact(xa)
         .map(Tuples.from[ExistingAssetEntry](_))
 
-    private def doesAssetExist(title: AssetTitle): F[Boolean] =
+    private def doesAssetExist(title: AssetTitle): ConnectionIO[Boolean] =
       sql"""
         SELECT 1
         FROM ${Assets}
         WHERE ${Assets.title} = ${title}
-      """.query[Int].option.transact(xa).map(_.isDefined)
+      """.query[Int].option.map(_.isDefined)
 
-    private def doesAssetExist(id: AssetId): F[Boolean] =
+    private def doesAssetExist(id: AssetId): ConnectionIO[Boolean] =
       sql"""
         SELECT 1
         FROM ${Assets}
         WHERE ${Assets.id} = ${id}
-      """.query[Int].option.transact(xa).map(_.isDefined)
+      """.query[Int].option.map(_.isDefined)
 
-    private def doesEntryExist(entryUri: EntryUri): F[Boolean] =
+    private def doesEntryExist(entryUri: EntryUri): ConnectionIO[Boolean] =
       sql"""
         SELECT 1
         FROM ${AssetEntries}
         WHERE ${AssetEntries.uri === entryUri}
-      """.query[Int].option.transact(xa).map(_.isDefined)
+      """.query[Int].option.map(_.isDefined)
 
-    private def findAuthors(assetId: AssetId): F[List[AuthorId]] =
+    private def findAuthors(assetId: AssetId): ConnectionIO[List[AuthorId]] =
       sql"""
         SELECT ${AssetsAuthors.authorId}
         FROM ${AssetsAuthors}
         WHERE ${AssetsAuthors.assetId} = ${assetId}
-      """.query[AuthorId].to[List].transact(xa)
+      """.query[AuthorId].to[List]
 
     private def findAuthors(
         assetIds: List[AssetId]
-    ): F[Map[AssetId, List[AuthorId]]] =
+    ): ConnectionIO[Map[AssetId, List[AuthorId]]] =
       NonEmptyList
         .fromList(assetIds)
         .map: assetIds =>
@@ -446,10 +403,8 @@ object AssetRepository:
           query
             .query[(AuthorId, AssetId)]
             .to[List]
-            .transact(xa)
-            .map: results =>
-              results.groupMap(_._2)(_._1)
-        .getOrElse(Map.empty.pure)
+            .map(_.groupMap(_._2)(_._1))
+        .getOrElse(Map.empty.pure[ConnectionIO])
 
 private[library] object Assets extends TableDefinition("assets"):
   val id         = Column[AssetId]("id")

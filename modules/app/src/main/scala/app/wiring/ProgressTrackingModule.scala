@@ -18,13 +18,14 @@ object ProgressTrackingModule:
       navBarItems: List[NavBarItem],
       xa: Transactor[IO]
   ): ProgressTrackingModule[IO] =
-    val entryProgressRepository = EntryProgressRepository.make(xa)
+    val entryProgressRepository = EntryProgressRepository.make
     val service = ProgressTrackingService.make(
       malModule.service,
       library.assetService,
       mappingModule.service,
       entryProgressRepository,
-      library.authorRepository
+      library.authorRepository,
+      xa
     )
     val view       = ProgressTrackingView(navBarItems)
     val controller = ProgressTrackingController(service, view)

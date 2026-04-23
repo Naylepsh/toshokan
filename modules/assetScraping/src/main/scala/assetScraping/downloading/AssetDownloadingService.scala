@@ -10,9 +10,10 @@ import assetScraping.downloading.domain.{
   BulkDownloadProgress,
   DownloadDir
 }
-import cats.MonadThrow
-import cats.effect.kernel.{Sync, Temporal}
+import cats.effect.kernel.{Async, Sync, Temporal}
 import cats.syntax.all.*
+import doobie.*
+import doobie.implicits.*
 import library.asset.AssetRepository
 import library.asset.domain.*
 import mangadex.MangadexApi
@@ -50,12 +51,13 @@ object AssetDownloadingService:
       delayBetweenDownloads: FiniteDuration
   )
 
-  def make[F[_]: Sync: Temporal: MonadThrow, FolderCreated](
+  def make[F[_]: Async, FolderCreated](
       mangadexApi: MangadexApi[F],
       backend: SttpBackend[F, WebSockets],
-      assetRepository: AssetRepository[F],
+      assetRepository: AssetRepository,
       storage: EntryStorage[F, FolderCreated],
-      config: Config
+      config: Config,
+      xa: Transactor[F]
   ): AssetDownloadingService[F, FolderCreated] = new:
     override def downloadAll(assetId: AssetId): F[BulkDownloadProgress] =
       for
@@ -72,6 +74,7 @@ object AssetDownloadingService:
     private def getEntryGroupsOrderedByNo(assetId: AssetId) =
       assetRepository
         .findById(assetId)
+        .transact(xa)
         .flatMap:
           case None => Temporal[F].raiseError(AssetNotFound(assetId))
           case Some(asset, entries) =>
@@ -151,7 +154,9 @@ object AssetDownloadingService:
 
     private def findAssetAndEntry(entryId: EntryId) =
       for
-        maybeAssetWithEntries <- assetRepository.findByEntryId(entryId)
+        maybeAssetWithEntries <- assetRepository
+          .findByEntryId(entryId)
+          .transact(xa)
         (asset, entries) <- Sync[F].fromOption(
           maybeAssetWithEntries,
           NoAssetFoundForEntry(entryId)

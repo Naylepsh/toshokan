@@ -41,29 +41,31 @@ object AssetScrapingModule:
       navBarItems: List[NavBarItem],
       xa: doobie.Transactor[IO]
   ): AssetScrapingModule[IO] =
-    val configRepository = AssetScrapingConfigRepository.make[IO](xa)
+    val configRepository = AssetScrapingConfigRepository.make
     val configService = AssetScrapingConfigService
-      .make[IO](configRepository, library.assetService)
+      .make[IO](configRepository, library.assetService, xa)
     val configView = AssetScrapingConfigView(navBarItems)
     val configController =
       AssetScrapingConfigController(configService, configView)
 
-    val authorConfigRepository = AuthorScrapingConfigRepository.make[IO](xa)
+    val authorConfigRepository = AuthorScrapingConfigRepository.make
     val authorConfigService = AuthorScrapingConfigService
-      .make[IO](authorConfigRepository, library.authorRepository)
+      .make[IO](authorConfigRepository, library.authorRepository, xa)
     val authorConfigView = AuthorScrapingConfigView(navBarItems)
     val authorConfigController =
       AuthorScrapingConfigController(
         authorConfigService,
         library.authorRepository,
-        authorConfigView
+        authorConfigView,
+        xa
       )
 
-    val scheduleRepository = ScheduleRepository.make[IO](xa)
+    val scheduleRepository = ScheduleRepository.make
     val scheduleService = ScheduleService.make(
       scheduleRepository,
       library.assetService,
-      library.categoryService
+      library.categoryService,
+      xa
     )
     val scheduleView = ScheduleView(navBarItems)
     val scheduleController = ScheduleController[IO](
@@ -83,7 +85,8 @@ object AssetScrapingModule:
       scheduleService,
       scraper,
       siteScrapers.forAsset,
-      siteScrapers.forAuthor
+      siteScrapers.forAuthor,
+      xa
     )
     val scrapingView = AssetScrapingView(navBarItems)
     val scrapingController = AssetScrapingController[IO](
@@ -98,7 +101,8 @@ object AssetScrapingModule:
       httpBackend,
       library.assetRepository,
       localEntryStorage,
-      AssetDownloadingService.Config(2.seconds)
+      AssetDownloadingService.Config(2.seconds),
+      xa
     )
     val downloadingView = AssetDownloadingView(navBarItems)
     val downloadingController = AssetDownloadingController[IO](

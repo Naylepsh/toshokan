@@ -1,7 +1,6 @@
 package progressTracking
 
 import cats.data.NonEmptyList
-import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
 import core.Tuples
 import core.given
@@ -14,17 +13,18 @@ import org.typelevel.cats.time.*
 
 import domain.{EntryProgress, DateMarkedSeen, WasEntrySeen}
 
-trait EntryProgressRepository[F[_]]:
-  def find(entryId: EntryId): F[Option[EntryProgress]]
-  def setSeen(entryId: EntryId, wasSeen: WasEntrySeen): F[EntryProgress]
-  def findSeenEntries: F[List[EntryId]]
+trait EntryProgressRepository:
+  def find(entryId: EntryId): ConnectionIO[Option[EntryProgress]]
+  def setSeen(
+      entryId: EntryId,
+      wasSeen: WasEntrySeen
+  ): ConnectionIO[EntryProgress]
+  def findSeenEntries: ConnectionIO[List[EntryId]]
 
 object EntryProgressRepository:
-  def make[F[_]: MonadCancelThrow](
-      xa: Transactor[F]
-  ): EntryProgressRepository[F] = new:
+  val make: EntryProgressRepository = new:
 
-    override def find(entryId: EntryId): F[Option[EntryProgress]] =
+    override def find(entryId: EntryId): ConnectionIO[Option[EntryProgress]] =
       sql"""
         SELECT ${EntryProgressTable.*}
         FROM ${EntryProgressTable} 
@@ -32,13 +32,12 @@ object EntryProgressRepository:
       """
         .queryOf(EntryProgressTable.*)
         .option
-        .transact(xa)
         .map(_.map(Tuples.from[EntryProgress](_)))
 
     override def setSeen(
         entryId: EntryId,
         wasSeen: WasEntrySeen
-    ): F[EntryProgress] =
+    ): ConnectionIO[EntryProgress] =
       val now = DateMarkedSeen(java.time.LocalDateTime.now())
       sql"""
         ${EntryProgressTable.insertIntoX(
@@ -52,10 +51,9 @@ object EntryProgressRepository:
           ${EntryProgressTable.wasSeen} = EXCLUDED.${EntryProgressTable.wasSeen},
           ${EntryProgressTable.dateMarkedSeen} = EXCLUDED.${EntryProgressTable.dateMarkedSeen}
       """.update.run
-        .transact(xa)
         .as(EntryProgress(entryId, wasSeen, Some(now)))
 
-    override def findSeenEntries: F[List[EntryId]] =
+    override def findSeenEntries: ConnectionIO[List[EntryId]] =
       sql"""
         SELECT ${EntryProgressTable.entryId}
         FROM ${EntryProgressTable}
@@ -63,7 +61,6 @@ object EntryProgressRepository:
       """
         .query[EntryId]
         .to[List]
-        .transact(xa)
 
 private object EntryProgressTable extends TableDefinition("entry_progress"):
   val entryId        = Column[EntryId]("entry_id")

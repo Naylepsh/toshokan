@@ -23,11 +23,11 @@ class AuthorMergeServiceSuite extends CatsEffectSuite:
     inMemoryTransactor[IO]
       .evalTap(applyMigrations)
       .map: xa =>
-        val authorRepo = AuthorRepository.make[IO](xa)
-        val assetRepo  = AssetRepository.make[IO](xa)
+        val authorRepo = AuthorRepository.make
+        val assetRepo  = AssetRepository.make
         val authorScrapingConfigRepo =
-          AuthorScrapingConfigRepository.make[IO](xa)
-        val assetScrapingConfigRepo = AssetScrapingConfigRepository.make[IO](xa)
+          AuthorScrapingConfigRepository.make
+        val assetScrapingConfigRepo = AssetScrapingConfigRepository.make
         val malMangaMappingRepo     = MalMangaMappingRepository.make
         val service = AuthorMergeService[IO](
           authorRepo,
@@ -56,13 +56,13 @@ class AuthorMergeServiceSuite extends CatsEffectSuite:
         // Merge author 2 into author 1
         _ <- service.mergeAuthors(NonEmptyList.of(AuthorId(2)), AuthorId(1))
         // Author 2 should be deleted
-        author2 <- authorRepo.find(AuthorId(2))
+        author2 <- authorRepo.find(AuthorId(2)).transact(xa)
         _ = assertEquals(author2, None)
         // Author 1 should still exist
-        author1 <- authorRepo.find(AuthorId(1))
+        author1 <- authorRepo.find(AuthorId(1)).transact(xa)
         _ = assert(author1.isDefined)
         // Asset Y should now be linked to author 1
-        assets <- authorRepo.findAssetsByAuthor(AuthorId(1))
+        assets <- authorRepo.findAssetsByAuthor(AuthorId(1)).transact(xa)
         _ = assertEquals(
           assets.map(_.title).toSet,
           Set(AssetTitle("Asset X"), AssetTitle("Asset Y"))
@@ -171,7 +171,7 @@ class AuthorMergeServiceSuite extends CatsEffectSuite:
           .transact(xa)
       _ <- service.mergeAuthors(NonEmptyList.of(AuthorId(2)), AuthorId(1))
       // findOrAdd with old name should return the target author
-      result <- authorRepo.findOrAdd(Set(AuthorName("Author B")))
+      result <- authorRepo.findOrAdd(Set(AuthorName("Author B"))).transact(xa)
       _ = assertEquals(result.size, 1)
       _ = assertEquals(result.head.id, AuthorId(1))
       _ = assertEquals(result.head.name, AuthorName("Author A"))

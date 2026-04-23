@@ -152,8 +152,8 @@ object AssetMappingServiceSuite:
   def makeService(
       xa: Transactor[IO]
   ): IO[(AssetMappingService[IO], AssetService[IO], CategoryService[IO])] =
-    val assetService    = AssetService.make(AssetRepository.make(xa))
-    val categoryService = CategoryService.make(CategoryRepository.make(xa))
+    val assetService    = AssetService.make(AssetRepository.make, xa)
+    val categoryService = CategoryService.make(CategoryRepository.make, xa)
     MyAnimeListServiceImpl
       .make(xa, noopMalClient)
       .map: malService =>

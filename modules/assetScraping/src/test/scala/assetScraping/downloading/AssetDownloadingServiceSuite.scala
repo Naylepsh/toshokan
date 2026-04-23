@@ -5,9 +5,11 @@ import scala.concurrent.duration.*
 import assetScraping.downloading.domain.DownloadDir
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.mtl.Raise
 import cats.syntax.eq.*
 import core.types.PositiveInt
+import db.migrations.applyMigrations
+import db.transactors.inMemoryTransactor
+import doobie.*
 import library.asset.AssetRepository
 import library.asset.domain.*
 import library.author.domain.AuthorId
@@ -21,32 +23,40 @@ import sttp.client3.testing.SttpBackendStub
 import sttp.model.StatusCode
 import sttp.monad.MonadError
 
-trait TestAssetRepository extends AssetRepository[IO]:
-  def findAll                                                              = ???
-  def findById(assetId: AssetId)                                           = ???
-  def findByEntryId(entryId: EntryId)                                      = ???
-  def findStale(minDaysToBeStale: PositiveInt)                             = ???
-  def add(asset: NewAsset): Raise[IO, AddAssetError] ?=> IO[ExistingAsset] = ???
+trait TestAssetRepository extends AssetRepository:
+  def findAll                                  = ???
+  def findById(assetId: AssetId)               = ???
+  def findByEntryId(entryId: EntryId)          = ???
+  def findStale(minDaysToBeStale: PositiveInt) = ???
+  def add(asset: NewAsset): ConnectionIO[Either[AddAssetError, ExistingAsset]] =
+    ???
   def add(
       entry: NewAssetEntry
-  ): Raise[IO, AddEntryError] ?=> IO[ExistingAssetEntry] = ???
-  def addToAsset(asset: ExistingAsset, category: CategoryId): IO[Unit] = ???
-  def update(asset: ExistingAsset): IO[Unit]                           = ???
-  def update(entry: ExistingAssetEntry): IO[Unit]                      = ???
-  def delete(assetId: AssetId): IO[Unit]                               = ???
-  def matchCategoriesToAssets(
-      categoryIds: NonEmptyList[CategoryId]
-  ): IO[Map[CategoryId, List[AssetId]]] = ???
-  def findOrAdd(assets: Set[NewAsset]): IO[Set[ExistingAsset]]             = ???
-  def mergeAssets(sourceId: AssetId, targetId: AssetId): IO[Unit]          = ???
-  def findAssetsByAuthorIO(authorId: AuthorId)                             = ???
-  def relinkAuthorAssets(sourceAssetId: AssetId, targetAuthorId: AuthorId) = ???
-  def mergeAssetIO(sourceAssetId: AssetId, targetAssetId: AssetId)         = ???
+  ): ConnectionIO[Either[AddEntryError, ExistingAssetEntry]] = ???
+  def addToAsset(
+      asset: ExistingAsset,
+      category: CategoryId
+  ): ConnectionIO[Unit] = ???
+  def update(asset: ExistingAsset): ConnectionIO[Unit]                     = ???
+  def update(entry: ExistingAssetEntry): ConnectionIO[Unit]                = ???
+  def delete(assetId: AssetId): ConnectionIO[Unit]                         = ???
+  def matchCategoriesToAssets(categoryIds: NonEmptyList[CategoryId])       = ???
+  def findOrAdd(assets: Set[NewAsset]): ConnectionIO[Set[ExistingAsset]]   = ???
+  def mergeAsset(sourceId: AssetId, targetId: AssetId): ConnectionIO[Unit] = ???
+  def findAssetsByAuthor(authorId: AuthorId)                               = ???
+  def relinkAuthorAssets(
+      sourceAssetId: AssetId,
+      targetAuthorId: AuthorId
+  ): ConnectionIO[Unit] = ???
 
 class AssetDownloadingServiceSuite extends CatsEffectSuite:
   import AssetDownloadingServiceSuite.*
 
-  test("downloadAll processes entries in order"):
+  val withXa = ResourceFunFixture(
+    inMemoryTransactor[IO].evalTap(applyMigrations)
+  )
+
+  withXa.test("downloadAll processes entries in order"): xa =>
     val entries = List(
       ExistingAssetEntry(
         EntryId(1),
@@ -69,9 +79,9 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
     val mockRepo = new TestAssetRepository:
       override def findById(
           assetId: AssetId
-      ): IO[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
+      ): ConnectionIO[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
         if assetId == AssetId(1) then
-          IO.pure(
+          FC.pure(
             Some(
               (
                 ExistingAsset(AssetId(1), AssetTitle("Test"), None, List.empty),
@@ -79,14 +89,14 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
               )
             )
           )
-        else IO.pure(None)
+        else FC.pure(None)
 
       override def findByEntryId(
           entryId: EntryId
-      ): IO[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
+      ): ConnectionIO[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
         entries.find(_.id === entryId) match
           case Some(entry) =>
-            IO.pure(
+            FC.pure(
               Some(
                 (
                   ExistingAsset(
@@ -99,7 +109,7 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
                 )
               )
             )
-          case None => IO.pure(None)
+          case None => FC.pure(None)
 
     val mockMangadexApi = new MangadexApi[IO]:
       def getMangaFeed(mangaId: String) = ???
@@ -113,7 +123,8 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
       mockBackend,
       mockRepo,
       storage,
-      config
+      config,
+      xa
     )
 
     service
@@ -124,11 +135,12 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
         assertEquals(progress.failedEntries.size, 0)
         assert(progress.isComplete)
 
-  test("downloadAll handles missing asset"):
+  withXa.test("downloadAll handles missing asset"): xa =>
     val mockRepo = new TestAssetRepository:
       override def findById(
           assetId: AssetId
-      ): IO[Option[(ExistingAsset, List[ExistingAssetEntry])]] = IO.pure(None)
+      ): ConnectionIO[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
+        FC.pure(None)
 
     val mockMangadexApi = new MangadexApi[IO]:
       def getMangaFeed(mangaId: String) = ???
@@ -142,7 +154,8 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
       mockBackend,
       mockRepo,
       storage,
-      config
+      config,
+      xa
     )
 
     interceptIO[AssetNotFound]:

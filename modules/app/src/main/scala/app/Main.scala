@@ -77,15 +77,16 @@ object Main extends IOApp.Simple:
         AuthorMergeService[IO](
           library.authorRepository,
           library.assetRepository,
-          AuthorScrapingConfigRepository.make[IO](xa),
-          AssetScrapingConfigRepository.make[IO](xa),
+          AuthorScrapingConfigRepository.make,
+          AssetScrapingConfigRepository.make,
           MalMangaMappingRepository.make,
           xa
         )
       authorMergeController = AuthorMergeController[IO](
         authorMergeService,
         library.authorRepository,
-        library.authorView
+        library.authorView,
+        xa
       )
       externals <- IO.pure(
         app.wiring.ExternalServices.make(httpBackend, malAuth, random)
@@ -111,7 +112,7 @@ object Main extends IOApp.Simple:
       )
       importing <- IO.pure(
         app.wiring.AssetImportingModule
-          .make(library, scraping, mapping, externals, navBarItems)
+          .make(library, scraping, mapping, externals, navBarItems, xa)
       )
       system <- IO.pure(app.wiring.SystemModule.make(shutdownSignal))
     yield List(

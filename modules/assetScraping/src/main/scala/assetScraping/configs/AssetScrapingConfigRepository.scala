@@ -1,9 +1,6 @@
 package assetScraping.configs
 
 import cats.data.NonEmptyList
-import cats.effect.MonadCancelThrow
-import cats.mtl.Raise
-import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import core.Tuples
 import core.given
@@ -15,16 +12,20 @@ import neotype.interop.doobie.given
 
 import domain.*
 
-trait AssetScrapingConfigRepository[F[_]]:
-  def findAllEnabled: F[List[ExistingAssetScrapingConfig]]
-  def findByAssetId(assetId: AssetId): F[List[ExistingAssetScrapingConfig]]
+trait AssetScrapingConfigRepository:
+  def findAllEnabled: ConnectionIO[List[ExistingAssetScrapingConfig]]
+  def findByAssetId(
+      assetId: AssetId
+  ): ConnectionIO[List[ExistingAssetScrapingConfig]]
   def add(
       scrapingConfig: NewAssetScrapingConfig
-  ): Raise[F, AddScrapingConfigError] ?=> F[ExistingAssetScrapingConfig]
+  ): ConnectionIO[Either[AddScrapingConfigError, ExistingAssetScrapingConfig]]
   def update(
       scrapingConfig: ExistingAssetScrapingConfig
-  ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig]
-  def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
+  ): ConnectionIO[
+    Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]
+  ]
+  def delete(scrapingConfigId: AssetScrapingConfigId): ConnectionIO[Unit]
   def transferConfigs(
       sourceAssetId: AssetId,
       targetAssetId: AssetId
@@ -32,55 +33,59 @@ trait AssetScrapingConfigRepository[F[_]]:
 
 object AssetScrapingConfigRepository:
 
-  def make[F[_]: MonadCancelThrow](
-      xa: Transactor[F]
-  ): AssetScrapingConfigRepository[F] = new:
-    def findAllEnabled: F[List[ExistingAssetScrapingConfig]] =
+  val make: AssetScrapingConfigRepository = new:
+    def findAllEnabled: ConnectionIO[List[ExistingAssetScrapingConfig]] =
       sql"""
         SELECT ${AssetScrapingConfigs.*}
         FROM ${AssetScrapingConfigs}
         WHERE ${AssetScrapingConfigs.isEnabled === IsConfigEnabled(true)}"""
         .queryOf(AssetScrapingConfigs.*)
         .to[List]
-        .transact(xa)
         .map(_.map(Tuples.from[ExistingAssetScrapingConfig](_)))
 
-    def findByAssetId(assetId: AssetId): F[List[ExistingAssetScrapingConfig]] =
+    def findByAssetId(
+        assetId: AssetId
+    ): ConnectionIO[List[ExistingAssetScrapingConfig]] =
       sql"""
         SELECT ${AssetScrapingConfigs.*}
         FROM ${AssetScrapingConfigs}
         WHERE ${AssetScrapingConfigs.assetId === assetId}"""
         .queryOf(AssetScrapingConfigs.*)
         .to[List]
-        .transact(xa)
         .map(_.map(Tuples.from[ExistingAssetScrapingConfig](_)))
 
     def add(
         scrapingConfig: NewAssetScrapingConfig
-    ): Raise[F, AddScrapingConfigError] ?=> F[ExistingAssetScrapingConfig] =
-      exists(scrapingConfig.uri).flatMap: configExists =>
-        if configExists then AddScrapingConfigError.ConfigAlreadyExists.raise
-        else addWithoutChecking(scrapingConfig)
+    ): ConnectionIO[
+      Either[AddScrapingConfigError, ExistingAssetScrapingConfig]
+    ] =
+      exists(scrapingConfig.uri).flatMap:
+        case true =>
+          AddScrapingConfigError.ConfigAlreadyExists.asLeft.pure[ConnectionIO]
+        case false => addWithoutChecking(scrapingConfig).map(_.asRight)
 
     def update(
         scrapingConfig: ExistingAssetScrapingConfig
-    ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig] =
+    ): ConnectionIO[
+      Either[UpdateScrapingConfigError, ExistingAssetScrapingConfig]
+    ] =
       val id = scrapingConfig.id
       (exists(scrapingConfig.id), idOf(scrapingConfig.uri)).tupled.flatMap:
         case (true, Some(`id`)) =>
-          updateWithoutChecking(scrapingConfig)
+          updateWithoutChecking(scrapingConfig).map(_.asRight)
         case (true, None) =>
-          updateWithoutChecking(scrapingConfig)
+          updateWithoutChecking(scrapingConfig).map(_.asRight)
         case (false, _) =>
-          UpdateScrapingConfigError.ConfigDoesNotExist.raise
+          UpdateScrapingConfigError.ConfigDoesNotExist.asLeft.pure[ConnectionIO]
         case (_, Some(_)) =>
-          UpdateScrapingConfigError.ConflictingConfigError.raise
+          UpdateScrapingConfigError.ConflictingConfigError.asLeft
+            .pure[ConnectionIO]
 
-    def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit] =
+    def delete(scrapingConfigId: AssetScrapingConfigId): ConnectionIO[Unit] =
       sql"""
         DELETE FROM ${AssetScrapingConfigs} 
         WHERE ${AssetScrapingConfigs.id === scrapingConfigId}
-      """.update.run.transact(xa).void
+      """.update.run.void
 
     def transferConfigs(
         sourceAssetId: AssetId,
@@ -99,30 +104,32 @@ object AssetScrapingConfigRepository:
         """.update.run
       yield ()
 
-    private def idOf(uri: ScrapingConfigUri): F[Option[AssetScrapingConfigId]] =
+    private def idOf(
+        uri: ScrapingConfigUri
+    ): ConnectionIO[Option[AssetScrapingConfigId]] =
       sql"""
         SELECT ${AssetScrapingConfigs.id}
         FROM ${AssetScrapingConfigs}
         WHERE ${AssetScrapingConfigs.uri === uri}
-      """.query[AssetScrapingConfigId].option.transact(xa)
+      """.query[AssetScrapingConfigId].option
 
-    private def exists(uri: ScrapingConfigUri): F[Boolean] =
+    private def exists(uri: ScrapingConfigUri): ConnectionIO[Boolean] =
       sql"""
         SELECT 1
         FROM ${AssetScrapingConfigs}
         WHERE ${AssetScrapingConfigs.uri === uri}
-      """.query[Int].option.transact(xa).map(_.isDefined)
+      """.query[Int].option.map(_.isDefined)
 
-    private def exists(id: AssetScrapingConfigId): F[Boolean] =
+    private def exists(id: AssetScrapingConfigId): ConnectionIO[Boolean] =
       sql"""
         SELECT 1
         FROM ${AssetScrapingConfigs}
         WHERE ${AssetScrapingConfigs.id === id}
-      """.query[Int].option.transact(xa).map(_.isDefined)
+      """.query[Int].option.map(_.isDefined)
 
     private def addWithoutChecking(
         scrapingConfig: NewAssetScrapingConfig
-    ): F[ExistingAssetScrapingConfig] =
+    ): ConnectionIO[ExistingAssetScrapingConfig] =
       insertIntoReturning(
         AssetScrapingConfigs,
         NonEmptyList.of(
@@ -135,12 +142,11 @@ object AssetScrapingConfigRepository:
       )
         .queryOf(AssetScrapingConfigs.*)
         .unique
-        .transact(xa)
         .map(Tuples.from[ExistingAssetScrapingConfig](_))
 
     private def updateWithoutChecking(
         scrapingConfig: ExistingAssetScrapingConfig
-    ): F[ExistingAssetScrapingConfig] =
+    ): ConnectionIO[ExistingAssetScrapingConfig] =
       sql"""
       ${AssetScrapingConfigs.updateTable(
           NonEmptyList.of(
@@ -150,7 +156,7 @@ object AssetScrapingConfigRepository:
           )
         )}
       WHERE ${AssetScrapingConfigs.id === scrapingConfig.id}
-      """.update.run.transact(xa).as(scrapingConfig)
+      """.update.run.as(scrapingConfig)
 
 private object AssetScrapingConfigs
     extends TableDefinition("asset_scraping_configs"):

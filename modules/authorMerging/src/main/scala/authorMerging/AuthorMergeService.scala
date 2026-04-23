@@ -16,10 +16,10 @@ import library.author.AuthorRepository
 import library.author.domain.AuthorId
 
 class AuthorMergeService[F[_]: MonadCancelThrow](
-    authorRepo: AuthorRepository[F],
-    assetRepo: AssetRepository[F],
-    authorScrapingConfigRepo: AuthorScrapingConfigRepository[F],
-    assetScrapingConfigRepo: AssetScrapingConfigRepository[F],
+    authorRepo: AuthorRepository,
+    assetRepo: AssetRepository,
+    authorScrapingConfigRepo: AuthorScrapingConfigRepository,
+    assetScrapingConfigRepo: AssetScrapingConfigRepository,
     malMangaMappingRepo: MalMangaMappingRepository,
     xa: Transactor[F]
 ):
@@ -29,10 +29,10 @@ class AuthorMergeService[F[_]: MonadCancelThrow](
   ): F[Unit] =
     val merge = for
       _ <- authorScrapingConfigRepo.transferConfigs(sourceIds, targetId)
-      targetAssets <- assetRepo.findAssetsByAuthorIO(targetId)
+      targetAssets <- assetRepo.findAssetsByAuthor(targetId)
       targetAssetsByTitle = targetAssets.map((id, title) => title -> id).toMap
       sourceAssets <- sourceIds.toList.flatTraverse: sourceId =>
-        assetRepo.findAssetsByAuthorIO(sourceId)
+        assetRepo.findAssetsByAuthor(sourceId)
       distinctSourceAssets = sourceAssets.distinctBy(_._1)
       _ <- distinctSourceAssets.traverse_ : (sourceAssetId, title) =>
         targetAssetsByTitle.get(title) match
@@ -55,5 +55,5 @@ class AuthorMergeService[F[_]: MonadCancelThrow](
         source,
         target
       )
-      _ <- assetRepo.mergeAssetIO(source, target)
+      _ <- assetRepo.mergeAsset(source, target)
     yield ()

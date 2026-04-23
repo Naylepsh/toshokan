@@ -2,51 +2,49 @@ package assetScraping.configs
 
 import assetScraping.configs.domain.*
 import cats.data.NonEmptyList
-import cats.effect.MonadCancelThrow
-import cats.mtl.Raise
-import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import core.Tuples
 import core.given
 import db.fragments.insertIntoReturning
 import doobie.*
 import doobie.implicits.*
-import doobie.util.transactor.Transactor
 import library.author.domain.AuthorId
 import neotype.interop.doobie.given
 
-trait AuthorScrapingConfigRepository[F[_]]:
+trait AuthorScrapingConfigRepository:
   def add(
       scrapingConfig: NewAuthorScrapingConfig
-  ): Raise[F, AddAuthorScrapingConfig] ?=> F[ExistingAuthorScrapingConfig]
-  def findAllEnabled: F[List[ExistingAuthorScrapingConfig]]
-
-  def findByAuthorId(authorId: AuthorId): F[List[ExistingAuthorScrapingConfig]]
+  ): ConnectionIO[Either[AddAuthorScrapingConfig, ExistingAuthorScrapingConfig]]
+  def findAllEnabled: ConnectionIO[List[ExistingAuthorScrapingConfig]]
+  def findByAuthorId(
+      authorId: AuthorId
+  ): ConnectionIO[List[ExistingAuthorScrapingConfig]]
   def findById(
       id: AuthorScrapingConfigId
-  ): F[Option[ExistingAuthorScrapingConfig]]
-  def delete(id: AuthorScrapingConfigId): F[Boolean]
+  ): ConnectionIO[Option[ExistingAuthorScrapingConfig]]
+  def delete(id: AuthorScrapingConfigId): ConnectionIO[Boolean]
   def updateEnabled(
       id: AuthorScrapingConfigId,
       enabled: IsConfigEnabled
-  ): F[Boolean]
+  ): ConnectionIO[Boolean]
   def transferConfigs(
       sourceIds: NonEmptyList[AuthorId],
       targetId: AuthorId
   ): ConnectionIO[Unit]
 
 object AuthorScrapingConfigRepository:
-  def make[F[_]: MonadCancelThrow](
-      xa: Transactor[F]
-  ): AuthorScrapingConfigRepository[F] = new:
+  val make: AuthorScrapingConfigRepository = new:
     def add(
         scrapingConfig: NewAuthorScrapingConfig
-    ): (Raise[F, AddAuthorScrapingConfig]) ?=> F[ExistingAuthorScrapingConfig] =
+    ): ConnectionIO[
+      Either[AddAuthorScrapingConfig, ExistingAuthorScrapingConfig]
+    ] =
       exists(scrapingConfig.uri).flatMap:
-        case true  => AddAuthorScrapingConfig.ConfigAlreadyExists.raise
-        case false => addWithoutChecking(scrapingConfig)
+        case true =>
+          AddAuthorScrapingConfig.ConfigAlreadyExists.asLeft.pure[ConnectionIO]
+        case false => addWithoutChecking(scrapingConfig).map(_.asRight)
 
-    def findAllEnabled: F[List[ExistingAuthorScrapingConfig]] =
+    def findAllEnabled: ConnectionIO[List[ExistingAuthorScrapingConfig]] =
       sql"""
       SELECT ${AuthorScrapingConfigs.*}
       FROM ${AuthorScrapingConfigs}
@@ -54,12 +52,11 @@ object AuthorScrapingConfigRepository:
       """
         .queryOf(AuthorScrapingConfigs.*)
         .to[List]
-        .transact(xa)
         .map(_.map(Tuples.from[ExistingAuthorScrapingConfig](_)))
 
     def findByAuthorId(
         authorId: AuthorId
-    ): F[List[ExistingAuthorScrapingConfig]] =
+    ): ConnectionIO[List[ExistingAuthorScrapingConfig]] =
       sql"""
       SELECT ${AuthorScrapingConfigs.*}
       FROM ${AuthorScrapingConfigs}
@@ -67,12 +64,11 @@ object AuthorScrapingConfigRepository:
       """
         .queryOf(AuthorScrapingConfigs.*)
         .to[List]
-        .transact(xa)
         .map(_.map(Tuples.from[ExistingAuthorScrapingConfig](_)))
 
     def findById(
         id: AuthorScrapingConfigId
-    ): F[Option[ExistingAuthorScrapingConfig]] =
+    ): ConnectionIO[Option[ExistingAuthorScrapingConfig]] =
       sql"""
       SELECT ${AuthorScrapingConfigs.*}
       FROM ${AuthorScrapingConfigs}
@@ -80,24 +76,23 @@ object AuthorScrapingConfigRepository:
       """
         .queryOf(AuthorScrapingConfigs.*)
         .option
-        .transact(xa)
         .map(_.map(Tuples.from[ExistingAuthorScrapingConfig](_)))
 
-    def delete(id: AuthorScrapingConfigId): F[Boolean] =
+    def delete(id: AuthorScrapingConfigId): ConnectionIO[Boolean] =
       sql"""
       DELETE FROM ${AuthorScrapingConfigs}
       WHERE ${AuthorScrapingConfigs.id == id}
-      """.update.run.transact(xa).map(_ > 0)
+      """.update.run.map(_ > 0)
 
     def updateEnabled(
         id: AuthorScrapingConfigId,
         enabled: IsConfigEnabled
-    ): F[Boolean] =
+    ): ConnectionIO[Boolean] =
       sql"""
       UPDATE ${AuthorScrapingConfigs}
       SET ${AuthorScrapingConfigs.isEnabled} = $enabled
       WHERE ${AuthorScrapingConfigs.id == id}
-      """.update.run.transact(xa).map(_ > 0)
+      """.update.run.map(_ > 0)
 
     def transferConfigs(
         sourceIds: NonEmptyList[AuthorId],
@@ -117,12 +112,12 @@ object AuthorScrapingConfigRepository:
           (sql"DELETE FROM ${AuthorScrapingConfigs} WHERE " ++ inSource).update.run
       yield ()
 
-    private def exists(uri: ScrapingConfigUri): F[Boolean] =
+    private def exists(uri: ScrapingConfigUri): ConnectionIO[Boolean] =
       sql"""
       SELECT 1
       FROM ${AuthorScrapingConfigs}
       WHERE ${AuthorScrapingConfigs.uri == uri}
-      """.query[Int].option.transact(xa).map(_.isDefined)
+      """.query[Int].option.map(_.isDefined)
 
     private def addWithoutChecking(scrapingConfig: NewAuthorScrapingConfig) =
       insertIntoReturning(
@@ -137,7 +132,6 @@ object AuthorScrapingConfigRepository:
       )
         .queryOf(AuthorScrapingConfigs.*)
         .unique
-        .transact(xa)
         .map(Tuples.from[ExistingAuthorScrapingConfig](_))
 
 private object AuthorScrapingConfigs

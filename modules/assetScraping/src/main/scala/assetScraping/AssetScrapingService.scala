@@ -8,6 +8,8 @@ import cats.mtl.Handle
 import cats.syntax.all.*
 import core.Measure.*
 import core.types.PositiveInt
+import doobie.*
+import doobie.implicits.*
 import library.asset.domain.*
 import library.asset.{AssetRepository, AssetService}
 import library.author.AuthorRepository
@@ -40,14 +42,15 @@ trait AssetScrapingService[F[_]]:
 object AssetScrapingService:
   def make[F[_]: Sync: Clock](
       assetService: AssetService[F],
-      assetRepository: AssetRepository[F],
+      assetRepository: AssetRepository,
       configService: AssetScrapingConfigService[F],
       authorConfigService: AuthorScrapingConfigService[F],
-      authorRepository: AuthorRepository[F],
+      authorRepository: AuthorRepository,
       scheduleService: ScheduleService[F],
       scraper: Scraper[F],
       pickAssetScraper: Site => SiteScraper[F],
-      pickAuthorScraper: AuthorSite => SiteScraperOfAuthor[F]
+      pickAuthorScraper: AuthorSite => SiteScraperOfAuthor[F],
+      xa: Transactor[F]
   ): AssetScrapingService[F] = new:
     override def getNewReleases: F[ScrapingSummary] =
       for
@@ -99,7 +102,7 @@ object AssetScrapingService:
     override def findStale
         : F[List[(ExistingAsset, Option[library.asset.domain.DateUploaded])]] =
       for
-        allStale       <- assetRepository.findStale(PositiveInt(90))
+        allStale <- assetRepository.findStale(PositiveInt(90)).transact(xa)
         enabledConfigs <- configService.findAllEnabled
         enabledAssetIds = enabledConfigs.map(_.assetId).toSet
         staleEnabled = allStale.filter: (asset, _) =>
@@ -143,6 +146,7 @@ object AssetScrapingService:
               asset.authors.map(name => library.author.domain.AuthorName(name))
           .toSet
           .pipe(authorRepository.findOrAdd)
+          .transact(xa)
         authorToId = authors.map(author => author.name -> author.id).toMap
         entryToAssetTitle = successfulResults
           .flatMap: (_, assets) =>
@@ -166,7 +170,7 @@ object AssetScrapingService:
                     case Some(id) => id
                   .toList
               )
-        assets <- assetRepository.findOrAdd(assetsToAdd.toSet)
+        assets <- assetRepository.findOrAdd(assetsToAdd.toSet).transact(xa)
         result <- entryToAssetTitle
           .map: (entry, assetTitle) =>
             assets

@@ -6,6 +6,7 @@ import assetImporting.{
   AssetImportingView
 }
 import cats.effect.IO
+import doobie.Transactor
 import http.View.NavBarItem
 
 case class AssetImportingModule[F[_]](
@@ -19,7 +20,8 @@ object AssetImportingModule:
       scraping: AssetScrapingModule[IO],
       mapping: AssetMappingModule[IO],
       externals: ExternalServices[IO],
-      navBarItems: List[NavBarItem]
+      navBarItems: List[NavBarItem],
+      xa: Transactor[IO]
   ): AssetImportingModule[IO] =
     val service = AssetImportingService(
       library.assetService,
@@ -27,7 +29,8 @@ object AssetImportingModule:
       mapping.service,
       scraping.configService,
       library.authorRepository,
-      externals.mangadexApi
+      externals.mangadexApi,
+      xa
     )
     val view       = AssetImportingView(navBarItems)
     val controller = AssetImportingController(service, view)

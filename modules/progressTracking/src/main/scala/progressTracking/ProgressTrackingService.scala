@@ -5,6 +5,8 @@ import cats.effect.*
 import cats.implicits.*
 import cats.mtl.Raise
 import core.syntax.*
+import doobie.*
+import doobie.implicits.*
 import library.asset.AssetService
 import library.asset.domain.*
 import library.asset.domain.Releases.given
@@ -31,8 +33,9 @@ object ProgressTrackingService:
       malService: MyAnimeListService[F],
       assetService: AssetService[F],
       assetMappingService: AssetMappingService[F],
-      entryProgressRepository: EntryProgressRepository[F],
-      authorRepository: AuthorRepository[F]
+      entryProgressRepository: EntryProgressRepository,
+      authorRepository: AuthorRepository,
+      xa: Transactor[F]
   ): ProgressTrackingService[F] = new:
     override def updateProgress(
         assetId: AssetId,
@@ -47,8 +50,8 @@ object ProgressTrackingService:
         entry <- entries
           .find(_.id.eqv(entryId))
           .orRaise(UpdateEntryError.EntryDoesNotExist)
-        authors <- authorRepository.findByIds(asset.authors)
-        _       <- entryProgressRepository.setSeen(entryId, wasEntrySeen)
+        authors <- authorRepository.findByIds(asset.authors).transact(xa)
+        _ <- entryProgressRepository.setSeen(entryId, wasEntrySeen).transact(xa)
         _ <-
           updateProgressExternally(asset, entries, entry.no)
             .whenA(wasEntrySeen)
@@ -67,6 +70,7 @@ object ProgressTrackingService:
             val updateEntries = entries.traverse: entry =>
               entryProgressRepository
                 .setSeen(entry.id, WasEntrySeen(true))
+                .transact(xa)
                 .handleErrorWith: error =>
                   scribe.cats[F].error(error.toString) *>
                     Sync[F].pure(
@@ -88,10 +92,14 @@ object ProgressTrackingService:
     override def findNotSeenReleases: F[List[Releases]] =
       // TODO: Make it query assets by entry id instead of all
       for
-        seenEntryIds <- entryProgressRepository.findSeenEntries.map(_.toSet)
-        allAssets    <- assetService.findAll
-        authors <- authorRepository.findAll.map: authors =>
-          authors.map(author => author.id -> author.name).toMap
+        seenEntryIds <- entryProgressRepository.findSeenEntries
+          .transact(xa)
+          .map(_.toSet)
+        allAssets <- assetService.findAll
+        authors <- authorRepository.findAll
+          .transact(xa)
+          .map: authors =>
+            authors.map(author => author.id -> author.name).toMap
         unseenReleases = allAssets
           .flatMap: (asset, _, entries) =>
             val authorsOfThis = asset.authors.flatMap(authors.get).toSet

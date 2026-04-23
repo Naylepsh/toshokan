@@ -3,8 +3,11 @@ package library.asset
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import cats.implicits.*
+import cats.mtl.syntax.all.*
 import cats.mtl.{Handle, Raise}
 import core.types.PositiveInt
+import doobie.*
+import doobie.implicits.*
 import library.category.domain.{CategoryId, CategoryName}
 
 import domain.*
@@ -29,16 +32,20 @@ trait AssetService[F[_]]:
   def mergeAssets(sourceId: AssetId, targetId: AssetId): F[Unit]
 
 object AssetService:
-  def make[F[_]: Sync](repository: AssetRepository[F]): AssetService[F] =
+  def make[F[_]: Sync](
+      repository: AssetRepository,
+      xa: Transactor[F]
+  ): AssetService[F] =
     new:
       override def findAll: F[
         List[(ExistingAsset, Option[CategoryName], List[ExistingAssetEntry])]
       ] =
-        repository.findAll
+        repository.findAll.transact(xa)
 
       override def findStale: F[List[StaleAsset]] =
         repository
           .findStale(minDaysToBeStale = PositiveInt(90))
+          .transact(xa)
           .flatMap: assets =>
             assets.traverse: (asset, lastRelease) =>
               lastRelease
@@ -48,25 +55,33 @@ object AssetService:
       override def find(
           id: AssetId
       ): F[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
-        repository.findById(id)
+        repository.findById(id).transact(xa)
 
       override def matchCategoriesToAssets(
           categoryIds: List[CategoryId]
       ): F[Map[CategoryId, List[AssetId]]] =
         NonEmptyList
           .fromList(categoryIds)
-          .map(repository.matchCategoriesToAssets)
+          .map(repository.matchCategoriesToAssets(_).transact(xa))
           .getOrElse(Map.empty.pure)
 
       override def add(
           asset: NewAsset
       ): Raise[F, AddAssetError] ?=> F[ExistingAsset] =
-        repository.add(asset)
+        repository
+          .add(asset)
+          .transact(xa)
+          .rethrow
 
       override def add(
           entry: NewAssetEntry
       ): Raise[F, AddEntryError] ?=> F[ExistingAssetEntry] =
-        repository.add(entry)
+        repository
+          .add(entry)
+          .transact(xa)
+          .flatMap:
+            case Right(e)    => e.pure
+            case Left(error) => error.raise
 
       override def addIfNewRelease(
           entries: List[NewAssetEntry]
@@ -89,10 +104,10 @@ object AssetService:
           .map(_.flatten)
 
       override def update(asset: ExistingAsset): F[Unit] =
-        repository.update(asset)
+        repository.update(asset).transact(xa)
 
       override def delete(assetId: AssetId): F[Unit] =
-        repository.delete(assetId)
+        repository.delete(assetId).transact(xa)
 
       override def mergeAssets(sourceId: AssetId, targetId: AssetId): F[Unit] =
-        repository.mergeAssets(sourceId, targetId)
+        repository.mergeAsset(sourceId, targetId).transact(xa)

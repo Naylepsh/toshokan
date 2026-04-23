@@ -4,6 +4,8 @@ import cats.effect.kernel.Sync
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
+import doobie.*
+import doobie.implicits.*
 import library.asset.AssetService
 import library.asset.domain.*
 
@@ -27,12 +29,13 @@ trait AssetScrapingConfigService[F[_]]:
 
 object AssetScrapingConfigService:
   def make[F[_]: Sync](
-      repository: AssetScrapingConfigRepository[F],
-      assetService: AssetService[F]
+      repository: AssetScrapingConfigRepository,
+      assetService: AssetService[F],
+      xa: Transactor[F]
   ): AssetScrapingConfigService[F] = new:
 
     override def findAllEnabled: F[List[ExistingAssetScrapingConfig]] =
-      repository.findAllEnabled
+      repository.findAllEnabled.transact(xa)
 
     override def findByAssetId(
         assetId: AssetId
@@ -48,6 +51,7 @@ object AssetScrapingConfigService:
           case Some(asset, _) =>
             repository
               .findByAssetId(assetId)
+              .transact(xa)
               .map(asset -> _)
           case None => FindScrapingConfigError.AssetDoesNotExists.raise
 
@@ -57,8 +61,14 @@ object AssetScrapingConfigService:
       assetService
         .find(scrapingConfig.assetId)
         .flatMap:
-          case Some(_) => repository.add(scrapingConfig)
-          case None    => AddScrapingConfigError.AssetDoesNotExists.raise
+          case Some(_) =>
+            repository
+              .add(scrapingConfig)
+              .transact(xa)
+              .flatMap:
+                case Right(config) => config.pure
+                case Left(error)   => error.raise
+          case None => AddScrapingConfigError.AssetDoesNotExists.raise
 
     override def update(
         scrapingConfig: ExistingAssetScrapingConfig
@@ -66,8 +76,14 @@ object AssetScrapingConfigService:
       assetService
         .find(scrapingConfig.assetId)
         .flatMap:
-          case Some(_) => repository.update(scrapingConfig)
-          case None    => UpdateScrapingConfigError.AssetDoesNotExists.raise
+          case Some(_) =>
+            repository
+              .update(scrapingConfig)
+              .transact(xa)
+              .flatMap:
+                case Right(config) => config.pure
+                case Left(error)   => error.raise
+          case None => UpdateScrapingConfigError.AssetDoesNotExists.raise
 
     override def delete(id: AssetScrapingConfigId): F[Unit] =
-      repository.delete(id)
+      repository.delete(id).transact(xa)

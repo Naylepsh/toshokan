@@ -1,9 +1,11 @@
 package library.category
 
-import cats.Monad
+import cats.effect.kernel.MonadCancelThrow
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
+import doobie.*
+import doobie.implicits.*
 import neotype.interop.cats.given
 
 import domain.*
@@ -18,19 +20,21 @@ trait CategoryService[F[_]]:
   ): Raise[F, CategoryAlreadyExists] ?=> F[ExistingCategory]
 
 object CategoryService:
-  def make[F[_]: Monad](
-      repository: CategoryRepository[F]
+  def make[F[_]: MonadCancelThrow](
+      repository: CategoryRepository,
+      xa: Transactor[F]
   ): CategoryService[F] = new:
 
     override def find(id: CategoryId): F[Option[ExistingCategory]] =
-      repository.find(id)
+      repository.find(id).transact(xa)
 
     override def find(ids: List[CategoryId]): F[List[ExistingCategory]] =
       findAll.map: categories =>
         categories.filter: category =>
           ids.contains(category.id)
 
-    override def findAll: F[List[ExistingCategory]] = repository.findAll
+    override def findAll: F[List[ExistingCategory]] =
+      repository.findAll.transact(xa)
 
     override def findManga: F[Option[ExistingCategory]] =
       findAll.map(_.find(_.name.eqv(CategoryName("manga"))))
@@ -38,8 +42,10 @@ object CategoryService:
     override def add(
         newCategory: NewCategory
     ): Raise[F, CategoryAlreadyExists] ?=> F[ExistingCategory] =
-      repository.findAll.flatMap: categories =>
-        categories
-          .find(_.name.eqv(newCategory.name))
-          .fold(repository.add(newCategory)): _ =>
-            CategoryAlreadyExists.raise
+      repository.findAll
+        .transact(xa)
+        .flatMap: categories =>
+          categories
+            .find(_.name.eqv(newCategory.name))
+            .fold(repository.add(newCategory).transact(xa)): _ =>
+              CategoryAlreadyExists.raise

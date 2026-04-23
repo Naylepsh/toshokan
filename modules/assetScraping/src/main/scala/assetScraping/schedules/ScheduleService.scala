@@ -7,6 +7,8 @@ import cats.mtl.Raise
 import cats.mtl.implicits.*
 import cats.syntax.all.*
 import core.given
+import doobie.*
+import doobie.implicits.*
 import library.asset.AssetService
 import library.asset.domain.AssetId
 import library.category.CategoryService
@@ -32,14 +34,15 @@ trait ScheduleService[F[_]]:
 
 object ScheduleService:
   def make[F[_]: Sync](
-      repository: ScheduleRepository[F],
+      repository: ScheduleRepository,
       assetService: AssetService[F],
-      categoryService: CategoryService[F]
+      categoryService: CategoryService[F],
+      xa: Transactor[F]
   ): ScheduleService[F] = new:
 
     override def findAssetsEligibleForScrape: F[List[AssetId]] =
       for
-        schedules <- repository.findAllCategorySchedules
+        schedules <- repository.findAllCategorySchedules.transact(xa)
         categoryToAssets <- assetService.matchCategoriesToAssets(
           schedules.map(_.categoryId)
         )
@@ -52,7 +55,7 @@ object ScheduleService:
 
     override def isAuthorScrapeDay: F[Boolean] =
       for
-        schedule <- repository.findAuthorSchedule
+        schedule <- repository.findAuthorSchedule.transact(xa)
         today    <- DayOfTheWeek.now
       yield schedule.exists(_.days.contains_(today))
 
@@ -61,11 +64,14 @@ object ScheduleService:
     ): F[Option[ScrapingSchedule.Category]] =
       repository
         .findByCategoryIds(NonEmptyList.of(categoryId))
+        .transact(xa)
         .map(_.headOption)
 
     override def findCategoriesOfAllSchedules: F[List[ExistingCategory]] =
       for
-        ids <- repository.findAllCategorySchedules.map(_.map(_.categoryId))
+        ids <- repository.findAllCategorySchedules
+          .transact(xa)
+          .map(_.map(_.categoryId))
         categories <- categoryService.find(ids)
       yield categories
 
@@ -75,7 +81,7 @@ object ScheduleService:
       categoryService
         .find(schedule.categoryId)
         .flatMap:
-          case Some(_) => repository.add(schedule)
+          case Some(_) => repository.add(schedule).transact(xa)
           case None    => AddScheduleError.CategoryDoesNotExist.raise
 
     override def update(
@@ -84,8 +90,14 @@ object ScheduleService:
       categoryService
         .find(schedule.categoryId)
         .flatMap:
-          case Some(_) => repository.update(schedule)
-          case None    => UpdateScheduleError.CategoryDoesNotExist.raise
+          case Some(_) =>
+            repository
+              .update(schedule)
+              .transact(xa)
+              .flatMap:
+                case Left(error) => error.raise
+                case Right(())   => ().pure
+          case None => UpdateScheduleError.CategoryDoesNotExist.raise
 
   private def extractAssetsEligibleForScraping(
       schedules: List[ScrapingSchedule.Category],

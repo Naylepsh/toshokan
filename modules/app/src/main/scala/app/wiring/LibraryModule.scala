@@ -8,12 +8,12 @@ import library.author.{AuthorController, AuthorRepository, AuthorView}
 import library.category.{CategoryRepository, CategoryService}
 
 case class LibraryModule[F[_]](
-    assetRepository: AssetRepository[F],
+    assetRepository: AssetRepository,
     assetService: AssetService[F],
     assetController: AssetController[F],
-    categoryRepository: CategoryRepository[F],
+    categoryRepository: CategoryRepository,
     categoryService: CategoryService[F],
-    authorRepository: AuthorRepository[F],
+    authorRepository: AuthorRepository,
     authorView: AuthorView,
     authorController: AuthorController[F]
 )
@@ -23,17 +23,17 @@ object LibraryModule:
       xa: Transactor[IO],
       navBarItems: List[NavBarItem]
   ): LibraryModule[IO] =
-    val assetRepository    = AssetRepository.make[IO](xa)
-    val categoryRepository = CategoryRepository.make[IO](xa)
-    val authorRepository   = AuthorRepository.make[IO](xa)
-    val assetService       = AssetService.make(assetRepository)
-    val categoryService    = CategoryService.make[IO](categoryRepository)
+    val assetRepository    = AssetRepository.make
+    val categoryRepository = CategoryRepository.make
+    val authorRepository   = AuthorRepository.make
+    val assetService       = AssetService.make(assetRepository, xa)
+    val categoryService    = CategoryService.make[IO](categoryRepository, xa)
     val assetView          = AssetView(navBarItems)
     val assetController =
       AssetController(assetService, categoryService, assetView)
     val authorView = AuthorView(navBarItems)
     val authorController =
-      AuthorController(authorRepository, assetService, authorView)
+      AuthorController(authorRepository, assetService, authorView, xa)
 
     LibraryModule(
       assetRepository = assetRepository,

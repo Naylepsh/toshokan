@@ -1,7 +1,6 @@
 package library.author
 
 import cats.data.NonEmptyList
-import cats.effect.MonadCancelThrow
 import cats.syntax.all.*
 import core.Tuples
 import db.extensions.*
@@ -12,15 +11,15 @@ import library.asset.{Assets, AssetsAuthors}
 import library.author.domain.*
 import neotype.interop.doobie.given
 
-trait AuthorRepository[F[_]]:
-  def add(author: NewAuthor): F[ExistingAuthor]
-  def find(id: AuthorId): F[Option[ExistingAuthor]]
-  def findAll: F[List[ExistingAuthor]]
-  def findByIds(ids: List[AuthorId]): F[List[ExistingAuthor]]
-  def findOrAdd(authors: Set[AuthorName]): F[Set[ExistingAuthor]]
+trait AuthorRepository:
+  def add(author: NewAuthor): ConnectionIO[ExistingAuthor]
+  def find(id: AuthorId): ConnectionIO[Option[ExistingAuthor]]
+  def findAll: ConnectionIO[List[ExistingAuthor]]
+  def findByIds(ids: List[AuthorId]): ConnectionIO[List[ExistingAuthor]]
+  def findOrAdd(authors: Set[AuthorName]): ConnectionIO[Set[ExistingAuthor]]
   def findAssetsByAuthor(
       authorId: AuthorId
-  ): F[List[ExistingAsset]]
+  ): ConnectionIO[List[ExistingAsset]]
   def recordAliases(
       sourceIds: NonEmptyList[AuthorId],
       targetId: AuthorId
@@ -28,9 +27,9 @@ trait AuthorRepository[F[_]]:
   def deleteAuthors(ids: NonEmptyList[AuthorId]): ConnectionIO[Unit]
 
 object AuthorRepository:
-  def make[F[_]: MonadCancelThrow](xa: Transactor[F]): AuthorRepository[F] =
+  val make: AuthorRepository =
     new:
-      override def add(author: NewAuthor): F[ExistingAuthor] =
+      override def add(author: NewAuthor): ConnectionIO[ExistingAuthor] =
         Authors
           .insertIntoReturning(
             NonEmptyList.of(_.name_ --> author.name),
@@ -38,9 +37,7 @@ object AuthorRepository:
           )
           .queryOf(Authors.*)
           .unique
-          .transact(xa)
-          .map: row =>
-            Tuples.from[ExistingAuthor](row)
+          .map(Tuples.from[ExistingAuthor](_))
 
       private def add(authors: Set[NewAuthor]) =
         authors.toList
@@ -52,11 +49,9 @@ object AuthorRepository:
               )
               .queryOf(Authors.*)
               .unique
-          .transact(xa)
-          .map: rows =>
-            rows.map(Tuples.from[ExistingAuthor](_)).toSet
+          .map(_.map(Tuples.from[ExistingAuthor](_)).toSet)
 
-      override def find(id: AuthorId): F[Option[ExistingAuthor]] =
+      override def find(id: AuthorId): ConnectionIO[Option[ExistingAuthor]] =
         sql"""
         SELECT ${Authors.*}
         FROM ${Authors}
@@ -64,11 +59,9 @@ object AuthorRepository:
         """
           .queryOf(Authors.*)
           .option
-          .transact(xa)
-          .map: row =>
-            row.map(Tuples.from[ExistingAuthor](_))
+          .map(_.map(Tuples.from[ExistingAuthor](_)))
 
-      override def findAll: F[List[ExistingAuthor]] =
+      override def findAll: ConnectionIO[List[ExistingAuthor]] =
         sql"""
         SELECT ${Authors.*}
         FROM ${Authors}
@@ -76,13 +69,14 @@ object AuthorRepository:
         """
           .queryOf(Authors.*)
           .to[List]
-          .transact(xa)
           .map(_.map(Tuples.from[ExistingAuthor](_)))
 
-      override def findByIds(ids: List[AuthorId]): F[List[ExistingAuthor]] =
+      override def findByIds(
+          ids: List[AuthorId]
+      ): ConnectionIO[List[ExistingAuthor]] =
         NonEmptyList
           .fromList(ids)
-          .fold(List.empty[ExistingAuthor].pure): nel =>
+          .fold(List.empty[ExistingAuthor].pure[ConnectionIO]): nel =>
             val query = sql"""
             SELECT ${Authors.*}
             FROM ${Authors}
@@ -90,11 +84,12 @@ object AuthorRepository:
             query
               .queryOf(Authors.*)
               .to[List]
-              .transact(xa)
               .map(_.map(Tuples.from[ExistingAuthor](_)))
 
-      override def findOrAdd(authors: Set[AuthorName]): F[Set[ExistingAuthor]] =
-        if authors.isEmpty then Set.empty.pure
+      override def findOrAdd(
+          authors: Set[AuthorName]
+      ): ConnectionIO[Set[ExistingAuthor]] =
+        if authors.isEmpty then Set.empty.pure[ConnectionIO]
         else
           for
             existingAuthors <- findByNames(authors)
@@ -106,7 +101,7 @@ object AuthorRepository:
 
       override def findAssetsByAuthor(
           authorId: AuthorId
-      ): F[List[ExistingAsset]] =
+      ): ConnectionIO[List[ExistingAsset]] =
         val A    = Assets `as` "a"
         val AA   = AssetsAuthors `as` "aa"
         val cols = Columns(A(_.id), A(_.title), A(_.categoryId))
@@ -119,7 +114,6 @@ object AuthorRepository:
         """
           .queryOf(cols)
           .to[List]
-          .transact(xa)
           .map(_.map: (id, title, categoryId) =>
             ExistingAsset(id, title, categoryId, List(authorId)))
 
@@ -148,29 +142,31 @@ object AuthorRepository:
 
       private def resolveAliases(
           names: Set[AuthorName]
-      ): F[Set[(AuthorName, ExistingAuthor)]] =
+      ): ConnectionIO[Set[(AuthorName, ExistingAuthor)]] =
         NonEmptyList
           .fromList(names.toList)
-          .fold(Set.empty[(AuthorName, ExistingAuthor)].pure): nel =>
-            val AA   = AuthorAliases `as` "aa"
-            val A    = Authors `as` "a"
-            val cols = Columns(AA(_.aliasName), A(_.id), A(_.name_))
-            val query = sql"""
+          .fold(Set.empty[(AuthorName, ExistingAuthor)].pure[ConnectionIO]):
+            nel =>
+              val AA   = AuthorAliases `as` "aa"
+              val A    = Authors `as` "a"
+              val cols = Columns(AA(_.aliasName), A(_.id), A(_.name_))
+              val query = sql"""
             SELECT ${cols}
             FROM ${AA}
             INNER JOIN ${A} ON ${A(_.id)} = ${AA(_.authorId)}
             WHERE """ ++ Fragments.in(AA(_.aliasName), nel)
-            query
-              .queryOf(cols)
-              .to[Set]
-              .transact(xa)
-              .map(_.map: (alias, id, name) =>
-                (alias, ExistingAuthor(id, name)))
+              query
+                .queryOf(cols)
+                .to[Set]
+                .map(_.map: (alias, id, name) =>
+                  (alias, ExistingAuthor(id, name)))
 
-      private def findByNames(names: Set[AuthorName]): F[Set[ExistingAuthor]] =
+      private def findByNames(
+          names: Set[AuthorName]
+      ): ConnectionIO[Set[ExistingAuthor]] =
         NonEmptyList
           .fromList(names.toList)
-          .fold(Set.empty[ExistingAuthor].pure): nel =>
+          .fold(Set.empty[ExistingAuthor].pure[ConnectionIO]): nel =>
             val query = sql"""
             SELECT ${Authors.*}
             FROM ${Authors}
@@ -178,7 +174,6 @@ object AuthorRepository:
             query
               .queryOf(Authors.*)
               .to[Set]
-              .transact(xa)
               .map(_.map(Tuples.from[ExistingAuthor](_)))
 
 private[library] object Authors extends TableDefinition("authors"):

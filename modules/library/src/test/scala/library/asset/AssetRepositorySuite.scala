@@ -17,7 +17,7 @@ class AssetRepositorySuite extends CatsEffectSuite:
     inMemoryTransactor[IO]
       .evalTap(applyMigrations)
       .map: xa =>
-        (AssetRepository.make[IO](xa), xa)
+        (AssetRepository.make, xa)
   )
 
   withRepo.test("findStale returns asset with no entries with None date"):
@@ -26,7 +26,7 @@ class AssetRepositorySuite extends CatsEffectSuite:
         _ <-
           sql"INSERT INTO assets (title) VALUES ('no-entries-asset')".update.run
             .transact(xa)
-        results <- repo.findStale(PositiveInt(90))
+        results <- repo.findStale(PositiveInt(90)).transact(xa)
       yield
         assertEquals(results.length, 1)
         assertEquals(results.head._1.title, AssetTitle("no-entries-asset"))
@@ -47,7 +47,7 @@ class AssetRepositorySuite extends CatsEffectSuite:
         _ <-
           sql"INSERT INTO asset_entries (title, no, uri, date_uploaded, asset_id) VALUES ('ch1', '1', 'http://example.com/1', ${oldDate}, $assetId)".update.run
             .transact(xa)
-        results <- repo.findStale(PositiveInt(90))
+        results <- repo.findStale(PositiveInt(90)).transact(xa)
       yield
         assertEquals(results.length, 1)
         assertEquals(
@@ -70,5 +70,5 @@ class AssetRepositorySuite extends CatsEffectSuite:
         _ <-
           sql"INSERT INTO asset_entries (title, no, uri, date_uploaded, asset_id) VALUES ('ch1', '1', 'http://example.com/2', ${recentDate}, $assetId)".update.run
             .transact(xa)
-        results <- repo.findStale(PositiveInt(90))
+        results <- repo.findStale(PositiveInt(90)).transact(xa)
       yield assertEquals(results.length, 0)

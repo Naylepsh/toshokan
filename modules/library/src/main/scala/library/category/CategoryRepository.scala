@@ -1,8 +1,6 @@
 package library.category
 
 import cats.data.NonEmptyList
-import cats.effect.MonadCancelThrow
-import cats.syntax.all.*
 import core.Tuples
 import db.fragments.*
 import doobie.*
@@ -11,15 +9,15 @@ import neotype.interop.doobie.given
 
 import domain.*
 
-trait CategoryRepository[F[_]]:
-  def add(category: NewCategory): F[ExistingCategory]
-  def find(id: CategoryId): F[Option[ExistingCategory]]
-  def findAll: F[List[ExistingCategory]]
+trait CategoryRepository:
+  def add(category: NewCategory): ConnectionIO[ExistingCategory]
+  def find(id: CategoryId): ConnectionIO[Option[ExistingCategory]]
+  def findAll: ConnectionIO[List[ExistingCategory]]
 
 object CategoryRepository:
-  def make[F[_]: MonadCancelThrow](xa: Transactor[F]): CategoryRepository[F] =
+  val make: CategoryRepository =
     new:
-      override def add(category: NewCategory): F[ExistingCategory] =
+      override def add(category: NewCategory): ConnectionIO[ExistingCategory] =
         insertIntoReturning(
           Categories,
           NonEmptyList.of(_.name_ --> category.name),
@@ -27,11 +25,11 @@ object CategoryRepository:
         )
           .queryOf(Categories.*)
           .unique
-          .transact(xa)
-          .map: row =>
-            Tuples.from[ExistingCategory](row)
+          .map(Tuples.from[ExistingCategory](_))
 
-      override def find(id: CategoryId): F[Option[ExistingCategory]] =
+      override def find(
+          id: CategoryId
+      ): ConnectionIO[Option[ExistingCategory]] =
         sql"""
         SELECT ${Categories.*}
         FROM ${Categories}
@@ -39,20 +37,16 @@ object CategoryRepository:
         """
           .queryOf(Categories.*)
           .option
-          .transact(xa)
-          .map: row =>
-            row.map(Tuples.from[ExistingCategory](_))
+          .map(_.map(Tuples.from[ExistingCategory](_)))
 
-      override def findAll: F[List[ExistingCategory]] =
+      override def findAll: ConnectionIO[List[ExistingCategory]] =
         sql"""
         SELECT ${Categories.*}
         FROM ${Categories}
         """
           .queryOf(Categories.*)
           .to[List]
-          .transact(xa)
-          .map: rows =>
-            rows.map(Tuples.from[ExistingCategory](_))
+          .map(_.map(Tuples.from[ExistingCategory](_)))
 
 private[library] object Categories extends TableDefinition("categories"):
   val id    = Column[CategoryId]("id")
