@@ -2,8 +2,7 @@ package library.author
 
 import cats.syntax.all.*
 import http.View.{NavBarItem, dialog, layout}
-import library.asset.AssetGroup
-import library.asset.domain.ExistingAsset
+import library.asset.domain.{AssetGroup, ExistingAsset}
 import library.author.domain.*
 import neotype.*
 import neotype.interop.cats.given
@@ -11,23 +10,85 @@ import scalatags.Text.TypedTag
 import scalatags.Text.all.*
 
 class AuthorView(navBarItems: List[NavBarItem]):
-  def renderAuthors(authors: List[ExistingAuthor]): TypedTag[String] =
+  def renderAuthors(groups: List[AuthorGroup]): TypedTag[String] =
+    val suggestions = groups.filter(_.isMergeSuggestion)
+    val allAuthors  = groups.flatMap(_.authors)
     layout(
       "Authors".some,
       div(
         cls := "mt-5",
+        if suggestions.nonEmpty then
+          div(
+            cls := "mb-5",
+            h3(
+              cls := "text-lg font-semibold mb-2",
+              s"Merge suggestions (${suggestions.size})"
+            ),
+            suggestions.map: group =>
+              div(
+                cls := "card card-bordered mb-3 p-4",
+                div(
+                  cls := "flex justify-between items-center mb-2",
+                  span(
+                    cls := "font-mono text-sm opacity-60",
+                    group.normalizedName
+                  ),
+                  button(
+                    cls := "btn btn-warning btn-sm",
+                    attr(
+                      "onclick"
+                    ) := s"openAuthorMergePreview([${group.authors.map(_.id.unwrap).mkString(",")}])",
+                    s"Merge ${group.authors.size} authors"
+                  )
+                ),
+                ul(
+                  cls := "list-disc list-inside",
+                  group.authors.map: author =>
+                    li(
+                      a(href := s"/authors/${author.id}", author.name),
+                      span(
+                        cls := "font-mono text-xs opacity-50 ml-1",
+                        s"#${author.id.unwrap}"
+                      )
+                    )
+                )
+              )
+          )
+        else div(),
+        button(
+          cls             := "btn btn-warning mb-3",
+          attr("onclick") := "openAuthorMergePreview()",
+          "Merge selected"
+        ),
+        dialog(
+          id  := "author_merge_modal",
+          cls := "modal",
+          div(
+            id  := "author-merge-modal-content",
+            cls := "modal-box w-11/12 max-w-2xl"
+          )
+        ),
         table(
           cls := "table table-zebra",
           thead(
             tr(
+              th(),
               th("Id"),
               th("Name"),
               th()
             )
           ),
           tbody(
-            authors.map: author =>
+            allAuthors.map: author =>
               tr(
+                td(
+                  input(
+                    `type` := "checkbox",
+                    name   := "merge-author",
+                    value  := author.id.unwrap.show,
+                    cls    := "checkbox checkbox-sm"
+                  )
+                ),
                 th(author.id.unwrap.show),
                 td(author.name),
                 td(
@@ -210,6 +271,47 @@ class AuthorView(navBarItems: List[NavBarItem]):
         button(
           cls             := "btn btn-warning",
           attr("onclick") := s"confirmMerge('${authorId}', $assetIdsJson)",
+          "Confirm merge"
+        )
+      )
+    )
+
+  def renderAuthorMergePreview(
+      authors: List[ExistingAuthor]
+  ): TypedTag[String] =
+    val authorIdsJson = authors.map(_.id.unwrap).mkString("[", ",", "]")
+    div(
+      h3(cls := "text-lg font-semibold mb-3", "Merge authors"),
+      p(
+        cls := "mb-3",
+        "Select which author to keep. All assets and configs from the others will be moved into it."
+      ),
+      div(
+        cls := "space-y-2",
+        authors.map: author =>
+          label(
+            cls := "flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-base-200",
+            input(
+              `type` := "radio",
+              name   := "merge-author-target",
+              value  := author.id.unwrap.show,
+              cls    := "radio radio-sm",
+              if author.id == authors.head.id then checked := "checked"
+              else ()
+            ),
+            span(cls := "font-mono text-sm", s"#${author.id.unwrap}"),
+            span(author.name)
+          )
+      ),
+      div(
+        cls := "modal-action",
+        form(
+          method := "dialog",
+          button(cls := "btn", "Cancel")
+        ),
+        button(
+          cls             := "btn btn-warning",
+          attr("onclick") := s"confirmAuthorMerge($authorIdsJson)",
           "Confirm merge"
         )
       )

@@ -81,3 +81,50 @@ const confirmMerge = (authorId, assetIds) => {
     window.location = "/authors/" + authorId;
   });
 };
+
+/**
+ * Opens the author merge preview modal.
+ * @param {number[]} [preselectedIds]
+ */
+const openAuthorMergePreview = (preselectedIds) => {
+  const ids =
+    preselectedIds ||
+    Array.from(
+      document.querySelectorAll("input[name=merge-author]:checked")
+    ).map((cb) => parseInt(cb.value));
+
+  if (ids.length < 2) {
+    alert("Select at least 2 authors to merge");
+    return;
+  }
+
+  fetch("/authors/merge/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ authorIds: ids }),
+  })
+    .then((r) => r.text())
+    .then((html) => {
+      document.getElementById("author-merge-modal-content").innerHTML = html;
+      document.getElementById("author_merge_modal").showModal();
+    });
+};
+
+/**
+ * Confirms the author merge.
+ * @param {number[]} authorIds
+ */
+const confirmAuthorMerge = (authorIds) => {
+  const targetId = parseInt(
+    document.querySelector("input[name=merge-author-target]:checked").value
+  );
+  const sourceIds = authorIds.filter((id) => id !== targetId);
+
+  fetch("/authors/merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ authorIds: sourceIds, targetId: targetId }),
+  }).then(() => {
+    window.location = "/authors";
+  });
+};

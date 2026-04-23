@@ -30,6 +30,10 @@ trait AuthorScrapingConfigRepository[F[_]]:
       id: AuthorScrapingConfigId,
       enabled: IsConfigEnabled
   ): F[Boolean]
+  def transferConfigs(
+      sourceIds: NonEmptyList[AuthorId],
+      targetId: AuthorId
+  ): ConnectionIO[Unit]
 
 object AuthorScrapingConfigRepository:
   def make[F[_]: MonadCancelThrow](
@@ -94,6 +98,24 @@ object AuthorScrapingConfigRepository:
       SET ${AuthorScrapingConfigs.isEnabled} = $enabled
       WHERE ${AuthorScrapingConfigs.id == id}
       """.update.run.transact(xa).map(_ > 0)
+
+    def transferConfigs(
+        sourceIds: NonEmptyList[AuthorId],
+        targetId: AuthorId
+    ): ConnectionIO[Unit] =
+      val inSource = Fragments.in(AuthorScrapingConfigs.authorId, sourceIds)
+      for
+        _ <-
+          (sql"""UPDATE ${AuthorScrapingConfigs}
+            SET ${AuthorScrapingConfigs.authorId} = $targetId
+            WHERE """ ++ inSource ++ sql"""
+              AND ${AuthorScrapingConfigs.uri} NOT IN (
+                SELECT ${AuthorScrapingConfigs.uri} FROM ${AuthorScrapingConfigs}
+                WHERE ${AuthorScrapingConfigs.authorId} = $targetId
+              )""").update.run
+        _ <-
+          (sql"DELETE FROM ${AuthorScrapingConfigs} WHERE " ++ inSource).update.run
+      yield ()
 
     private def exists(uri: ScrapingConfigUri): F[Boolean] =
       sql"""

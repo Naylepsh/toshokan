@@ -1,0 +1,59 @@
+package authorMerging
+
+import assetMapping.MalMangaMappingRepository
+import assetScraping.configs.{
+  AssetScrapingConfigRepository,
+  AuthorScrapingConfigRepository
+}
+import cats.data.NonEmptyList
+import cats.effect.MonadCancelThrow
+import cats.syntax.all.*
+import doobie.*
+import doobie.implicits.*
+import library.asset.AssetRepository
+import library.asset.domain.AssetId
+import library.author.AuthorRepository
+import library.author.domain.AuthorId
+
+class AuthorMergeService[F[_]: MonadCancelThrow](
+    authorRepo: AuthorRepository[F],
+    assetRepo: AssetRepository[F],
+    authorScrapingConfigRepo: AuthorScrapingConfigRepository[F],
+    assetScrapingConfigRepo: AssetScrapingConfigRepository[F],
+    malMangaMappingRepo: MalMangaMappingRepository,
+    xa: Transactor[F]
+):
+  def mergeAuthors(
+      sourceIds: NonEmptyList[AuthorId],
+      targetId: AuthorId
+  ): F[Unit] =
+    val merge = for
+      _ <- authorScrapingConfigRepo.transferConfigs(sourceIds, targetId)
+      targetAssets <- assetRepo.findAssetsByAuthorIO(targetId)
+      targetAssetsByTitle = targetAssets.map((id, title) => title -> id).toMap
+      sourceAssets <- sourceIds.toList.flatTraverse: sourceId =>
+        assetRepo.findAssetsByAuthorIO(sourceId)
+      distinctSourceAssets = sourceAssets.distinctBy(_._1)
+      _ <- distinctSourceAssets.traverse_ : (sourceAssetId, title) =>
+        targetAssetsByTitle.get(title) match
+          case Some(targetAssetId) if targetAssetId != sourceAssetId =>
+            mergeAssets(sourceAssetId, targetAssetId)
+          case _ =>
+            assetRepo.relinkAuthorAssets(sourceAssetId, targetId)
+      _ <- authorRepo.recordAliases(sourceIds, targetId)
+      _ <- authorRepo.deleteAuthors(sourceIds)
+    yield ()
+    merge.transact(xa)
+
+  private def mergeAssets(source: AssetId, target: AssetId) =
+    for
+      _ <- assetScrapingConfigRepo.transferConfigs(
+        source,
+        target
+      )
+      _ <- malMangaMappingRepo.transferMappings(
+        source,
+        target
+      )
+      _ <- assetRepo.mergeAssetIO(source, target)
+    yield ()

@@ -14,6 +14,7 @@ case class LibraryModule[F[_]](
     categoryRepository: CategoryRepository[F],
     categoryService: CategoryService[F],
     authorRepository: AuthorRepository[F],
+    authorView: AuthorView,
     authorController: AuthorController[F]
 )
 
@@ -41,5 +42,6 @@ object LibraryModule:
       categoryRepository = categoryRepository,
       categoryService = categoryService,
       authorRepository = authorRepository,
+      authorView = authorView,
       authorController = authorController
     )

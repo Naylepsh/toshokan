@@ -1,6 +1,12 @@
 package app
 
+import assetMapping.MalMangaMappingRepository
+import assetScraping.configs.{
+  AssetScrapingConfigRepository,
+  AuthorScrapingConfigRepository
+}
 import assetScraping.downloading.domain.DownloadDir
+import authorMerging.{AuthorMergeController, AuthorMergeService}
 import cats.effect.*
 import cats.effect.std.Random
 import com.microsoft.playwright.Browser
@@ -67,6 +73,20 @@ object Main extends IOApp.Simple:
   ): IO[List[http.Routed[IO]]] =
     for
       library <- IO.pure(app.wiring.LibraryModule.make(xa, navBarItems))
+      authorMergeService <- IO.pure:
+        AuthorMergeService[IO](
+          library.authorRepository,
+          library.assetRepository,
+          AuthorScrapingConfigRepository.make[IO](xa),
+          AssetScrapingConfigRepository.make[IO](xa),
+          MalMangaMappingRepository.make,
+          xa
+        )
+      authorMergeController = AuthorMergeController[IO](
+        authorMergeService,
+        library.authorRepository,
+        library.authorView
+      )
       externals <- IO.pure(
         app.wiring.ExternalServices.make(httpBackend, malAuth, random)
       )
@@ -97,6 +117,7 @@ object Main extends IOApp.Simple:
     yield List(
       library.assetController,
       library.authorController,
+      authorMergeController,
       scraping.scrapingController,
       scraping.configController,
       scraping.authorConfigController,

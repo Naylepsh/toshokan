@@ -1,6 +1,4 @@
-package library.asset
-
-import library.asset.domain.ExistingAsset
+package library.asset.domain
 
 case class AssetGroup(normalizedTitle: String, assets: List[ExistingAsset]):
   def isMergeSuggestion: Boolean = assets.size > 1

@@ -5,10 +5,11 @@ import cats.effect.{Concurrent, MonadCancelThrow}
 import cats.syntax.all.*
 import core.types.AtLeastTwoUnique
 import io.circe.Decoder
-import library.asset.domain.AssetId
-import library.asset.{AssetGroup, AssetService}
+import library.asset.AssetService
+import library.asset.domain.{AssetGroup, AssetId}
 import library.author.domain.*
 import library.author.schemas.AuthorIdVar
+import neotype.interop.cats.given
 import neotype.interop.circe.given
 import org.http4s.*
 import org.http4s.circe.*
@@ -27,8 +28,9 @@ class AuthorController[F[_]: MonadCancelThrow: Concurrent](
   private val httpRoutes = HttpRoutes.of[F]:
     case GET -> Root =>
       repository.findAll.flatMap: authors =>
+        val groups = AuthorGroup.fromAuthors(authors)
         Ok(
-          view.renderAuthors(authors),
+          view.renderAuthors(groups),
           `Content-Type`(MediaType.text.html)
         )
 
@@ -82,7 +84,6 @@ object AuthorController:
       targetId: AssetId
   )
   object MergeConfirmation:
-    import neotype.interop.cats.given
     given Decoder[MergeConfirmation] =
       Decoder.forProduct2("assetIds", "targetId")(MergeConfirmation.apply)
 

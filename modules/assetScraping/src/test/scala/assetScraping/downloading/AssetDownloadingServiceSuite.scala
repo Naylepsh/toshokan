@@ -10,6 +10,7 @@ import cats.syntax.eq.*
 import core.types.PositiveInt
 import library.asset.AssetRepository
 import library.asset.domain.*
+import library.author.domain.AuthorId
 import library.category.domain.CategoryId
 import mangadex.MangadexApi
 import munit.CatsEffectSuite
@@ -36,8 +37,11 @@ trait TestAssetRepository extends AssetRepository[IO]:
   def matchCategoriesToAssets(
       categoryIds: NonEmptyList[CategoryId]
   ): IO[Map[CategoryId, List[AssetId]]] = ???
-  def findOrAdd(assets: Set[NewAsset]): IO[Set[ExistingAsset]]    = ???
-  def mergeAssets(sourceId: AssetId, targetId: AssetId): IO[Unit] = ???
+  def findOrAdd(assets: Set[NewAsset]): IO[Set[ExistingAsset]]             = ???
+  def mergeAssets(sourceId: AssetId, targetId: AssetId): IO[Unit]          = ???
+  def findAssetsByAuthorIO(authorId: AuthorId)                             = ???
+  def relinkAuthorAssets(sourceAssetId: AssetId, targetAuthorId: AuthorId) = ???
+  def mergeAssetIO(sourceAssetId: AssetId, targetAssetId: AssetId)         = ???
 
 class AssetDownloadingServiceSuite extends CatsEffectSuite:
   import AssetDownloadingServiceSuite.*

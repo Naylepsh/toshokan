@@ -158,5 +158,5 @@ object AssetMappingServiceSuite:
       .make(xa, noopMalClient)
       .map: malService =>
         val service =
-          AssetMappingService(assetService, categoryService, malService, xa)
+          AssetMappingService(assetService, categoryService, malService, MalMangaMappingRepository.make, xa)
         (service, assetService, categoryService)

@@ -1,10 +1,6 @@
 package app.wiring
 
-import assetMapping.{
-  AssetMappingController,
-  AssetMappingService,
-  AssetMappingView
-}
+import assetMapping.*
 import cats.effect.IO
 import doobie.Transactor
 import http.View.NavBarItem
@@ -25,6 +21,7 @@ object AssetMappingModule:
       library.assetService,
       library.categoryService,
       malModule.service,
+      MalMangaMappingRepository.make,
       xa
     )
     val view       = AssetMappingView(navBarItems)

@@ -1,5 +1,7 @@
 package library.asset
 
+import library.asset.domain.TitleNormalizer
+
 class TitleNormalizerSuite extends munit.FunSuite:
   import TitleNormalizer.normalize
 

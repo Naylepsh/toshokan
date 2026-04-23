@@ -92,6 +92,7 @@ object AssetImportingServiceSuite:
         assetService,
         categoryService,
         malService,
+        assetMapping.MalMangaMappingRepository.make,
         xa
       )
       mangadexApi = stubMangadexApi

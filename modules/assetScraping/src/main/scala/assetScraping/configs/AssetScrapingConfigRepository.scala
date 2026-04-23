@@ -25,6 +25,10 @@ trait AssetScrapingConfigRepository[F[_]]:
       scrapingConfig: ExistingAssetScrapingConfig
   ): Raise[F, UpdateScrapingConfigError] ?=> F[ExistingAssetScrapingConfig]
   def delete(scrapingConfigId: AssetScrapingConfigId): F[Unit]
+  def transferConfigs(
+      sourceAssetId: AssetId,
+      targetAssetId: AssetId
+  ): ConnectionIO[Unit]
 
 object AssetScrapingConfigRepository:
 
@@ -77,6 +81,23 @@ object AssetScrapingConfigRepository:
         DELETE FROM ${AssetScrapingConfigs} 
         WHERE ${AssetScrapingConfigs.id === scrapingConfigId}
       """.update.run.transact(xa).void
+
+    def transferConfigs(
+        sourceAssetId: AssetId,
+        targetAssetId: AssetId
+    ): ConnectionIO[Unit] =
+      for _ <- sql"""
+          INSERT OR IGNORE INTO ${AssetScrapingConfigs}
+            (${AssetScrapingConfigs.uri}, ${AssetScrapingConfigs.site}, ${AssetScrapingConfigs.isEnabled}, ${AssetScrapingConfigs.assetId})
+          SELECT ${AssetScrapingConfigs.uri}, ${AssetScrapingConfigs.site}, ${AssetScrapingConfigs.isEnabled}, $targetAssetId
+          FROM ${AssetScrapingConfigs}
+          WHERE ${AssetScrapingConfigs.assetId} = $sourceAssetId
+            AND ${AssetScrapingConfigs.uri} NOT IN (
+              SELECT ${AssetScrapingConfigs.uri} FROM ${AssetScrapingConfigs}
+              WHERE ${AssetScrapingConfigs.assetId} = $targetAssetId
+            )
+        """.update.run
+      yield ()
 
     private def idOf(uri: ScrapingConfigUri): F[Option[AssetScrapingConfigId]] =
       sql"""

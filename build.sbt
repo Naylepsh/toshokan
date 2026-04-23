@@ -120,6 +120,18 @@ lazy val assetMapping = project
   )
   .dependsOn(core, db, library, myAnimeList)
 
+lazy val authorMerging = project
+  .in(file("modules/authorMerging"))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.http4sCirce,
+      Dependencies.http4sDsl,
+      Dependencies.http4sServer
+    )
+  )
+  .dependsOn(core, db, library, assetScraping, assetMapping, http)
+
 lazy val assetImporting = project
   .in(file("modules/assetImporting"))
   .disablePlugins(RevolverPlugin)
@@ -167,7 +179,8 @@ lazy val app = project
     assetScraping,
     assetImporting,
     snapshot,
-    progressTracking
+    progressTracking,
+    authorMerging
   )
   .dependsOn(
     core,
@@ -176,7 +189,8 @@ lazy val app = project
     assetScraping,
     assetImporting,
     snapshot,
-    progressTracking
+    progressTracking,
+    authorMerging
   )
   .disablePlugins(RevolverPlugin)
 

@@ -90,6 +90,11 @@ CREATE TABLE author_scraping_schedules (
     id INTEGER PRIMARY KEY,
     day_of_week INTEGER NOT NULL
 );
+CREATE TABLE author_aliases (
+  alias_name TEXT PRIMARY KEY,
+  author_id INTEGER NOT NULL,
+  FOREIGN KEY (author_id) REFERENCES authors (id) ON DELETE CASCADE
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20240130211545'),
@@ -101,4 +106,5 @@ INSERT INTO "schema_migrations" (version) VALUES
   ('20240925081137'),
   ('20251228172549'),
   ('20260407140216'),
-  ('20260408121700');
+  ('20260408121700'),
+  ('20260422191556');

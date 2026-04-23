@@ -65,6 +65,17 @@ trait AssetRepository[F[_]]:
       categoryIds: NonEmptyList[CategoryId]
   ): F[Map[CategoryId, List[AssetId]]]
   def findOrAdd(assets: Set[NewAsset]): F[Set[ExistingAsset]]
+  def findAssetsByAuthorIO(
+      authorId: AuthorId
+  ): ConnectionIO[List[(AssetId, AssetTitle)]]
+  def relinkAuthorAssets(
+      sourceAssetId: AssetId,
+      targetAuthorId: AuthorId
+  ): ConnectionIO[Unit]
+  def mergeAssetIO(
+      sourceAssetId: AssetId,
+      targetAssetId: AssetId
+  ): ConnectionIO[Unit]
 
 object AssetRepository:
 
@@ -230,16 +241,45 @@ object AssetRepository:
         .void
 
     override def mergeAssets(sourceId: AssetId, targetId: AssetId): F[Unit] =
-      val merge = for
+      mergeAssetIO(sourceId, targetId).transact(xa)
+
+    override def mergeAssetIO(
+        sourceAssetId: AssetId,
+        targetAssetId: AssetId
+    ): ConnectionIO[Unit] =
+      for
         _ <-
-          sql"UPDATE ${AssetEntries} SET ${AssetEntries.assetId} = $targetId WHERE ${AssetEntries.assetId} = $sourceId".update.run
+          sql"UPDATE ${AssetEntries} SET ${AssetEntries.assetId} = $targetAssetId WHERE ${AssetEntries.assetId} = $sourceAssetId".update.run
         _ <-
           sql"""INSERT OR IGNORE INTO ${AssetsAuthors} (${AssetsAuthors.assetId}, ${AssetsAuthors.authorId})
-              SELECT $targetId, ${AssetsAuthors.authorId} FROM ${AssetsAuthors} WHERE ${AssetsAuthors.assetId} = $sourceId""".update.run
+              SELECT $targetAssetId, ${AssetsAuthors.authorId} FROM ${AssetsAuthors} WHERE ${AssetsAuthors.assetId} = $sourceAssetId""".update.run
         _ <-
-          sql"DELETE FROM ${Assets} WHERE ${Assets.id} = $sourceId".update.run
+          sql"DELETE FROM ${Assets} WHERE ${Assets.id} = $sourceAssetId".update.run
       yield ()
-      merge.transact(xa)
+
+    override def findAssetsByAuthorIO(
+        authorId: AuthorId
+    ): ConnectionIO[List[(AssetId, AssetTitle)]] =
+      val A    = Assets `as` "a"
+      val AA   = AssetsAuthors `as` "aa"
+      val cols = Columns(A(_.id), A(_.title))
+      sql"""
+      SELECT ${cols}
+      FROM ${A}
+      INNER JOIN ${AA} ON ${AA(_.assetId)} = ${A(_.id)}
+      WHERE ${AA(_.authorId)} = $authorId
+      """
+        .queryOf(cols)
+        .to[List]
+
+    override def relinkAuthorAssets(
+        sourceAssetId: AssetId,
+        targetAuthorId: AuthorId
+    ): ConnectionIO[Unit] =
+      sql"""
+        INSERT OR IGNORE INTO ${AssetsAuthors} (${AssetsAuthors.assetId}, ${AssetsAuthors.authorId})
+        VALUES ($sourceAssetId, $targetAuthorId)
+      """.update.run.void
 
     override def matchCategoriesToAssets(
         categoryIds: NonEmptyList[CategoryId]
@@ -411,7 +451,7 @@ object AssetRepository:
               results.groupMap(_._2)(_._1)
         .getOrElse(Map.empty.pure)
 
-private object Assets extends TableDefinition("assets"):
+private[library] object Assets extends TableDefinition("assets"):
   val id         = Column[AssetId]("id")
   val title      = Column[AssetTitle]("title")
   val categoryId = Column[Option[CategoryId]]("category_id")
@@ -436,6 +476,6 @@ private object AssetEntries extends TableDefinition("asset_entries"):
 
   val * = Columns((id, title, no, uri, dateUploaded, assetId))
 
-private object AssetsAuthors extends TableDefinition("assets_authors"):
+private[library] object AssetsAuthors extends TableDefinition("assets_authors"):
   val assetId  = Column[AssetId]("asset_id")
   val authorId = Column[AuthorId]("author_id")
