@@ -2,13 +2,13 @@ package assetScraping.schedules
 
 import assetScraping.schedules.domain.UpdateScheduleError
 import cats.data.NonEmptyList
-import cats.effect.kernel.Sync
+import cats.effect.IO
 import cats.mtl.Raise
 import cats.mtl.implicits.*
 import cats.syntax.all.*
 import core.given
 import doobie.*
-import doobie.implicits.*
+import doobie.implicits.toConnectionIOOps
 import library.asset.AssetService
 import library.asset.domain.AssetId
 import library.category.CategoryService
@@ -17,30 +17,27 @@ import neotype.interop.cats.given
 
 import domain.{DayOfTheWeek, ScrapingSchedule, AddScheduleError}
 
-/** TODO: Add support for ScrapingSchedule.Authors
-  */
-
-trait ScheduleService[F[_]]:
-  def findAssetsEligibleForScrape: F[List[AssetId]]
-  def isAuthorScrapeDay: F[Boolean]
-  def find(categoryId: CategoryId): F[Option[ScrapingSchedule.Category]]
-  def findCategoriesOfAllSchedules: F[List[ExistingCategory]]
+trait ScheduleService:
+  def findAssetsEligibleForScrape: IO[List[AssetId]]
+  def isAuthorScrapeDay: IO[Boolean]
+  def find(categoryId: CategoryId): IO[Option[ScrapingSchedule.Category]]
+  def findCategoriesOfAllSchedules: IO[List[ExistingCategory]]
   def add(
       schedule: ScrapingSchedule.Category
-  ): Raise[F, AddScheduleError] ?=> F[Unit]
+  ): Raise[IO, AddScheduleError] ?=> IO[Unit]
   def update(
       schedule: ScrapingSchedule.Category
-  ): Raise[F, UpdateScheduleError] ?=> F[Unit]
+  ): Raise[IO, UpdateScheduleError] ?=> IO[Unit]
 
 object ScheduleService:
-  def make[F[_]: Sync](
+  def make(
       repository: ScheduleRepository,
-      assetService: AssetService[F],
-      categoryService: CategoryService[F],
-      xa: Transactor[F]
-  ): ScheduleService[F] = new:
+      assetService: AssetService,
+      categoryService: CategoryService,
+      xa: Transactor[IO]
+  ): ScheduleService = new:
 
-    override def findAssetsEligibleForScrape: F[List[AssetId]] =
+    override def findAssetsEligibleForScrape: IO[List[AssetId]] =
       for
         schedules <- repository.findAllCategorySchedules.transact(xa)
         categoryToAssets <- assetService.matchCategoriesToAssets(
@@ -53,7 +50,7 @@ object ScheduleService:
         currentDayOfTheWeek
       )
 
-    override def isAuthorScrapeDay: F[Boolean] =
+    override def isAuthorScrapeDay: IO[Boolean] =
       for
         schedule <- repository.findAuthorSchedule.transact(xa)
         today    <- DayOfTheWeek.now
@@ -61,13 +58,13 @@ object ScheduleService:
 
     override def find(
         categoryId: CategoryId
-    ): F[Option[ScrapingSchedule.Category]] =
+    ): IO[Option[ScrapingSchedule.Category]] =
       repository
         .findByCategoryIds(NonEmptyList.of(categoryId))
         .transact(xa)
         .map(_.headOption)
 
-    override def findCategoriesOfAllSchedules: F[List[ExistingCategory]] =
+    override def findCategoriesOfAllSchedules: IO[List[ExistingCategory]] =
       for
         ids <- repository.findAllCategorySchedules
           .transact(xa)
@@ -77,7 +74,7 @@ object ScheduleService:
 
     override def add(
         schedule: ScrapingSchedule.Category
-    ): Raise[F, AddScheduleError] ?=> F[Unit] =
+    ): Raise[IO, AddScheduleError] ?=> IO[Unit] =
       categoryService
         .find(schedule.categoryId)
         .flatMap:
@@ -86,7 +83,7 @@ object ScheduleService:
 
     override def update(
         schedule: ScrapingSchedule.Category
-    ): Raise[F, UpdateScheduleError] ?=> F[Unit] =
+    ): Raise[IO, UpdateScheduleError] ?=> IO[Unit] =
       categoryService
         .find(schedule.categoryId)
         .flatMap:
@@ -105,7 +102,7 @@ object ScheduleService:
       day: DayOfTheWeek
   ) =
     schedules
-      .filter: schedule =>
-        schedule.days.contains_(day)
-      .flatMap: schedule =>
+      .filter(_.days.contains_(day))
+      .flatMap(schedule =>
         categoryToAssets.getOrElse(schedule.categoryId, List.empty)
+      )

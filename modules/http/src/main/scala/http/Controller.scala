@@ -1,29 +1,26 @@
 package http
 
-import cats.MonadThrow
+import cats.effect.IO
 import cats.syntax.all.*
 import org.http4s.*
 import org.http4s.dsl.Http4sDsl
-import cats.effect.kernel.Sync
 
-private type RouteHandler[F[_], A] = (A => F[Response[F]]) => F[Response[F]]
+private type RouteHandler[A] = (A => IO[Response[IO]]) => IO[Response[IO]]
 
-trait Routed[F[_]]:
-  val routes: HttpRoutes[F]
+trait Routed:
+  val routes: HttpRoutes[IO]
 
 object Routed:
-  def combine[F[_]: Sync](
-      controllers: List[Routed[F]]
-  ): HttpRoutes[F] =
+  def combine(controllers: List[Routed]): HttpRoutes[IO] =
     controllers
       .map(_.routes)
       .reduceOption(_ <+> _)
-      .getOrElse(HttpRoutes.empty[F])
+      .getOrElse(HttpRoutes.empty[IO])
 
-abstract class Controller[F[_]: MonadThrow] extends Http4sDsl[F] with Routed[F]:
+abstract class Controller extends Http4sDsl[IO] with Routed:
   protected def withJsonErrorsHandled[A](
-      request: Request[F]
-  )(using EntityDecoder[F, A]): RouteHandler[F, A] = f =>
+      request: Request[IO]
+  )(using EntityDecoder[IO, A]): RouteHandler[A] = f =>
     request
       .as[A]
       .attempt
@@ -36,7 +33,7 @@ abstract class Controller[F[_]: MonadThrow] extends Http4sDsl[F] with Routed[F]:
         case Right(a) => f(a)
 
 object Controller:
-  given [F[_]]: EntityEncoder[F, scalatags.Text.TypedTag[String]] =
+  given EntityEncoder[IO, scalatags.Text.TypedTag[String]] =
     EntityEncoder
-      .stringEncoder[F]
+      .stringEncoder[IO]
       .contramap[scalatags.Text.TypedTag[String]](_.render)

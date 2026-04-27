@@ -7,9 +7,9 @@ import myAnimeList.{MalAuth, MyAnimeListClient}
 import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
 
-case class ExternalServices[F[_]](
-    mangadexApi: MangadexApi[F],
-    malClient: Option[MyAnimeListClient[F]]
+case class ExternalServices(
+    mangadexApi: MangadexApi,
+    malClient: Option[MyAnimeListClient]
 )
 
 object ExternalServices:
@@ -17,10 +17,9 @@ object ExternalServices:
       httpBackend: SttpBackend[IO, WebSockets],
       malAuth: Option[MalAuth],
       random: Random[IO]
-  ): ExternalServices[IO] =
-    val mangadexApi = MangadexApi.make[IO](httpBackend)
-    val malClient =
-      malAuth.map(MyAnimeListClient.make[IO](httpBackend, _, random))
+  ): ExternalServices =
+    val mangadexApi = MangadexApi.make(httpBackend)
+    val malClient = malAuth.map(MyAnimeListClient.make(httpBackend, _, random))
 
     ExternalServices(
       mangadexApi = mangadexApi,

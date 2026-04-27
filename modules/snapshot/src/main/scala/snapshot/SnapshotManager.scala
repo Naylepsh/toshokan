@@ -1,6 +1,8 @@
 package snapshot
 
-trait SnapshotManager[F[_]]:
-  def save(): F[Unit]
-  def wasSavedRecently(): F[Boolean]
-  def saveIfDue(): F[Unit]
+import cats.effect.IO
+
+trait SnapshotManager:
+  def save(): IO[Unit]
+  def wasSavedRecently(): IO[Boolean]
+  def saveIfDue(): IO[Unit]

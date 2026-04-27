@@ -5,6 +5,7 @@ import java.net.URI
 import java.time.LocalDate
 
 import cats.data.NonEmptySet
+import cats.effect.IO
 import cats.kernel.Order
 import neotype.interop.cats.given
 
@@ -64,13 +65,13 @@ enum ScrapeError:
   case InvalidResource(message: String)
   case Other(message: String)
 
-trait SiteScraper[F[_]]:
-  def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]]
+trait SiteScraper:
+  def findEntries(uri: URI): IO[Either[ScrapeError, List[EntryFound]]]
 
-trait SiteScraperOfAuthor[F[_]]:
+trait SiteScraperOfAuthor:
   def scrapeForAssets(
       uri: AuthorScrapingUri
-  ): F[Either[ScrapeError, List[AssetFound]]]
+  ): IO[Either[ScrapeError, List[AssetFound]]]
 
 type SuccessfulJob[A] = (JobLabel, List[A])
 
@@ -80,12 +81,10 @@ case class ScrapeResults(
     failures: List[(JobLabel, ScrapeError)]
 )
 
-enum Instruction[F[_]]:
-  // `uri` should change from `URI` to dedicated `AssetScrapingUri` type
-  case ScrapeAsset[F[_]](label: JobLabel, uri: URI, scraper: SiteScraper[F])
-      extends Instruction[F]
-  case ScrapeAuthor[F[_]](
+enum Instruction:
+  case ScrapeAsset(label: JobLabel, uri: URI, scraper: SiteScraper)
+  case ScrapeAuthor(
       label: JobLabel,
       uri: AuthorScrapingUri,
-      scraper: SiteScraperOfAuthor[F]
-  ) extends Instruction[F]
+      scraper: SiteScraperOfAuthor
+  )

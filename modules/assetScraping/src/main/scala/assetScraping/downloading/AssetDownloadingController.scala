@@ -1,20 +1,19 @@
 package assetScraping.downloading
 
 import assetScraping.downloading.domain.AssetEntryDir
-import cats.effect.MonadCancelThrow
-import cats.syntax.all.*
+import cats.effect.IO
 import library.asset.AssetController.{AssetIdVar, EntryIdVar}
 import org.http4s.*
 import org.http4s.headers.*
 import org.http4s.server.Router
 
-class AssetDownloadingController[F[_]: MonadCancelThrow](
-    service: AssetDownloadingService[F, AssetEntryDir],
+class AssetDownloadingController(
+    service: AssetDownloadingService[AssetEntryDir],
     view: AssetDownloadingView
-) extends http.Controller[F]:
+) extends http.Controller:
   import http.Controller.given
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case POST -> Root / EntryIdVar(entryId) =>
       service
         .download(entryId)

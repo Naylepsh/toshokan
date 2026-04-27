@@ -5,13 +5,13 @@ import java.net.URI
 import java.nio.file.Path
 
 import assetScraping.downloading.domain.DownloadDir
-import cats.effect.kernel.Sync
+import cats.effect.IO
 import cats.syntax.all.*
 import http.View.NavBarItem
 import myAnimeList.MalAuth
 
-def load[F[_]](using F: Sync[F]) =
-  F.delay:
+def load =
+  IO.delay:
     val databaseUrl              = sys.env("DATABASE_URL")
     val snapshotPath             = sys.env.get("SNAPSHOT_PATH")
     val snapshotRecencyThreshold = sys.env.get("SNAPSHOT_RECENCY_THRESHOLD")

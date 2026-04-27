@@ -24,7 +24,7 @@ import middleware.logErrors
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
     for
-      _ <- logging.init[IO]
+      _ <- logging.init
       (
         serverConfig,
         dbConfig,
@@ -33,15 +33,14 @@ object Main extends IOApp.Simple:
         downloadDir,
         navBarItems,
         useDnsOverHttps
-      ) <- config
-        .load[IO]
+      )      <- config.load
       random <- Random.scalaUtilRandom[IO]
       result <- app.wiring.CrossCuttingConcernsModule
         .setupResources(dbConfig, useDnsOverHttps)
         .use: resources =>
           val snapshotManager = snapshotConfig
-            .map(snapshot.git.GitSnapshotManager[IO](_))
-            .getOrElse(snapshot.NoopSnapshotManager[IO])
+            .map(snapshot.git.GitSnapshotManager(_))
+            .getOrElse(snapshot.NoopSnapshotManager())
           createControllers(
             resources.xa,
             resources.httpBackend,
@@ -70,73 +69,77 @@ object Main extends IOApp.Simple:
       shutdownSignal: Deferred[IO, Unit],
       navBarItems: List[NavBarItem],
       random: Random[IO]
-  ): IO[List[http.Routed[IO]]] =
-    for
-      library <- IO.pure(app.wiring.LibraryModule.make(xa, navBarItems))
-      authorMergeService <- IO.pure:
-        AuthorMergeService[IO](
-          library.authorRepository,
-          library.assetRepository,
-          AuthorScrapingConfigRepository.make,
-          AssetScrapingConfigRepository.make,
-          MalMangaMappingRepository.make,
-          xa
-        )
-      authorMergeController = AuthorMergeController[IO](
-        authorMergeService,
-        library.authorRepository,
-        library.authorView,
+  ): IO[List[http.Routed]] =
+    val library = app.wiring.LibraryModule.make(xa, navBarItems)
+    val authorMergeService = AuthorMergeService(
+      library.authorRepository,
+      library.assetRepository,
+      AuthorScrapingConfigRepository.make,
+      AssetScrapingConfigRepository.make,
+      MalMangaMappingRepository.make,
+      xa
+    )
+    val authorMergeController = AuthorMergeController(
+      authorMergeService,
+      library.authorRepository,
+      library.authorView,
+      xa
+    )
+    val externals =
+      app.wiring.ExternalServices.make(httpBackend, malAuth, random)
+    val scraping = app.wiring.AssetScrapingModule.make(
+      library,
+      externals,
+      httpBackend,
+      browser,
+      downloadDir,
+      navBarItems,
+      xa
+    )
+
+    for mal <- app.wiring.MyAnimeListModule.make(externals, xa)
+    yield
+      val mapping =
+        app.wiring.AssetMappingModule.make(library, mal, xa, navBarItems)
+      val progress = app.wiring.ProgressTrackingModule.make(
+        library,
+        mal,
+        mapping,
+        navBarItems,
         xa
       )
-      externals <- IO.pure(
-        app.wiring.ExternalServices.make(httpBackend, malAuth, random)
+      val importing = app.wiring.AssetImportingModule.make(
+        library,
+        scraping,
+        mapping,
+        externals,
+        navBarItems,
+        xa
       )
-      scraping <- IO.pure(
-        app.wiring.AssetScrapingModule.make(
-          library,
-          externals,
-          httpBackend,
-          browser,
-          downloadDir,
-          navBarItems,
-          xa
-        )
+      val system = app.wiring.SystemModule.make(shutdownSignal)
+
+      List(
+        library.assetController,
+        library.authorController,
+        authorMergeController,
+        scraping.scrapingController,
+        scraping.configController,
+        scraping.authorConfigController,
+        scraping.downloadingController,
+        scraping.scheduleController,
+        mal.controller,
+        mapping.controller,
+        importing.controller,
+        progress.controller,
+        system.publicController,
+        system.shutdownController
       )
-      mal <- app.wiring.MyAnimeListModule.make(externals, xa)
-      mapping <- IO.pure(
-        app.wiring.AssetMappingModule.make(library, mal, xa, navBarItems)
-      )
-      progress <- IO.pure(
-        app.wiring.ProgressTrackingModule
-          .make(library, mal, mapping, navBarItems, xa)
-      )
-      importing <- IO.pure(
-        app.wiring.AssetImportingModule
-          .make(library, scraping, mapping, externals, navBarItems, xa)
-      )
-      system <- IO.pure(app.wiring.SystemModule.make(shutdownSignal))
-    yield List(
-      library.assetController,
-      library.authorController,
-      authorMergeController,
-      scraping.scrapingController,
-      scraping.configController,
-      scraping.authorConfigController,
-      scraping.downloadingController,
-      scraping.scheduleController,
-      mal.controller,
-      mapping.controller,
-      importing.controller,
-      progress.controller,
-      system.publicController,
-      system.shutdownController
-    )
 
   private def startServer(
       serverConfig: ServerConfig,
       routes: HttpRoutes[IO],
       shutdownSignal: Deferred[IO, Unit]
   ) =
-    HttpServer[IO]
+    HttpServer
       .newEmber(serverConfig, logErrors(routes).orNotFound)
       .use(_ => IO.never.race(shutdownSignal.get).void)

@@ -5,8 +5,7 @@ import java.time.LocalDate
 
 import scala.annotation.tailrec
 
-import cats.effect.MonadCancelThrow
-import cats.effect.kernel.Sync
+import cats.effect.IO
 import cats.syntax.all.*
 import com.microsoft.playwright.{Browser, Page}
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
@@ -18,25 +17,25 @@ import scraper.domain.*
 private type Language = Language.Type
 private object Language extends neotype.Subtype[String]
 
-class HitomiScraper[F[_]: MonadCancelThrow: Sync](
+class HitomiScraper(
     browser: Browser,
     timeout: Short
-) extends SiteScraperOfAuthor[F]:
+) extends SiteScraperOfAuthor:
 
   import scraper.util.playwright.*
   import HitomiScraper.*
 
   override def scrapeForAssets(
       uri: AuthorScrapingUri
-  ): F[Either[ScrapeError, List[AssetFound]]] =
+  ): IO[Either[ScrapeError, List[AssetFound]]] =
     browser.makePage
       .use: page =>
-        scribe.cats[F].debug(s"Scraping $uri")
+        scribe.cats[IO].debug(s"Scraping $uri")
           *> page.navigateSafe(uri.toString)
           *> waitForContentToLoad(page).flatMap:
-            case Left(error) => error.asLeft.pure
-            case Right(_)    => parse(page).pure
-          <* scribe.cats[F].debug(s"Done with $uri")
+            case Left(error) => IO.pure(error.asLeft)
+            case Right(_)    => IO.pure(parse(page))
+          <* scribe.cats[IO].debug(s"Done with $uri")
       .handleError(error => ScrapeError.Other(error.getMessage).asLeft)
 
   private def waitForContentToLoad(page: Page) =

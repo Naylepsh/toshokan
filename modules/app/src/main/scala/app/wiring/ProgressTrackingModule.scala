@@ -5,19 +5,19 @@ import doobie.Transactor
 import http.View.NavBarItem
 import progressTracking.*
 
-case class ProgressTrackingModule[F[_]](
-    service: ProgressTrackingService[F],
-    controller: ProgressTrackingController[F]
+case class ProgressTrackingModule(
+    service: ProgressTrackingService,
+    controller: ProgressTrackingController
 )
 
 object ProgressTrackingModule:
   def make(
-      library: LibraryModule[IO],
-      malModule: MyAnimeListModule[IO],
-      mappingModule: AssetMappingModule[IO],
+      library: LibraryModule,
+      malModule: MyAnimeListModule,
+      mappingModule: AssetMappingModule,
       navBarItems: List[NavBarItem],
       xa: Transactor[IO]
-  ): ProgressTrackingModule[IO] =
+  ): ProgressTrackingModule =
     val entryProgressRepository = EntryProgressRepository.make
     val service = ProgressTrackingService.make(
       malModule.service,

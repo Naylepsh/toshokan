@@ -53,7 +53,7 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
   import AssetDownloadingServiceSuite.*
 
   val withXa = ResourceFunFixture(
-    inMemoryTransactor[IO].evalTap(applyMigrations)
+    inMemoryTransactor.evalTap(applyMigrations)
   )
 
   withXa.test("downloadAll processes entries in order"): xa =>
@@ -111,13 +111,13 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
             )
           case None => FC.pure(None)
 
-    val mockMangadexApi = new MangadexApi[IO]:
+    val mockMangadexApi = new MangadexApi:
       def getMangaFeed(mangaId: String) = ???
       def getManga(mangaId: String)     = ???
       def getImages(chapterId: String)  = IO.pure(Right(List.empty))
 
     val config  = AssetDownloadingService.Config(1.millis)
-    val storage = EntryLocalStorage[IO](DownloadDir.tmp)
+    val storage = EntryLocalStorage(DownloadDir.tmp)
     val service = AssetDownloadingService.make(
       mockMangadexApi,
       mockBackend,
@@ -142,13 +142,13 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
       ): ConnectionIO[Option[(ExistingAsset, List[ExistingAssetEntry])]] =
         FC.pure(None)
 
-    val mockMangadexApi = new MangadexApi[IO]:
+    val mockMangadexApi = new MangadexApi:
       def getMangaFeed(mangaId: String) = ???
       def getManga(mangaId: String)     = ???
       def getImages(chapterId: String)  = ???
 
     val config  = AssetDownloadingService.Config(1.millis)
-    val storage = EntryLocalStorage[IO](DownloadDir.tmp)
+    val storage = EntryLocalStorage(DownloadDir.tmp)
     val service = AssetDownloadingService.make(
       mockMangadexApi,
       mockBackend,

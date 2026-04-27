@@ -4,20 +4,18 @@ import cats.effect.IO
 import doobie.Transactor
 import myAnimeList.{MyAnimeListController, MyAnimeListService}
 
-case class MyAnimeListModule[F[_]](
-    service: MyAnimeListService[F],
-    controller: MyAnimeListController[F]
+case class MyAnimeListModule(
+    service: MyAnimeListService,
+    controller: MyAnimeListController
 )
 
 object MyAnimeListModule:
   def make(
-      externals: ExternalServices[IO],
+      externals: ExternalServices,
       xa: Transactor[IO]
-  ): IO[MyAnimeListModule[IO]] =
-    for
-      service <- MyAnimeListService.make[IO](xa, externals.malClient)
-      controller = MyAnimeListController(service)
+  ): IO[MyAnimeListModule] =
+    for service <- MyAnimeListService.make(xa, externals.malClient)
     yield MyAnimeListModule(
       service = service,
-      controller = controller
+      controller = MyAnimeListController(service)
     )

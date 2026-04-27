@@ -7,7 +7,7 @@ import java.time.LocalDate
 import scala.util.chaining.*
 
 import cats.data.NonEmptyList
-import cats.effect.kernel.Sync
+import cats.effect.IO
 import cats.kernel.Order
 import cats.syntax.all.*
 import io.github.arainko.ducktape.*
@@ -79,12 +79,11 @@ object EntryUri extends neotype.Subtype[URI]
 type DateUploaded = DateUploaded.Type
 object DateUploaded extends neotype.Subtype[LocalDate]:
   extension (self: DateUploaded)
-    def daysAgo[F[_]: Sync]: F[DaysSinceRelease] =
-      Sync[F]
-        .delay:
-          java.time.temporal.ChronoUnit.DAYS
-            .between(self, java.time.LocalDate.now())
-        .map(DaysSinceRelease(_))
+    def daysAgo: IO[DaysSinceRelease] =
+      IO.delay:
+        java.time.temporal.ChronoUnit.DAYS
+          .between(self, java.time.LocalDate.now())
+      .map(DaysSinceRelease(_))
 
   given Ordering[DateUploaded] with
     override def compare(x: DateUploaded, y: DateUploaded): Int =

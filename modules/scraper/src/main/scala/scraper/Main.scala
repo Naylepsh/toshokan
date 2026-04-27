@@ -7,7 +7,7 @@ import scraper.sites.empik.EmpikScraper
 
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
-    val scraper = EmpikScraper[IO]
+    val scraper = EmpikScraper()
     scraper
       .findEntries(
         new URI(

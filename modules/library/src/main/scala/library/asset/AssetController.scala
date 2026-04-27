@@ -1,6 +1,6 @@
 package library.asset
 
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.IO
 import cats.implicits.*
 import cats.mtl.Handle
 import io.circe.Decoder
@@ -15,15 +15,15 @@ import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
 
-class AssetController[F[_]: MonadCancelThrow: Concurrent](
-    assetService: AssetService[F],
-    categoryService: CategoryService[F],
+class AssetController(
+    assetService: AssetService,
+    categoryService: CategoryService,
     view: AssetView
-) extends http.Controller[F]:
+) extends http.Controller:
   import http.Controller.given
   import AssetController.{*, given}
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case GET -> Root =>
       assetService.findAll
         .map(_.sortBy(_._1.title))
@@ -64,10 +64,7 @@ class AssetController[F[_]: MonadCancelThrow: Concurrent](
               .flatMap: asset =>
                 Ok(
                   asset.id.unwrap.toString,
-                  addRedirectHeaderIfHtmxRequest(
-                    req,
-                    s"/assets/${asset.id}"
-                  )
+                  addRedirectHeaderIfHtmxRequest(req, s"/assets/${asset.id}")
                 )
           .rescue:
             case AssetAlreadyExists =>
@@ -100,14 +97,12 @@ object AssetController:
       categoryId: Option[CategoryId]
   ) derives Decoder:
     def toDomain: NewAsset = NewAsset(title, categoryId, Nil)
-    def asExisting(id: AssetId): ExistingAsset =
-      toDomain.asExisting(id)
+    def asExisting(id: AssetId): ExistingAsset = toDomain.asExisting(id)
 
-  given [F[_]: Concurrent]: EntityDecoder[F, NewAssetDto] =
-    jsonOf[F, NewAssetDto]
+  given EntityDecoder[IO, NewAssetDto] = jsonOf[IO, NewAssetDto]
 
-  private def addRedirectHeaderIfHtmxRequest[F[_]](
-      request: Request[F],
+  private def addRedirectHeaderIfHtmxRequest(
+      request: Request[IO],
       redirectTo: String
   ): List[Header.Raw] =
     if request.headers.get(CIString("HX-Request")).isDefined then

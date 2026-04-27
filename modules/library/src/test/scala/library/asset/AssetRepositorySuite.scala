@@ -14,7 +14,7 @@ import munit.CatsEffectSuite
 class AssetRepositorySuite extends CatsEffectSuite:
 
   val withRepo = ResourceFunFixture(
-    inMemoryTransactor[IO]
+    inMemoryTransactor
       .evalTap(applyMigrations)
       .map: xa =>
         (AssetRepository.make, xa)

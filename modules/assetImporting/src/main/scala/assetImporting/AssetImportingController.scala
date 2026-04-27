@@ -1,6 +1,6 @@
 package assetImporting
 
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.IO
 import cats.syntax.all.*
 import io.circe.Decoder
 import neotype.interop.circe.given
@@ -12,13 +12,13 @@ import org.typelevel.ci.CIString
 
 import domain.MangadexMangaUri
 
-class AssetImportingController[F[_]: MonadCancelThrow: Concurrent](
-    service: AssetImportingService[F],
+class AssetImportingController(
+    service: AssetImportingService,
     view: AssetImportingView
-) extends http.Controller[F]:
-  import AssetImportingController.*
+) extends http.Controller:
+  import AssetImportingController.{*, given}
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case GET -> Root =>
       Ok(
         view.renderForm.toString,
@@ -30,8 +30,7 @@ class AssetImportingController[F[_]: MonadCancelThrow: Concurrent](
         service
           .importFromMangadex(mangadexManga.uri)
           .flatMap: asset =>
-            // TODO: Handle domain errors?
-            Response[F]()
+            Response[IO]()
               .withStatus(Status.Created)
               .withHeaders(
                 Header.Raw(CIString("HX-Location"), s"/assets/${asset.id}")
@@ -43,5 +42,4 @@ class AssetImportingController[F[_]: MonadCancelThrow: Concurrent](
 object AssetImportingController:
   case class MangadexManga(uri: MangadexMangaUri) derives Decoder
 
-  given [F[_]: Concurrent]: EntityDecoder[F, MangadexManga] =
-    jsonOf[F, MangadexManga]
+  given EntityDecoder[IO, MangadexManga] = jsonOf[IO, MangadexManga]

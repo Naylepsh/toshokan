@@ -1,7 +1,7 @@
 package library.author
 
 import cats.data.NonEmptySet
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.IO
 import cats.syntax.all.*
 import core.types.AtLeastTwoUnique
 import doobie.*
@@ -19,25 +19,22 @@ import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
 
-class AuthorController[F[_]: MonadCancelThrow: Concurrent](
+class AuthorController(
     repository: AuthorRepository,
-    assetService: AssetService[F],
+    assetService: AssetService,
     view: AuthorView,
-    xa: Transactor[F]
-) extends http.Controller[F]:
+    xa: Transactor[IO]
+) extends http.Controller:
   import http.Controller.given
   import AuthorController.{*, given}
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case GET -> Root =>
       repository.findAll
         .transact(xa)
         .flatMap: authors =>
           val groups = AuthorGroup.fromAuthors(authors)
-          Ok(
-            view.renderAuthors(groups),
-            `Content-Type`(MediaType.text.html)
-          )
+          Ok(view.renderAuthors(groups), `Content-Type`(MediaType.text.html))
 
     case GET -> Root / AuthorIdVar(id) =>
       repository
@@ -78,10 +75,7 @@ class AuthorController[F[_]: MonadCancelThrow: Concurrent](
             assetService.mergeAssets(sourceId, merge.targetId)
           )
           .flatMap: _ =>
-            Ok(
-              "",
-              Header.Raw(CIString("HX-Location"), s"/authors/$authorId")
-            )
+            Ok("", Header.Raw(CIString("HX-Location"), s"/authors/$authorId"))
 
   val routes = Router("authors" -> httpRoutes)
 
@@ -95,7 +89,5 @@ object AuthorController:
     given Decoder[MergeConfirmation] =
       Decoder.forProduct2("assetIds", "targetId")(MergeConfirmation.apply)
 
-  given [F[_]: Concurrent]: EntityDecoder[F, MergeRequest] =
-    jsonOf[F, MergeRequest]
-  given [F[_]: Concurrent]: EntityDecoder[F, MergeConfirmation] =
-    jsonOf[F, MergeConfirmation]
+  given EntityDecoder[IO, MergeRequest]      = jsonOf[IO, MergeRequest]
+  given EntityDecoder[IO, MergeConfirmation] = jsonOf[IO, MergeConfirmation]

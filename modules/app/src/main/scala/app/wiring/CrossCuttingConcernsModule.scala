@@ -25,10 +25,9 @@ object CrossCuttingConcernsModule:
       useDnsOverHttps: Boolean
   ): Resource[IO, InfrastructureResources] =
     for
-      xa          <- db.transactors.makeSqliteTransactorResource[IO](dbConfig)
+      xa          <- db.transactors.makeSqliteTransactorResource(dbConfig)
       httpBackend <- createHttpBackend(useDnsOverHttps)
-      browser <- playwright
-        .makePlaywrightResource[IO]
+      browser <- playwright.makePlaywrightResource
         .evalMap(p => IO.delay(p.chromium().launch()))
       shutdownSignal <- Resource.eval(Deferred[IO, Unit])
     yield InfrastructureResources(xa, httpBackend, browser, shutdownSignal)

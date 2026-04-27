@@ -1,8 +1,7 @@
 package progressTracking
 
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.IO
 import cats.mtl.Handle
-import cats.syntax.all.*
 import library.asset.AssetController.{AssetIdVar, EntryIdVar}
 import library.asset.domain.{AssetId, UpdateEntryError}
 import myAnimeList.domain.Term
@@ -17,13 +16,13 @@ import org.http4s.server.Router
 import schemas.{*, given}
 import viewComponents.Pagination
 
-class ProgressTrackingController[F[_]: MonadCancelThrow: Concurrent](
-    service: ProgressTrackingService[F],
+class ProgressTrackingController(
+    service: ProgressTrackingService,
     view: ProgressTrackingView
-) extends http.Controller[F]:
+) extends http.Controller:
   import http.Controller.given
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case GET -> Root / "releases" :? OptionalPageQueryParam(page) =>
       service.findNotSeenReleases.attempt.flatMap:
         case Left(reason) =>

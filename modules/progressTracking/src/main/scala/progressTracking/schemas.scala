@@ -1,7 +1,7 @@
 package progressTracking
 package schemas
 
-import cats.effect.Concurrent
+import cats.effect.IO
 import io.circe.Codec
 import library.asset.domain.AssetId
 import myAnimeList.domain.ExternalMangaId
@@ -14,10 +14,10 @@ import domain.WasEntrySeen
 case class NewMalMangaMappingDTO(assetId: AssetId, malId: ExternalMangaId)
     derives Codec
 
-given [F[_]: Concurrent]: EntityDecoder[F, NewMalMangaMappingDTO] =
-  jsonOf[F, NewMalMangaMappingDTO]
+given EntityDecoder[IO, NewMalMangaMappingDTO] =
+  jsonOf[IO, NewMalMangaMappingDTO]
 
 case class UpdateProgressDTO(wasEntrySeen: WasEntrySeen) derives Codec
 
-given [F[_]: Concurrent]: EntityDecoder[F, UpdateProgressDTO] =
-  jsonOf[F, UpdateProgressDTO]
+given EntityDecoder[IO, UpdateProgressDTO] =
+  jsonOf[IO, UpdateProgressDTO]

@@ -4,19 +4,19 @@ package migrations
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
+import cats.effect.IO
 import cats.syntax.all.*
 import doobie.*
 import doobie.implicits.*
 import doobie.util.transactor.Transactor
-import cats.effect.kernel.Sync
 
-def migrationSQL[F[_]: Sync] = Sync[F].delay:
+def migrationSQL: IO[String] = IO.delay:
   new String(
     Files.readAllBytes(Paths.get("./db/schema.sql")),
     StandardCharsets.UTF_8
   )
 
-def applyMigrations[F[_]: Sync](xa: Transactor[F]): F[Unit] =
+def applyMigrations(xa: Transactor[IO]): IO[Unit] =
   migrationSQL.flatMap: sql =>
     sql
       .split(";")

@@ -7,27 +7,27 @@ import library.asset.*
 import library.author.{AuthorController, AuthorRepository, AuthorView}
 import library.category.{CategoryRepository, CategoryService}
 
-case class LibraryModule[F[_]](
+case class LibraryModule(
     assetRepository: AssetRepository,
-    assetService: AssetService[F],
-    assetController: AssetController[F],
+    assetService: AssetService,
+    assetController: AssetController,
     categoryRepository: CategoryRepository,
-    categoryService: CategoryService[F],
+    categoryService: CategoryService,
     authorRepository: AuthorRepository,
     authorView: AuthorView,
-    authorController: AuthorController[F]
+    authorController: AuthorController
 )
 
 object LibraryModule:
   def make(
       xa: Transactor[IO],
       navBarItems: List[NavBarItem]
-  ): LibraryModule[IO] =
+  ): LibraryModule =
     val assetRepository    = AssetRepository.make
     val categoryRepository = CategoryRepository.make
     val authorRepository   = AuthorRepository.make
     val assetService       = AssetService.make(assetRepository, xa)
-    val categoryService    = CategoryService.make[IO](categoryRepository, xa)
+    val categoryService    = CategoryService.make(categoryRepository, xa)
     val assetView          = AssetView(navBarItems)
     val assetController =
       AssetController(assetService, categoryService, assetView)

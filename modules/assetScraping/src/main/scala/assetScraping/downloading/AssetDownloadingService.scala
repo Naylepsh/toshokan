@@ -10,7 +10,7 @@ import assetScraping.downloading.domain.{
   BulkDownloadProgress,
   DownloadDir
 }
-import cats.effect.kernel.{Async, Sync, Temporal}
+import cats.effect.IO
 import cats.syntax.all.*
 import doobie.*
 import doobie.implicits.*
@@ -42,24 +42,24 @@ class UnsupportedUrlForEntryDownloading(url: URI)
 object NoEntriesApplicableForDownload
     extends Exception("No entries applicable for download")
 
-trait AssetDownloadingService[F[_], FolderCreated]:
-  def download(entryId: EntryId): F[FolderCreated]
-  def downloadAll(assetId: AssetId): F[BulkDownloadProgress]
+trait AssetDownloadingService[FolderCreated]:
+  def download(entryId: EntryId): IO[FolderCreated]
+  def downloadAll(assetId: AssetId): IO[BulkDownloadProgress]
 
 object AssetDownloadingService:
   case class Config(
       delayBetweenDownloads: FiniteDuration
   )
 
-  def make[F[_]: Async, FolderCreated](
-      mangadexApi: MangadexApi[F],
-      backend: SttpBackend[F, WebSockets],
+  def make[FolderCreated](
+      mangadexApi: MangadexApi,
+      backend: SttpBackend[IO, WebSockets],
       assetRepository: AssetRepository,
-      storage: EntryStorage[F, FolderCreated],
+      storage: EntryStorage[FolderCreated],
       config: Config,
-      xa: Transactor[F]
-  ): AssetDownloadingService[F, FolderCreated] = new:
-    override def downloadAll(assetId: AssetId): F[BulkDownloadProgress] =
+      xa: Transactor[IO]
+  ): AssetDownloadingService[FolderCreated] = new:
+    override def downloadAll(assetId: AssetId): IO[BulkDownloadProgress] =
       for
         entryGroups <- getEntryGroupsOrderedByNo(assetId)
         initialProgress = BulkDownloadProgress.initial(
@@ -76,7 +76,7 @@ object AssetDownloadingService:
         .findById(assetId)
         .transact(xa)
         .flatMap:
-          case None => Temporal[F].raiseError(AssetNotFound(assetId))
+          case None => IO.raiseError(AssetNotFound(assetId))
           case Some(asset, entries) =>
             entries
               .groupBy(_.no)
@@ -92,20 +92,20 @@ object AssetDownloadingService:
         entryGroup: List[ExistingAssetEntry]
     ) =
       for
-        _      <- scribe.cats[F].info(s"Downloading entry group ${entryNo}")
+        _      <- scribe.cats[IO].info(s"Downloading entry group ${entryNo}")
         result <- tryDownloadFromGroup(asset, entryGroup).attempt
-        _      <- Temporal[F].sleep(config.delayBetweenDownloads)
+        _      <- IO.sleep(config.delayBetweenDownloads)
         updatedProgress <- result match
           case Right(_) =>
             scribe
-              .cats[F]
+              .cats[IO]
               .info(
                 s"Successfully downloaded entry ${entryNo}"
               )
               .as(progress.completedOne)
           case Left(error) =>
             scribe
-              .cats[F]
+              .cats[IO]
               .error(
                 s"Failed to download entry ${entryNo}: ${error.getMessage}",
                 error
@@ -117,10 +117,10 @@ object AssetDownloadingService:
     private def tryDownloadFromGroup(
         asset: ExistingAsset,
         entryGroup: List[ExistingAssetEntry]
-    ): F[Unit] =
+    ): IO[Unit] =
       entryGroup match
         case Nil =>
-          Temporal[F].raiseError(NoEntriesApplicableForDownload)
+          IO.raiseError(NoEntriesApplicableForDownload)
         case entry :: rest =>
           getImageExtractor(entry) match
             case Some(imageUrlsF) =>
@@ -132,19 +132,19 @@ object AssetDownloadingService:
             case None =>
               if rest.nonEmpty then tryDownloadFromGroup(asset, rest)
               else
-                Temporal[F].raiseError(
+                IO.raiseError(
                   UnsupportedUrlForEntryDownloading(entry.uri)
                 )
 
     private def getImageExtractor(
         entry: ExistingAssetEntry
-    ): Option[F[List[URI]]] =
+    ): Option[IO[List[URI]]] =
       entry.uri.toString match
         case s"https://mangadex.org/chapter/$chapterId" =>
-          Some(mangadexApi.getImages(chapterId).flatMap(Sync[F].fromEither))
+          Some(mangadexApi.getImages(chapterId).flatMap(IO.fromEither))
         case _ => None
 
-    override def download(entryId: EntryId): F[FolderCreated] =
+    override def download(entryId: EntryId): IO[FolderCreated] =
       for
         (asset, entry) <- findAssetAndEntry(entryId)
         urls           <- getImageUrls(entry)
@@ -157,26 +157,24 @@ object AssetDownloadingService:
         maybeAssetWithEntries <- assetRepository
           .findByEntryId(entryId)
           .transact(xa)
-        (asset, entries) <- Sync[F].fromOption(
-          maybeAssetWithEntries,
+        (asset, entries) <- maybeAssetWithEntries.liftTo[IO](
           NoAssetFoundForEntry(entryId)
         )
-        entry <- Sync[F].fromOption(
-          entries.find(_.id === entryId),
-          AssetHasNoEntry(asset.id, entryId)
-        )
+        entry <- entries
+          .find(_.id === entryId)
+          .liftTo[IO](AssetHasNoEntry(asset.id, entryId))
       yield (asset, entry)
 
-    private def getImageUrls(entry: ExistingAssetEntry): F[List[URI]] =
+    private def getImageUrls(entry: ExistingAssetEntry): IO[List[URI]] =
       getImageExtractor(entry) match
         case Some(imageUrlsF) => imageUrlsF
         case None =>
-          Sync[F].raiseError(UnsupportedUrlForEntryDownloading(entry.uri))
+          IO.raiseError(UnsupportedUrlForEntryDownloading(entry.uri))
 
     private def downloadImages(
         urls: List[URI],
         folderCreated: FolderCreated
-    ): F[Unit] =
+    ): IO[Unit] =
       urls.zipWithIndex.traverse_ { (url, index) =>
         val ext = Path
           .of(url.getPath)
@@ -191,57 +189,53 @@ object AssetDownloadingService:
         yield ()
       }
 
-    private def downloadImage(url: URI): F[Array[Byte]] =
+    private def downloadImage(url: URI): IO[Array[Byte]] =
       val request = basicRequest
         .get(Uri(url))
         .response(asByteArray)
         .send(backend)
         .map(_.body.leftMap(RuntimeException(_)))
-        .flatMap(Sync[F].fromEither)
+        .flatMap(IO.fromEither)
       retryingOnErrors(request)(
         policy = RetryPolicies
-          .limitRetries(2)
-          .join(RetryPolicies.exponentialBackoff(1.second)),
+          .limitRetries[IO](2)
+          .join(RetryPolicies.exponentialBackoff[IO](1.second)),
         errorHandler = ResultHandler.retryOnAllErrors(ResultHandler.noop)
       )
 
-trait EntryStorage[F[_], CreatedFolder]:
+trait EntryStorage[CreatedFolder]:
   def createFolder(
       asset: ExistingAsset,
       entry: ExistingAssetEntry
-  ): F[CreatedFolder]
-
+  ): IO[CreatedFolder]
   def addEntryPage(
       folder: CreatedFolder,
       page: Int,
       ext: String,
       bytes: Array[Byte]
-  ): F[Unit]
+  ): IO[Unit]
 
-class EntryLocalStorage[F[_]: Sync](
-    downloadDir: DownloadDir
-) extends EntryStorage[F, AssetEntryDir]:
+class EntryLocalStorage(downloadDir: DownloadDir)
+    extends EntryStorage[AssetEntryDir]:
   def createFolder(
       asset: ExistingAsset,
       entry: ExistingAssetEntry
-  ): F[AssetEntryDir] =
+  ): IO[AssetEntryDir] =
     val dir = AssetEntryDir(downloadDir, asset.title, entry.no)
-    Sync[F].blocking(Files.createDirectories(dir)).as(dir)
+    IO.blocking(Files.createDirectories(dir)).as(dir)
 
   def addEntryPage(
       folder: AssetEntryDir,
       page: Int,
       ext: String,
       bytes: Array[Byte]
-  ): F[Unit] =
+  ): IO[Unit] =
     val outputPath = folder.forPage(page, ext)
-    Sync[F]
-      .blocking(
-        Files.write(
-          outputPath,
-          bytes,
-          StandardOpenOption.CREATE,
-          StandardOpenOption.TRUNCATE_EXISTING
-        )
+    IO.blocking(
+      Files.write(
+        outputPath,
+        bytes,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING
       )
-      .as(())
+    ).void

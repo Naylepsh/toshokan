@@ -9,20 +9,20 @@ import cats.effect.IO
 import doobie.Transactor
 import http.View.NavBarItem
 
-case class AssetImportingModule[F[_]](
-    service: AssetImportingService[F],
-    controller: AssetImportingController[F]
+case class AssetImportingModule(
+    service: AssetImportingService,
+    controller: AssetImportingController
 )
 
 object AssetImportingModule:
   def make(
-      library: LibraryModule[IO],
-      scraping: AssetScrapingModule[IO],
-      mapping: AssetMappingModule[IO],
-      externals: ExternalServices[IO],
+      library: LibraryModule,
+      scraping: AssetScrapingModule,
+      mapping: AssetMappingModule,
+      externals: ExternalServices,
       navBarItems: List[NavBarItem],
       xa: Transactor[IO]
-  ): AssetImportingModule[IO] =
+  ): AssetImportingModule =
     val service = AssetImportingService(
       library.assetService,
       library.categoryService,

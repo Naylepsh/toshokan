@@ -1,6 +1,6 @@
 package assetScraping.configs
 
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.IO
 import cats.mtl.Handle
 import cats.syntax.all.*
 import doobie.*
@@ -17,16 +17,16 @@ import org.http4s.server.Router
 
 import domain.*
 
-class AuthorScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
-    service: AuthorScrapingConfigService[F],
+class AuthorScrapingConfigController(
+    service: AuthorScrapingConfigService,
     authorRepository: AuthorRepository,
     view: AuthorScrapingConfigView,
-    xa: Transactor[F]
-) extends http.Controller[F]:
+    xa: Transactor[IO]
+) extends http.Controller:
   import http.Controller.given
   import AuthorScrapingController.{*, given}
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
 
     case GET -> Root / "authors" / AuthorIdVar(authorId) / "configs" =>
       authorRepository
@@ -95,5 +95,5 @@ object AuthorScrapingController:
         authorId
       )
 
-  given [F[_]: Concurrent]: EntityDecoder[F, AuthorScrapingConfigDTO] =
-    jsonOf[F, AuthorScrapingConfigDTO]
+  given EntityDecoder[IO, AuthorScrapingConfigDTO] =
+    jsonOf[IO, AuthorScrapingConfigDTO]

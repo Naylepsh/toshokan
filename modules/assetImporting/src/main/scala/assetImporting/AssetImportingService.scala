@@ -4,7 +4,7 @@ import assetImporting.domain.*
 import assetMapping.{AssetMappingService, AssignExternalIdToMangaError}
 import assetScraping.configs.AssetScrapingConfigService
 import assetScraping.configs.domain.*
-import cats.effect.MonadCancelThrow
+import cats.effect.IO
 import cats.mtl.Handle
 import cats.syntax.all.*
 import doobie.*
@@ -21,22 +21,19 @@ import myAnimeList.domain.ExternalMangaId
 
 import domain.MangadexMangaUri
 
-class AssetImportingService[F[_]: MonadCancelThrow](
-    assetService: AssetService[F],
-    categoryService: CategoryService[F],
-    assetMappingService: AssetMappingService[F],
-    assetScrapingConfigService: AssetScrapingConfigService[F],
+class AssetImportingService(
+    assetService: AssetService,
+    categoryService: CategoryService,
+    assetMappingService: AssetMappingService,
+    assetScrapingConfigService: AssetScrapingConfigService,
     authorRepository: AuthorRepository,
-    mangadex: MangadexApi[F],
-    xa: Transactor[F]
+    mangadex: MangadexApi,
+    xa: Transactor[IO]
 ):
-  def importFromMangadex(
-      uri: MangadexMangaUri
-  ): F[ExistingAsset] =
-    // TODO: Handle domain errors?
+  def importFromMangadex(uri: MangadexMangaUri): IO[ExistingAsset] =
     categoryService.findManga.flatMap:
       case None =>
-        MonadCancelThrow[F].raiseError(CategoryDoesNotExist)
+        IO.raiseError(CategoryDoesNotExist)
       case Some(manga) =>
         for
           mangaResponse <- getMangaFromMangadex(uri.id)
@@ -60,7 +57,7 @@ class AssetImportingService[F[_]: MonadCancelThrow](
   ) =
     for
       title <- mangaResponse.data.attributes.preferredTitle
-        .liftTo[F](new RuntimeException(NoTitleTranslation.toString))
+        .liftTo[IO](new RuntimeException(NoTitleTranslation.toString))
       authors <- authorRepository
         .findOrAdd(
           mangaResponse.data.authorNames.map(AuthorName(_)).toSet
@@ -69,38 +66,35 @@ class AssetImportingService[F[_]: MonadCancelThrow](
       result <-
         Handle
           .allow[AddAssetError]:
-            assetService
-              .add(
-                NewAsset(
-                  AssetTitle(title),
-                  manga.id.some,
-                  authors.map(_.id).toList
-                )
+            assetService.add(
+              NewAsset(
+                AssetTitle(title),
+                manga.id.some,
+                authors.map(_.id).toList
               )
+            )
           .rescue: error =>
-            MonadCancelThrow[F].raiseError(new RuntimeException(error.toString))
+            IO.raiseError(new RuntimeException(error.toString))
     yield result
 
   private def createScrapingConfig(
       asset: ExistingAsset,
       uri: MangadexMangaUri
-  ): F[Unit] =
+  ): IO[Unit] =
     for
       config <- NewAssetScrapingConfig(
         ScrapingConfigUri(uri),
         Site.Mangadex,
         IsConfigEnabled(true),
         asset.id
-      ).leftMap(error => new RuntimeException(error.toString)).liftTo[F]
+      ).leftMap(error => new RuntimeException(error.toString)).liftTo[IO]
       result <-
         Handle
           .allow[AddScrapingConfigError]:
             assetScrapingConfigService.add(config).void
           .rescue:
             case error: AddScrapingConfigError =>
-              MonadCancelThrow[F].raiseError(
-                new RuntimeException(error.toString)
-              )
+              IO.raiseError(new RuntimeException(error.toString))
     yield result
 
   private def assignExternalIdToManga(
@@ -110,4 +104,4 @@ class AssetImportingService[F[_]: MonadCancelThrow](
     .allow[AssignExternalIdToMangaError]:
       assetMappingService.assignExternalIdToManga(malId, asset.id)
     .rescue:
-      case error => MonadCancelThrow[F].raiseError(error)
+      case error => IO.raiseError(error)

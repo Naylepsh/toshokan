@@ -5,18 +5,18 @@ import cats.effect.IO
 import doobie.Transactor
 import http.View.NavBarItem
 
-case class AssetMappingModule[F[_]](
-    service: AssetMappingService[F],
-    controller: AssetMappingController[F]
+case class AssetMappingModule(
+    service: AssetMappingService,
+    controller: AssetMappingController
 )
 
 object AssetMappingModule:
   def make(
-      library: LibraryModule[IO],
-      malModule: MyAnimeListModule[IO],
+      library: LibraryModule,
+      malModule: MyAnimeListModule,
       xa: Transactor[IO],
       navBarItems: List[NavBarItem]
-  ): AssetMappingModule[IO] =
+  ): AssetMappingModule =
     val service = AssetMappingService(
       library.assetService,
       library.categoryService,

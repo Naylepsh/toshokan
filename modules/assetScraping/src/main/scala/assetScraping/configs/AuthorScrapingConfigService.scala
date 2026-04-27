@@ -1,6 +1,6 @@
 package assetScraping.configs
 
-import cats.effect.kernel.Sync
+import cats.effect.IO
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
@@ -11,36 +11,36 @@ import library.author.domain.*
 
 import domain.*
 
-trait AuthorScrapingConfigService[F[_]]:
-  def findAllEnabled: F[List[ExistingAuthorScrapingConfig]]
-  def findByAuthorId(authorId: AuthorId): F[List[ExistingAuthorScrapingConfig]]
+trait AuthorScrapingConfigService:
+  def findAllEnabled: IO[List[ExistingAuthorScrapingConfig]]
+  def findByAuthorId(authorId: AuthorId): IO[List[ExistingAuthorScrapingConfig]]
   def add(
       scrapingConfig: NewAuthorScrapingConfig
-  ): Raise[F, AddAuthorScrapingConfig] ?=> F[ExistingAuthorScrapingConfig]
-  def delete(id: AuthorScrapingConfigId): F[Unit]
+  ): Raise[IO, AddAuthorScrapingConfig] ?=> IO[ExistingAuthorScrapingConfig]
+  def delete(id: AuthorScrapingConfigId): IO[Unit]
   def updateEnabled(
       id: AuthorScrapingConfigId,
       enabled: IsConfigEnabled
-  ): F[Boolean]
+  ): IO[Boolean]
 
 object AuthorScrapingConfigService:
-  def make[F[_]: Sync](
+  def make(
       repository: AuthorScrapingConfigRepository,
       authorRepository: AuthorRepository,
-      xa: Transactor[F]
-  ): AuthorScrapingConfigService[F] = new:
+      xa: Transactor[IO]
+  ): AuthorScrapingConfigService = new:
 
-    override def findAllEnabled: F[List[ExistingAuthorScrapingConfig]] =
+    override def findAllEnabled: IO[List[ExistingAuthorScrapingConfig]] =
       repository.findAllEnabled.transact(xa)
 
     override def findByAuthorId(
         authorId: AuthorId
-    ): F[List[ExistingAuthorScrapingConfig]] =
+    ): IO[List[ExistingAuthorScrapingConfig]] =
       repository.findByAuthorId(authorId).transact(xa)
 
     override def add(
         scrapingConfig: NewAuthorScrapingConfig
-    ): Raise[F, AddAuthorScrapingConfig] ?=> F[ExistingAuthorScrapingConfig] =
+    ): Raise[IO, AddAuthorScrapingConfig] ?=> IO[ExistingAuthorScrapingConfig] =
       authorRepository
         .find(scrapingConfig.authorId)
         .transact(xa)
@@ -54,11 +54,11 @@ object AuthorScrapingConfigService:
                 case Left(error)   => error.raise
           case None => AddAuthorScrapingConfig.AuthorDoesNotExist.raise
 
-    override def delete(id: AuthorScrapingConfigId): F[Unit] =
+    override def delete(id: AuthorScrapingConfigId): IO[Unit] =
       repository.delete(id).transact(xa).void
 
     override def updateEnabled(
         id: AuthorScrapingConfigId,
         enabled: IsConfigEnabled
-    ): F[Boolean] =
+    ): IO[Boolean] =
       repository.updateEnabled(id, enabled).transact(xa)

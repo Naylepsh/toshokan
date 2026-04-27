@@ -4,7 +4,7 @@ import java.net.URI
 import java.time.temporal.ChronoUnit
 import java.time.{LocalDate, LocalDateTime}
 
-import cats.effect.kernel.Sync
+import cats.effect.IO
 import cats.syntax.all.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
@@ -12,9 +12,11 @@ import net.ruippeixotog.scalascraper.model.Document
 import scraper.domain.*
 import scraper.util.requests.getHtmlContent
 
-class BatotoScraper[F[_]: Sync] extends SiteScraper[F]:
+class BatotoScraper extends SiteScraper:
 
-  override def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
+  override def findEntries(
+      uri: URI
+  ): IO[Either[ScrapeError, List[EntryFound]]] =
     getHtmlContent(uri).map:
       case Left(error)    => ScrapeError.Other(error.toString).asLeft
       case Right(content) => BatotoScraper.parseContent(content)

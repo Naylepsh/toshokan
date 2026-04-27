@@ -1,8 +1,7 @@
 package authorMerging
 
 import cats.data.{NonEmptyList, NonEmptySet}
-import cats.effect.Concurrent
-import cats.syntax.all.*
+import cats.effect.IO
 import core.types.AtLeastTwoUnique
 import doobie.*
 import doobie.implicits.*
@@ -17,16 +16,16 @@ import org.http4s.headers.*
 import org.http4s.server.Router
 import org.typelevel.ci.CIString
 
-class AuthorMergeController[F[_]: Concurrent](
-    mergeService: AuthorMergeService[F],
+class AuthorMergeController(
+    mergeService: AuthorMergeService,
     repository: AuthorRepository,
     view: AuthorView,
-    xa: Transactor[F]
-) extends http.Controller[F]:
+    xa: Transactor[IO]
+) extends http.Controller:
   import http.Controller.given
   import AuthorMergeController.{*, given}
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case req @ POST -> Root / "merge" / "preview" =>
       withJsonErrorsHandled[AuthorMergeRequest](req): merge =>
         repository
@@ -68,7 +67,7 @@ object AuthorMergeController:
         AuthorMergeConfirmation.apply
       )
 
-  given [F[_]: Concurrent]: EntityDecoder[F, AuthorMergeRequest] =
-    jsonOf[F, AuthorMergeRequest]
-  given [F[_]: Concurrent]: EntityDecoder[F, AuthorMergeConfirmation] =
-    jsonOf[F, AuthorMergeConfirmation]
+  given EntityDecoder[IO, AuthorMergeRequest] =
+    jsonOf[IO, AuthorMergeRequest]
+  given EntityDecoder[IO, AuthorMergeConfirmation] =
+    jsonOf[IO, AuthorMergeConfirmation]

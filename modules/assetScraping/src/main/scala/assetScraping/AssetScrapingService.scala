@@ -3,7 +3,7 @@ package assetScraping
 import scala.util.chaining.*
 
 import assetScraping.configs.domain.FindScrapingConfigError
-import cats.effect.kernel.{Clock, Sync}
+import cats.effect.IO
 import cats.mtl.Handle
 import cats.syntax.all.*
 import core.Measure.*
@@ -29,30 +29,30 @@ import configs.domain.{
 import schedules.ScheduleService
 import scrapes.domain.ScrapingSummary
 
-trait AssetScrapingService[F[_]]:
-  def getNewReleases: F[ScrapingSummary]
-  def getNewReleases(assetId: AssetId): F[ScrapingSummary]
-  def getNewReleasesAccordingToSchedule: F[ScrapingSummary]
+trait AssetScrapingService:
+  def getNewReleases: IO[ScrapingSummary]
+  def getNewReleases(assetId: AssetId): IO[ScrapingSummary]
+  def getNewReleasesAccordingToSchedule: IO[ScrapingSummary]
   def getNewReleasesOfCategory(
       categoryId: CategoryId
-  ): F[Option[ScrapingSummary]]
+  ): IO[Option[ScrapingSummary]]
   def findStale
-      : F[List[(ExistingAsset, Option[library.asset.domain.DateUploaded])]]
+      : IO[List[(ExistingAsset, Option[library.asset.domain.DateUploaded])]]
 
 object AssetScrapingService:
-  def make[F[_]: Sync: Clock](
-      assetService: AssetService[F],
+  def make(
+      assetService: AssetService,
       assetRepository: AssetRepository,
-      configService: AssetScrapingConfigService[F],
-      authorConfigService: AuthorScrapingConfigService[F],
+      configService: AssetScrapingConfigService,
+      authorConfigService: AuthorScrapingConfigService,
       authorRepository: AuthorRepository,
-      scheduleService: ScheduleService[F],
-      scraper: Scraper[F],
-      pickAssetScraper: Site => SiteScraper[F],
-      pickAuthorScraper: AuthorSite => SiteScraperOfAuthor[F],
-      xa: Transactor[F]
-  ): AssetScrapingService[F] = new:
-    override def getNewReleases: F[ScrapingSummary] =
+      scheduleService: ScheduleService,
+      scraper: Scraper,
+      pickAssetScraper: Site => SiteScraper,
+      pickAuthorScraper: AuthorSite => SiteScraperOfAuthor,
+      xa: Transactor[IO]
+  ): AssetScrapingService = new:
+    override def getNewReleases: IO[ScrapingSummary] =
       for
         assetConfigs  <- configService.findAllEnabled
         authorConfigs <- authorConfigService.findAllEnabled
@@ -61,7 +61,7 @@ object AssetScrapingService:
         results <- getNewReleases(assetInstructions ++ authorInstructions)
       yield results
 
-    override def getNewReleases(assetId: AssetId): F[ScrapingSummary] =
+    override def getNewReleases(assetId: AssetId): IO[ScrapingSummary] =
       for
         configs <- Handle
           .allow[FindScrapingConfigError]:
@@ -72,14 +72,14 @@ object AssetScrapingService:
         results <- getNewReleases(instructions)
       yield results
 
-    override def getNewReleasesAccordingToSchedule: F[ScrapingSummary] =
+    override def getNewReleasesAccordingToSchedule: IO[ScrapingSummary] =
       for
         assetIds     <- scheduleService.findAssetsEligibleForScrape
         assetConfigs <- configService.findAllEnabled
         isAuthorDay  <- scheduleService.isAuthorScrapeDay
         authorConfigs <-
           if isAuthorDay then authorConfigService.findAllEnabled
-          else List.empty.pure
+          else IO.pure(List.empty)
         assetInstructions  = makeInstructionsForAssets(assetIds, assetConfigs)
         authorInstructions = authorConfigs.map(makeAuthorInstruction)
         results <- getNewReleases(assetInstructions ++ authorInstructions)
@@ -87,7 +87,7 @@ object AssetScrapingService:
 
     override def getNewReleasesOfCategory(
         categoryId: CategoryId
-    ): F[Option[ScrapingSummary]] =
+    ): IO[Option[ScrapingSummary]] =
       assetService
         .matchCategoriesToAssets(categoryId :: Nil)
         .flatMap: matching =>
@@ -100,7 +100,7 @@ object AssetScrapingService:
             .getOrElse(None.pure)
 
     override def findStale
-        : F[List[(ExistingAsset, Option[library.asset.domain.DateUploaded])]] =
+        : IO[List[(ExistingAsset, Option[library.asset.domain.DateUploaded])]] =
       for
         allStale <- assetRepository.findStale(PositiveInt(90)).transact(xa)
         enabledConfigs <- configService.findAllEnabled
@@ -109,11 +109,10 @@ object AssetScrapingService:
           enabledAssetIds.contains(asset.id)
       yield staleEnabled
 
-    private def getNewReleases(instructions: List[Instruction[F]]) =
+    private def getNewReleases(instructions: List[Instruction]) =
       for
-        _ <- scribe.cats[F].info("Starting the asset scraping...")
-        (results, scrapingTime) <-
-          scraper.scrape(instructions).measure
+        _ <- scribe.cats[IO].info("Starting the asset scraping...")
+        (results, scrapingTime) <- scraper.scrape(instructions).measure
         (newEntriesCount, savingTime) <- saveEntries(
           results.successfulAssetJobs
         )
@@ -133,7 +132,7 @@ object AssetScrapingService:
     private def makeInstructionsForAssets(
         assetIds: List[AssetId],
         configs: List[ExistingAssetScrapingConfig]
-    ): List[Instruction.ScrapeAsset[F]] =
+    ): List[Instruction.ScrapeAsset] =
       configs
         .filter(config => assetIds.contains(config.assetId))
         .map(makeAssetInstruction)
@@ -156,20 +155,17 @@ object AssetScrapingService:
               )
           .toMap
         assetsToAdd = successfulResults.flatMap: (_, assets) =>
-          assets
-            .map: asset =>
-              val assetAuthors =
-                asset.authors.map(library.author.domain.AuthorName.apply)
-              NewAsset(
-                library.asset.domain.AssetTitle(asset.assetTitle),
-                // TODO: What should the category be?
-                None,
-                assetAuthors
-                  .map(authorToId.get)
-                  .collect:
-                    case Some(id) => id
-                  .toList
-              )
+          assets.map: asset =>
+            val assetAuthors =
+              asset.authors.map(library.author.domain.AuthorName.apply)
+            NewAsset(
+              library.asset.domain.AssetTitle(asset.assetTitle),
+              None,
+              assetAuthors
+                .map(authorToId.get)
+                .collect { case Some(id) => id }
+                .toList
+            )
         assets <- assetRepository.findOrAdd(assetsToAdd.toSet).transact(xa)
         result <- entryToAssetTitle
           .map: (entry, assetTitle) =>
@@ -183,16 +179,11 @@ object AssetScrapingService:
                   library.asset.domain.DateUploaded(entry.dateUploaded),
                   asset.id
                 )
-          .collect:
-            case Some(entry) => entry
+          .collect { case Some(entry) => entry }
           .pipe(entries => assetService.addIfNewRelease(entries.toList))
       yield result
       process.measure.map: (results, savingTime) =>
-        val newEntriesCount = results.foldLeft(0):
-          case (newEntriesCount, Left(_)) =>
-            newEntriesCount
-          case (newEntriesCount, Right(savedEntry)) =>
-            newEntriesCount + 1
+        val newEntriesCount = results.count(_.isRight)
         (newEntriesCount, savingTime)
 
     private def saveEntries(
@@ -211,17 +202,13 @@ object AssetScrapingService:
         .pipe(assetService.addIfNewRelease)
         .measure
         .map: (results, savingTime) =>
-          val newEntriesCount = results.foldLeft(0):
-            case (newEntriesCount, Left(_)) =>
-              newEntriesCount
-            case (newEntriesCount, Right(savedEntry)) =>
-              newEntriesCount + 1
+          val newEntriesCount = results.count(_.isRight)
           (newEntriesCount, savingTime)
 
     private def makeAssetInstruction(
         config: ExistingAssetScrapingConfig
-    ): Instruction.ScrapeAsset[F] =
-      Instruction.ScrapeAsset[F](
+    ): Instruction.ScrapeAsset =
+      Instruction.ScrapeAsset(
         JobLabel(config.assetId.unwrap),
         config.uri,
         pickAssetScraper(config.site)
@@ -229,8 +216,8 @@ object AssetScrapingService:
 
     private def makeAuthorInstruction(
         config: ExistingAuthorScrapingConfig
-    ): Instruction.ScrapeAuthor[F] =
-      Instruction.ScrapeAuthor[F](
+    ): Instruction.ScrapeAuthor =
+      Instruction.ScrapeAuthor(
         JobLabel(config.authorId.unwrap),
         AuthorScrapingUri(config.uri),
         pickAuthorScraper(config.site)

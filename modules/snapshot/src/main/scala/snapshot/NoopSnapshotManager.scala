@@ -1,12 +1,8 @@
 package snapshot
 
-import cats.Applicative
-import cats.syntax.all.*
+import cats.effect.IO
 
-class NoopSnapshotManager[F[_]](using F: Applicative[F])
-    extends SnapshotManager[F]:
-  override def save(): F[Unit] = ().pure
-
-  override def wasSavedRecently(): F[Boolean] = true.pure
-
-  override def saveIfDue(): F[Unit] = ().pure
+class NoopSnapshotManager extends SnapshotManager:
+  override def save(): IO[Unit]                = IO.unit
+  override def wasSavedRecently(): IO[Boolean] = IO.pure(true)
+  override def saveIfDue(): IO[Unit]           = IO.unit

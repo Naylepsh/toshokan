@@ -1,7 +1,6 @@
 package assetScraping.schedules
 
-import cats.MonadThrow
-import cats.effect.Concurrent
+import cats.effect.IO
 import cats.mtl.Handle
 import cats.syntax.all.*
 import core.given
@@ -17,15 +16,15 @@ import org.http4s.server.Router
 
 import domain.*
 
-class ScheduleController[F[_]: MonadThrow: Concurrent](
-    service: ScheduleService[F],
-    categoryService: CategoryService[F],
+class ScheduleController(
+    service: ScheduleService,
+    categoryService: CategoryService,
     view: ScheduleView
-) extends http.Controller[F]:
+) extends http.Controller:
   import http.Controller.given
   import ScheduleController.*
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case GET -> Root =>
       service.findCategoriesOfAllSchedules.flatMap: categories =>
         Ok(
@@ -91,16 +90,14 @@ object ScheduleController:
       makeScrapingSchedule(days)(categoryId)
 
   object CreateScheduleDTO:
-    given [F[_]: Concurrent]: EntityDecoder[F, CreateScheduleDTO] =
-      jsonOf[F, CreateScheduleDTO]
+    given EntityDecoder[IO, CreateScheduleDTO] = jsonOf[IO, CreateScheduleDTO]
 
   case class UpdateScheduleDTO(days: List[DayOfTheWeek]) derives Decoder:
     val toDomain: CategoryId => Either[String, ScrapingSchedule.Category] =
       makeScrapingSchedule(days)
 
   object UpdateScheduleDTO:
-    given [F[_]: Concurrent]: EntityDecoder[F, UpdateScheduleDTO] =
-      jsonOf[F, UpdateScheduleDTO]
+    given EntityDecoder[IO, UpdateScheduleDTO] = jsonOf[IO, UpdateScheduleDTO]
 
   def makeScrapingSchedule(
       days: List[DayOfTheWeek]

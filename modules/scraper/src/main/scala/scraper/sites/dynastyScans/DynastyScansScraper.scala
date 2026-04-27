@@ -5,7 +5,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-import cats.effect.Sync
+import cats.effect.IO
 import cats.syntax.all.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
@@ -13,8 +13,10 @@ import net.ruippeixotog.scalascraper.model.Document
 import scraper.domain.*
 import scraper.util.requests.getHtmlContent
 
-class DynastyScansScraper[F[_]: Sync] extends SiteScraper[F]:
-  override def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
+class DynastyScansScraper extends SiteScraper:
+  override def findEntries(
+      uri: URI
+  ): IO[Either[ScrapeError, List[EntryFound]]] =
     getHtmlContent(uri).map:
       case Left(error)    => ScrapeError.Other(error.toString).asLeft
       case Right(content) => DynastyScansScraper.parseContent(content)

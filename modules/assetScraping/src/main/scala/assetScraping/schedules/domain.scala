@@ -5,7 +5,7 @@ import java.time.{DayOfWeek, LocalDate}
 import scala.collection.immutable.SortedSet
 
 import cats.data.{NonEmptyList, NonEmptySet}
-import cats.effect.kernel.Sync
+import cats.effect.IO
 import library.category.domain.CategoryId
 
 type DayOfTheWeek = DayOfTheWeek.Type
@@ -13,8 +13,8 @@ object DayOfTheWeek extends neotype.Subtype[DayOfWeek]:
   val fullWeek: NonEmptyList[DayOfTheWeek] =
     NonEmptyList.fromListUnsafe(DayOfWeek.values.toList.map(DayOfTheWeek(_)))
 
-  def now[F[_]](using F: Sync[F]): F[DayOfTheWeek] =
-    F.delay(DayOfTheWeek(LocalDate.now().getDayOfWeek))
+  def now: IO[DayOfTheWeek] =
+    IO.delay(DayOfTheWeek(LocalDate.now().getDayOfWeek))
 
   def makeAll(days: List[DayOfTheWeek]): Option[NonEmptySet[DayOfTheWeek]] =
     NonEmptySet.fromSet(SortedSet.from(days))

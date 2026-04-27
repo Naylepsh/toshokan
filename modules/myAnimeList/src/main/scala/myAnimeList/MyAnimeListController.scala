@@ -1,18 +1,14 @@
 package myAnimeList
 
-import cats.effect.MonadCancelThrow
-import cats.effect.kernel.Sync
+import cats.effect.IO
 import cats.mtl.Handle
-import cats.syntax.all.*
 import org.http4s.*
 import org.http4s.dsl.impl.QueryParamDecoderMatcher
 import org.http4s.server.Router
 
-class MyAnimeListController[F[_]: MonadCancelThrow: Sync](
-    service: MyAnimeListService[F]
-) extends http.Controller[F]:
+class MyAnimeListController(service: MyAnimeListService) extends http.Controller:
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case POST -> Root =>
       service.prepareForTokenAcquisition.flatMap(uri => Ok(uri.toString))
 
@@ -21,11 +17,9 @@ class MyAnimeListController[F[_]: MonadCancelThrow: Sync](
         .allow[NoCodeChallenge]:
           service.acquireToken(code) *> Ok("")
         .rescue: error =>
-          scribe
-            .cats[F]
-            .error(
-              "acquireToken shouldn't be called without calling prepareForTokenAcquisition first"
-            ) *> MonadCancelThrow[F].raiseError(error)
+          scribe.cats[IO].error(
+            "acquireToken shouldn't be called without calling prepareForTokenAcquisition first"
+          ) *> IO.raiseError(error)
 
   val routes = Router("myanimelist" -> httpRoutes)
 

@@ -20,7 +20,7 @@ class AssetImportingServiceSuite extends munit.CatsEffectSuite:
   import AssetImportingServiceSuite.*
 
   val withService = ResourceFunFixture(
-    inMemoryTransactor[IO].evalTap(applyMigrations).evalMap(makeServices)
+    inMemoryTransactor.evalTap(applyMigrations).evalMap(makeServices)
   )
 
   withService.test("imports asset with authors from Mangadex"):

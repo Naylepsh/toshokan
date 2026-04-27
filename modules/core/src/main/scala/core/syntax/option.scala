@@ -1,17 +1,11 @@
 package core.syntax
 
-import cats.Applicative
+import cats.effect.IO
 import cats.mtl.Raise
-import cats.syntax.applicative.*
+import cats.mtl.syntax.all.*
 
-def fromOption[F[_]: Applicative, E, A](
-    opt: Option[A],
-    err: E
-)(using R: Raise[F, E]): F[A] =
-  opt match
-    case Some(a) => a.pure[F]
-    case None    => R.raise(err)
-
-extension [F[_]: Applicative, A](opt: Option[A])
-  def orRaise[E](err: => E)(using Raise[F, E]): F[A] =
-    fromOption(opt, err)
+extension [A](opt: Option[A])
+  def orRaise[E](err: => E)(using Raise[IO, E]): IO[A] =
+    opt match
+      case Some(a) => IO.pure(a)
+      case None    => err.raise

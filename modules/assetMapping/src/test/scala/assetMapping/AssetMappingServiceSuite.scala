@@ -22,7 +22,7 @@ class AssetMappingServiceSuite extends munit.CatsEffectSuite:
   import AssetMappingServiceSuite.*
 
   val withServices = ResourceFunFixture(
-    inMemoryTransactor[IO].evalTap(applyMigrations).evalMap(makeService)
+    inMemoryTransactor.evalTap(applyMigrations).evalMap(makeService)
   )
 
   withServices.test(

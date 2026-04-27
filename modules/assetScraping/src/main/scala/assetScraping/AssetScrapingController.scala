@@ -1,6 +1,6 @@
 package assetScraping
 
-import cats.effect.{MonadCancelThrow, Sync}
+import cats.effect.IO
 import cats.syntax.all.*
 import library.asset.AssetController.AssetIdVar
 import library.category.CategoryService
@@ -10,15 +10,15 @@ import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 import org.http4s.headers.*
 import org.http4s.server.Router
 
-class AssetScrapingController[F[_]: MonadCancelThrow: Sync](
-    service: AssetScrapingService[F],
-    categoryService: CategoryService[F],
+class AssetScrapingController(
+    service: AssetScrapingService,
+    categoryService: CategoryService,
     view: AssetScrapingView
-) extends http.Controller[F]:
+) extends http.Controller:
   import http.Controller.given
   import AssetScrapingController.*
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case GET -> Root =>
       categoryService.findAll.flatMap: categories =>
         Ok(
@@ -31,7 +31,7 @@ class AssetScrapingController[F[_]: MonadCancelThrow: Sync](
         assets
           .traverse: (asset, lastRelease) =>
             lastRelease
-              .traverse(_.daysAgo[F])
+              .traverse(_.daysAgo)
               .map: days =>
                 library.asset.domain.StaleAsset(asset, lastRelease, days)
           .flatMap: staleAssets =>

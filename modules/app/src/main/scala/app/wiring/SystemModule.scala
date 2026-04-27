@@ -4,15 +4,15 @@ import app.controllers.{PublicController, ShutdownController}
 import cats.effect.IO
 import cats.effect.kernel.Deferred
 
-case class SystemModule[F[_]](
-    publicController: PublicController[F],
-    shutdownController: ShutdownController[F]
+case class SystemModule(
+    publicController: PublicController,
+    shutdownController: ShutdownController
 )
 
 object SystemModule:
-  def make(shutdownSignal: Deferred[IO, Unit]): SystemModule[IO] =
-    val publicController   = PublicController[IO]()
-    val shutdownController = ShutdownController[IO](shutdownSignal)
+  def make(shutdownSignal: Deferred[IO, Unit]): SystemModule =
+    val publicController   = PublicController()
+    val shutdownController = ShutdownController(shutdownSignal)
 
     SystemModule(
       publicController = publicController,

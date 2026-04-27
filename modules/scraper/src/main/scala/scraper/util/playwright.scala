@@ -1,26 +1,22 @@
 package scraper.util.playwright
 
-import cats.effect.Resource
-import cats.effect.kernel.Sync
-import cats.syntax.all.*
+import cats.effect.{IO, Resource}
 import com.microsoft.playwright.*
 import com.microsoft.playwright.Page.WaitForSelectorOptions
 
 extension (page: Page)
-  def navigateSafe[F[_]](url: String)(using F: Sync[F]): F[Response] =
-    F.delay(page.navigate(url))
+  def navigateSafe(url: String): IO[Response] =
+    IO.delay(page.navigate(url))
 
-  def waitForSelectorSafe[F[_]](
+  def waitForSelectorSafe(
       selector: String,
       options: WaitForSelectorOptions
-  )(using F: Sync[F]): F[Either[Throwable, ElementHandle]] =
-    F.delay(page.waitForSelector(selector, options)).attempt
+  ): IO[Either[Throwable, ElementHandle]] =
+    IO.delay(page.waitForSelector(selector, options)).attempt
 
 extension (browser: Browser)
-  def makePage[F[_]](using F: Sync[F]): Resource[F, Page] =
-    Resource.make(F.delay(browser.newPage())): p =>
-      F.delay(p.close())
+  def makePage: Resource[IO, Page] =
+    Resource.make(IO.delay(browser.newPage()))(p => IO.delay(p.close()))
 
-def makePlaywrightResource[F[_]](using F: Sync[F]): Resource[F, Playwright] =
-  Resource.make(F.delay(Playwright.create())): playwright =>
-    F.delay(playwright.close())
+def makePlaywrightResource: Resource[IO, Playwright] =
+  Resource.make(IO.delay(Playwright.create()))(pw => IO.delay(pw.close()))

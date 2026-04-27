@@ -8,12 +8,10 @@ import doobie.hikari.HikariTransactor
 import doobie.implicits.*
 import doobie.util.log.{LogEvent, LogHandler}
 
-def makeSqliteTransactorResource[F[_]: Async](
-    config: Config
-): Resource[F, Transactor[F]] =
+def makeSqliteTransactorResource(config: Config): Resource[IO, Transactor[IO]] =
   for
-    ce <- ExecutionContexts.fixedThreadPool[F](32)
-    xa <- HikariTransactor.newHikariTransactor[F](
+    ce <- ExecutionContexts.fixedThreadPool[IO](32)
+    xa <- HikariTransactor.newHikariTransactor[IO](
       "org.sqlite.JDBC",
       s"jdbc:${config.path}",
       config.username,
@@ -26,9 +24,9 @@ def makeSqliteTransactorResource[F[_]: Async](
     )
   yield sqliteXa
 
-def printSqlLogHandler[F[_]: Sync]: LogHandler[F] = new:
-  override def run(logEvent: LogEvent): F[Unit] =
-    Sync[F].delay(println(logEvent.sql))
+def printSqlLogHandler: LogHandler[IO] = new:
+  override def run(logEvent: LogEvent): IO[Unit] =
+    IO.delay(println(logEvent.sql))
 
-def inMemoryTransactor[F[_]: Async] =
-  makeSqliteTransactorResource[F](Config.forSqlite(Path("sqlite::memory:")))
+def inMemoryTransactor: Resource[IO, Transactor[IO]] =
+  makeSqliteTransactorResource(Config.forSqlite(Path("sqlite::memory:")))

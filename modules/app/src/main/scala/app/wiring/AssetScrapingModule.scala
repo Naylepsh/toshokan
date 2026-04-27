@@ -18,39 +18,47 @@ import scraper.Scraper
 import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
 
-case class AssetScrapingModule[F[_]](
-    scrapingService: AssetScrapingService[F],
-    scrapingController: AssetScrapingController[F],
-    configService: AssetScrapingConfigService[F],
-    configController: AssetScrapingConfigController[F],
-    authorConfigService: AuthorScrapingConfigService[F],
-    authorConfigController: AuthorScrapingConfigController[F],
-    downloadingService: AssetDownloadingService[F, AssetEntryDir],
-    downloadingController: AssetDownloadingController[F],
-    scheduleService: ScheduleService[F],
-    scheduleController: ScheduleController[F]
+case class AssetScrapingModule(
+    scrapingService: AssetScrapingService,
+    scrapingController: AssetScrapingController,
+    configService: AssetScrapingConfigService,
+    configController: AssetScrapingConfigController,
+    authorConfigService: AuthorScrapingConfigService,
+    authorConfigController: AuthorScrapingConfigController,
+    downloadingService: AssetDownloadingService[AssetEntryDir],
+    downloadingController: AssetDownloadingController,
+    scheduleService: ScheduleService,
+    scheduleController: ScheduleController
 )
 
 object AssetScrapingModule:
   def make(
-      library: LibraryModule[IO],
-      externals: ExternalServices[IO],
+      library: LibraryModule,
+      externals: ExternalServices,
       httpBackend: SttpBackend[IO, WebSockets],
       browser: Browser,
       downloadDir: DownloadDir,
       navBarItems: List[NavBarItem],
       xa: doobie.Transactor[IO]
-  ): AssetScrapingModule[IO] =
+  ): AssetScrapingModule =
     val configRepository = AssetScrapingConfigRepository.make
-    val configService = AssetScrapingConfigService
-      .make[IO](configRepository, library.assetService, xa)
+    val configService =
+      AssetScrapingConfigService.make(
+        configRepository,
+        library.assetService,
+        xa
+      )
     val configView = AssetScrapingConfigView(navBarItems)
     val configController =
       AssetScrapingConfigController(configService, configView)
 
     val authorConfigRepository = AuthorScrapingConfigRepository.make
-    val authorConfigService = AuthorScrapingConfigService
-      .make[IO](authorConfigRepository, library.authorRepository, xa)
+    val authorConfigService =
+      AuthorScrapingConfigService.make(
+        authorConfigRepository,
+        library.authorRepository,
+        xa
+      )
     val authorConfigView = AuthorScrapingConfigView(navBarItems)
     val authorConfigController =
       AuthorScrapingConfigController(
@@ -61,22 +69,20 @@ object AssetScrapingModule:
       )
 
     val scheduleRepository = ScheduleRepository.make
-    val scheduleService = ScheduleService.make(
-      scheduleRepository,
-      library.assetService,
-      library.categoryService,
-      xa
-    )
+    val scheduleService =
+      ScheduleService.make(
+        scheduleRepository,
+        library.assetService,
+        library.categoryService,
+        xa
+      )
     val scheduleView = ScheduleView(navBarItems)
-    val scheduleController = ScheduleController[IO](
-      scheduleService,
-      library.categoryService,
-      scheduleView
-    )
+    val scheduleController =
+      ScheduleController(scheduleService, library.categoryService, scheduleView)
 
-    val scraper      = Scraper.make[IO]
+    val scraper      = Scraper.make
     val siteScrapers = SiteScrapers.make(httpBackend, browser)
-    val scrapingService = AssetScrapingService.make[IO](
+    val scrapingService = AssetScrapingService.make(
       library.assetService,
       library.assetRepository,
       configService,
@@ -89,14 +95,14 @@ object AssetScrapingModule:
       xa
     )
     val scrapingView = AssetScrapingView(navBarItems)
-    val scrapingController = AssetScrapingController[IO](
+    val scrapingController = AssetScrapingController(
       scrapingService,
       library.categoryService,
       scrapingView
     )
 
-    val localEntryStorage = EntryLocalStorage[IO](downloadDir)
-    val downloadingService = AssetDownloadingService.make[IO, AssetEntryDir](
+    val localEntryStorage = EntryLocalStorage(downloadDir)
+    val downloadingService = AssetDownloadingService.make[AssetEntryDir](
       externals.mangadexApi,
       httpBackend,
       library.assetRepository,
@@ -105,10 +111,8 @@ object AssetScrapingModule:
       xa
     )
     val downloadingView = AssetDownloadingView(navBarItems)
-    val downloadingController = AssetDownloadingController[IO](
-      downloadingService,
-      downloadingView
-    )
+    val downloadingController =
+      AssetDownloadingController(downloadingService, downloadingView)
 
     AssetScrapingModule(
       scrapingService = scrapingService,

@@ -1,8 +1,7 @@
 package assetMapping
 
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.IO
 import cats.mtl.Handle
-import cats.syntax.all.*
 import library.asset.AssetController.AssetIdVar
 import library.asset.AssetService
 import library.asset.domain.AssetId
@@ -14,14 +13,14 @@ import org.http4s.server.Router
 
 import schemas.{*, given}
 
-class AssetMappingController[F[_]: MonadCancelThrow: Concurrent](
-    service: AssetMappingService[F],
-    assetService: AssetService[F],
+class AssetMappingController(
+    service: AssetMappingService,
+    assetService: AssetService,
     view: AssetMappingView
-) extends http.Controller[F]:
+) extends http.Controller:
   import http.Controller.given
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
     case GET -> Root / AssetIdVar(id)
         / "search" :? TermQueryParam(term) =>
       service
@@ -59,7 +58,7 @@ class AssetMappingController[F[_]: MonadCancelThrow: Concurrent](
                   `Content-Type`(MediaType.text.html)
                 )
         .rescue:
-          case error => MonadCancelThrow[F].raiseError(error)
+          case error => IO.raiseError(error)
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[NewMalMangaMappingDTO](req): newMalLinking =>

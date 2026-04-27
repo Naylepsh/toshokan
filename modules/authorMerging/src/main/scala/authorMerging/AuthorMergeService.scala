@@ -6,7 +6,7 @@ import assetScraping.configs.{
   AuthorScrapingConfigRepository
 }
 import cats.data.NonEmptyList
-import cats.effect.MonadCancelThrow
+import cats.effect.IO
 import cats.syntax.all.*
 import doobie.*
 import doobie.implicits.*
@@ -15,18 +15,18 @@ import library.asset.domain.AssetId
 import library.author.AuthorRepository
 import library.author.domain.AuthorId
 
-class AuthorMergeService[F[_]: MonadCancelThrow](
+class AuthorMergeService(
     authorRepo: AuthorRepository,
     assetRepo: AssetRepository,
     authorScrapingConfigRepo: AuthorScrapingConfigRepository,
     assetScrapingConfigRepo: AssetScrapingConfigRepository,
     malMangaMappingRepo: MalMangaMappingRepository,
-    xa: Transactor[F]
+    xa: Transactor[IO]
 ):
   def mergeAuthors(
       sourceIds: NonEmptyList[AuthorId],
       targetId: AuthorId
-  ): F[Unit] =
+  ): IO[Unit] =
     val merge = for
       _ <- authorScrapingConfigRepo.transferConfigs(sourceIds, targetId)
       targetAssets <- assetRepo.findAssetsByAuthor(targetId)
@@ -47,13 +47,7 @@ class AuthorMergeService[F[_]: MonadCancelThrow](
 
   private def mergeAssets(source: AssetId, target: AssetId) =
     for
-      _ <- assetScrapingConfigRepo.transferConfigs(
-        source,
-        target
-      )
-      _ <- malMangaMappingRepo.transferMappings(
-        source,
-        target
-      )
+      _ <- assetScrapingConfigRepo.transferConfigs(source, target)
+      _ <- malMangaMappingRepo.transferMappings(source, target)
       _ <- assetRepo.mergeAsset(source, target)
     yield ()

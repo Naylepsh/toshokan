@@ -3,7 +3,7 @@ package scraper.sites.mangakakalot
 import java.net.URI
 import java.time.{LocalDate, LocalDateTime}
 
-import cats.effect.Sync
+import cats.effect.IO
 import cats.syntax.all.*
 import net.ruippeixotog.scalascraper.dsl.DSL.*
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract.*
@@ -11,16 +11,17 @@ import net.ruippeixotog.scalascraper.model.{Document, Element}
 import scraper.domain.*
 import scraper.util.requests.getHtmlContent
 
-class MangakakalotScraper[F[_]: Sync] extends SiteScraper[F]:
+class MangakakalotScraper extends SiteScraper:
   import MangakakalotScraper.*
 
-  def findEntries(uri: URI): F[Either[ScrapeError, List[EntryFound]]] =
+  def findEntries(uri: URI): IO[Either[ScrapeError, List[EntryFound]]] =
     Selectors(uri) match
       case None =>
-        ScrapeError
-          .InvalidResource(s"No selectors registered for ${uri}")
-          .asLeft
-          .pure
+        IO.pure(
+          ScrapeError
+            .InvalidResource(s"No selectors registered for ${uri}")
+            .asLeft
+        )
       case Some(selectors) =>
         getHtmlContent(uri).map:
           case Left(error)    => ScrapeError.Other(error.toString).asLeft

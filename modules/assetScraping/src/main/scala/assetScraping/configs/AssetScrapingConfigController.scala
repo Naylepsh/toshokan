@@ -1,6 +1,6 @@
 package assetScraping.configs
 
-import cats.effect.{Concurrent, MonadCancelThrow}
+import cats.effect.IO
 import cats.mtl.Handle
 import cats.syntax.all.*
 import io.circe.*
@@ -14,14 +14,14 @@ import org.http4s.server.Router
 
 import domain.*
 
-class AssetScrapingConfigController[F[_]: MonadCancelThrow: Concurrent](
-    service: AssetScrapingConfigService[F],
+class AssetScrapingConfigController(
+    service: AssetScrapingConfigService,
     view: AssetScrapingConfigView
-) extends http.Controller[F]:
+) extends http.Controller:
   import http.Controller.given
   import AssetScrapingController.{*, given}
 
-  private val httpRoutes = HttpRoutes.of[F]:
+  private val httpRoutes = HttpRoutes.of[IO]:
 
     case GET -> Root / "assets" / AssetIdVar(assetId) / "configs" =>
       Handle
@@ -91,10 +91,6 @@ object AssetScrapingController:
     def unapply(str: String): Option[AssetScrapingConfigId] =
       str.toIntOption.map(AssetScrapingConfigId(_))
 
-  /** HTML form sends checkbox value as either "on" or no value at all. I also
-    * wanted to handle booleans for pure-json payloads (for no reason other than
-    * a whim). Thus this scuffed custom Decoder
-    */
   given Decoder[IsConfigEnabled] =
     Decoder[Boolean].map(IsConfigEnabled.apply) or Decoder[String].emap:
       case "true" | "on" => IsConfigEnabled(true).asRight
@@ -127,5 +123,5 @@ object AssetScrapingController:
         assetId
       )
 
-  given [F[_]: Concurrent]: EntityDecoder[F, AssetScrapingConfigDTO] =
-    jsonOf[F, AssetScrapingConfigDTO]
+  given EntityDecoder[IO, AssetScrapingConfigDTO] =
+    jsonOf[IO, AssetScrapingConfigDTO]

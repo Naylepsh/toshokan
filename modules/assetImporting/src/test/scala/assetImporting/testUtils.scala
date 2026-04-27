@@ -13,7 +13,7 @@ import myAnimeList.domain.{ExternalMangaId, LatestChapter, Term}
 import myAnimeList.schemas.{AuthToken, RefreshToken}
 import sttp.model.Uri
 
-val noopMalClient: MyAnimeListClient[IO] = new:
+val noopMalClient: MyAnimeListClient = new:
   override def generateCodeChallenge: IO[String] = IO.pure("CH4LL3NG3")
   override def createAuthorizationLink(codeChallenge: String): Uri  = ???
   override def refreshAuthToken(token: RefreshToken): IO[AuthToken] = ???
@@ -35,7 +35,7 @@ val noopMalClient: MyAnimeListClient[IO] = new:
       latestChapter: LatestChapter
   ): IO[Unit] = ???
 
-val stubMangadexApi: MangadexApi[IO] = new:
+val stubMangadexApi: MangadexApi = new:
   override def getManga(
       mangaId: String
   ): IO[Either[Throwable, GetMangaResponse]] =

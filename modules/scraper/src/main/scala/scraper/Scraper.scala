@@ -1,19 +1,19 @@
 package scraper
 
+import cats.effect.IO
 import cats.syntax.all.*
-import cats.{Applicative, Parallel}
 import scraper.domain.*
 
-trait Scraper[F[_]]:
-  def scrape(instructions: List[Instruction[F]]): F[ScrapeResults]
+trait Scraper:
+  def scrape(instructions: List[Instruction]): IO[ScrapeResults]
 
 object Scraper:
-  def make[F[_]: Applicative: Parallel]: Scraper[F] = new:
-    def scrape(instructions: List[Instruction[F]]): F[ScrapeResults] =
+  def make: Scraper = new:
+    def scrape(instructions: List[Instruction]): IO[ScrapeResults] =
       val (assetInstructions, authorInstructions) = instructions.foldMap:
-        case i: Instruction.ScrapeAsset[F] =>
+        case i: Instruction.ScrapeAsset =>
           Map(i.scraper -> List(i)) -> Map.empty
-        case i: Instruction.ScrapeAuthor[F] =>
+        case i: Instruction.ScrapeAuthor =>
           Map.empty -> Map(i.scraper -> List(i))
 
       (
@@ -24,19 +24,18 @@ object Scraper:
       ).parTupled.map: (assetResults, authorResults) =>
         val (assetFailures, assetSuccesses)   = assetResults.separate
         val (authorFailures, authorSuccesses) = authorResults.separate
-
         ScrapeResults(
           assetSuccesses,
           authorSuccesses,
           assetFailures ++ authorFailures
         )
 
-    private def findEntries(instruction: Instruction.ScrapeAsset[F]) =
+    private def findEntries(instruction: Instruction.ScrapeAsset) =
       instruction.scraper
         .findEntries(instruction.uri)
         .map(_.bimap(instruction.label -> _, instruction.label -> _))
 
-    private def findAssets(instruction: Instruction.ScrapeAuthor[F]) =
+    private def findAssets(instruction: Instruction.ScrapeAuthor) =
       instruction.scraper
         .scrapeForAssets(instruction.uri)
         .map(_.bimap(instruction.label -> _, instruction.label -> _))

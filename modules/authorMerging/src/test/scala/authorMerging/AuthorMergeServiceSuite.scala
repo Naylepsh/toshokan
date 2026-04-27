@@ -20,7 +20,7 @@ import munit.CatsEffectSuite
 class AuthorMergeServiceSuite extends CatsEffectSuite:
 
   val withService = ResourceFunFixture(
-    inMemoryTransactor[IO]
+    inMemoryTransactor
       .evalTap(applyMigrations)
       .map: xa =>
         val authorRepo = AuthorRepository.make
@@ -29,7 +29,7 @@ class AuthorMergeServiceSuite extends CatsEffectSuite:
           AuthorScrapingConfigRepository.make
         val assetScrapingConfigRepo = AssetScrapingConfigRepository.make
         val malMangaMappingRepo     = MalMangaMappingRepository.make
-        val service = AuthorMergeService[IO](
+        val service = AuthorMergeService(
           authorRepo,
           assetRepo,
           authorScrapingConfigRepo,

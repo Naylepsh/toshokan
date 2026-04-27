@@ -7,7 +7,7 @@ import myAnimeList.domain.*
 import myAnimeList.schemas.{Manga, *}
 import sttp.model.Uri
 
-val noopMalClient: MyAnimeListClient[IO] = new:
+val noopMalClient: MyAnimeListClient = new:
   override def generateCodeChallenge: IO[String] = IO.pure("CH4LL3NG3")
   override def createAuthorizationLink(codeChallenge: String): Uri = ???
 
