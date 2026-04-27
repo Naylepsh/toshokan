@@ -6,10 +6,10 @@ import io.circe.syntax.*
 import library.asset.domain.*
 import myAnimeList.MyAnimeListClient
 import myAnimeList.domain.Manga
-import scalatags.Text.TypedTag
-import scalatags.Text.all.*
 import neotype.*
 import neotype.interop.cats.given
+import scalatags.Text.TypedTag
+import scalatags.Text.all.*
 
 import domain.ExistingMalMangaMapping
 import schemas.NewMalMangaMappingDTO

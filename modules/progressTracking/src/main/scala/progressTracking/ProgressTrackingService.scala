@@ -45,9 +45,11 @@ object ProgressTrackingService:
       (ExistingAsset, ExistingAssetEntry, Set[AuthorName])
     ] =
       for
-        result <- assetService.find(assetId)
+        result           <- assetService.find(assetId)
         (asset, entries) <- result.orRaise(UpdateEntryError.AssetDoesNotExists)
-        entry <- entries.find(_.id.eqv(entryId)).orRaise(UpdateEntryError.EntryDoesNotExist)
+        entry <- entries
+          .find(_.id.eqv(entryId))
+          .orRaise(UpdateEntryError.EntryDoesNotExist)
         authors <- authorRepository.findByIds(asset.authors).transact(xa)
         _ <- entryProgressRepository.setSeen(entryId, wasEntrySeen).transact(xa)
         _ <-

@@ -4,19 +4,22 @@ import java.net.URI
 import java.time.LocalDate
 
 import cats.effect.IO
+import cats.mtl.Handle
 import db.migrations.applyMigrations
 import db.transactors.inMemoryTransactor
 import doobie.util.transactor.Transactor
-import library.category.domain.{CategoryName, NewCategory}
-import library.category.{CategoryRepository, CategoryService}
 import library.asset.domain.*
 import library.asset.{AssetRepository, AssetService}
+import library.category.domain.{
+  CategoryAlreadyExists,
+  CategoryName,
+  NewCategory
+}
+import library.category.{CategoryRepository, CategoryService}
 import myAnimeList.MyAnimeListServiceImpl
 import myAnimeList.domain.ExternalMangaId
 
 import testUtils.noopMalClient
-import cats.mtl.Handle
-import library.category.domain.AddCategoryError
 
 class AssetMappingServiceSuite extends munit.CatsEffectSuite:
   import AssetMappingServiceSuite.*
@@ -42,7 +45,9 @@ class AssetMappingServiceSuite extends munit.CatsEffectSuite:
     val result = Handle
       .allow[AddAssetError | AssignExternalIdToMangaError]:
         for
-          asset  <- assetService.add(NewAsset(AssetTitle("test-asset"), None))
+          asset <- assetService.add(
+            NewAsset(AssetTitle("test-asset"), None, Nil)
+          )
           result <- service.assignExternalIdToManga(externalMangaId, asset.id)
         yield result
       .rescue:
@@ -55,16 +60,18 @@ class AssetMappingServiceSuite extends munit.CatsEffectSuite:
     "Assigning external id to manga fails when category is not a manga"
   ): (service, assetService, categoryService) =>
     val result = Handle
-      .allow[AddCategoryError | AddAssetError | AssignExternalIdToMangaError]:
+      .allow[
+        CategoryAlreadyExists | AddAssetError | AssignExternalIdToMangaError
+      ]:
         for
           category <- categoryService.add(NewCategory(CategoryName("anime")))
           asset <- assetService.add(
-            NewAsset(AssetTitle("test-asset"), Some(category.id))
+            NewAsset(AssetTitle("test-asset"), Some(category.id), Nil)
           )
           result <- service.assignExternalIdToManga(externalMangaId, asset.id)
         yield result
       .rescue:
-        case error: (AddCategoryError | AddAssetError |
+        case error: (CategoryAlreadyExists | AddAssetError |
               AssignExternalIdToMangaError) =>
           IO.pure(error)
 
@@ -74,11 +81,13 @@ class AssetMappingServiceSuite extends munit.CatsEffectSuite:
     "Assigning external id to manga fails when asset already has an external id assigned"
   ): (service, assetService, categoryService) =>
     val result = Handle
-      .allow[AddCategoryError | AddAssetError | AssignExternalIdToMangaError]:
+      .allow[
+        CategoryAlreadyExists | AddAssetError | AssignExternalIdToMangaError
+      ]:
         for
           category <- categoryService.add(NewCategory(CategoryName("manga")))
           asset <- assetService.add(
-            NewAsset(AssetTitle("test-asset1"), Some(category.id))
+            NewAsset(AssetTitle("test-asset1"), Some(category.id), Nil)
           )
           _ <- service.assignExternalIdToManga(ExternalMangaId(1), asset.id)
           result <- service.assignExternalIdToManga(
@@ -87,7 +96,7 @@ class AssetMappingServiceSuite extends munit.CatsEffectSuite:
           )
         yield result
       .rescue:
-        case error: (AddCategoryError | AddAssetError |
+        case error: (CategoryAlreadyExists | AddAssetError |
               AssignExternalIdToMangaError) =>
           IO.pure(error)
 
@@ -97,20 +106,22 @@ class AssetMappingServiceSuite extends munit.CatsEffectSuite:
     "Assigning external id to manga fails when external id is already used by another asset"
   ): (service, assetService, categoryService) =>
     val result = Handle
-      .allow[AddCategoryError | AddAssetError | AssignExternalIdToMangaError]:
+      .allow[
+        CategoryAlreadyExists | AddAssetError | AssignExternalIdToMangaError
+      ]:
         for
           category <- categoryService.add(NewCategory(CategoryName("manga")))
           asset1 <- assetService.add(
-            NewAsset(AssetTitle("test-asset1"), Some(category.id))
+            NewAsset(AssetTitle("test-asset1"), Some(category.id), Nil)
           )
           asset2 <- assetService.add(
-            NewAsset(AssetTitle("test-asset2"), Some(category.id))
+            NewAsset(AssetTitle("test-asset2"), Some(category.id), Nil)
           )
           _      <- service.assignExternalIdToManga(externalMangaId, asset1.id)
           result <- service.assignExternalIdToManga(externalMangaId, asset2.id)
         yield result
       .rescue:
-        case error: (AddCategoryError | AddAssetError |
+        case error: (CategoryAlreadyExists | AddAssetError |
               AssignExternalIdToMangaError) =>
           IO.pure(error)
 
@@ -125,7 +136,6 @@ object AssetMappingServiceSuite:
       EntryTitle("The End of the Adventure"),
       EntryNo("1"),
       EntryUri(new URI("http://localhost:8080/foo/1")),
-      WasEntrySeen(false),
       DateUploaded(LocalDate.now()),
       AssetId(1)
     ),
@@ -134,7 +144,6 @@ object AssetMappingServiceSuite:
       EntryTitle("The Priest's Lie"),
       EntryNo("2"),
       EntryUri(new URI("http://localhost:8080/foo/2")),
-      WasEntrySeen(false),
       DateUploaded(LocalDate.now()),
       AssetId(1)
     ),
@@ -143,7 +152,6 @@ object AssetMappingServiceSuite:
       EntryTitle("Blue Moonweed"),
       EntryNo("3"),
       EntryUri(new URI("http://localhost:8080/foo/2")),
-      WasEntrySeen(false),
       DateUploaded(LocalDate.now()),
       AssetId(1)
     )
@@ -151,12 +159,18 @@ object AssetMappingServiceSuite:
 
   def makeService(
       xa: Transactor[IO]
-  ): IO[(AssetMappingService[IO], AssetService[IO], CategoryService[IO])] =
+  ): IO[(AssetMappingService, AssetService, CategoryService)] =
     val assetService    = AssetService.make(AssetRepository.make, xa)
     val categoryService = CategoryService.make(CategoryRepository.make, xa)
     MyAnimeListServiceImpl
       .make(xa, noopMalClient)
       .map: malService =>
         val service =
-          AssetMappingService(assetService, categoryService, malService, MalMangaMappingRepository.make, xa)
+          AssetMappingService(
+            assetService,
+            categoryService,
+            malService,
+            MalMangaMappingRepository.make,
+            xa
+          )
         (service, assetService, categoryService)

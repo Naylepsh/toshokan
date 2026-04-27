@@ -1,5 +1,7 @@
 package assetMapping
 
+import scala.util.control.NoStackTrace
+
 import cats.data.{EitherT, OptionT}
 import cats.effect.IO
 import cats.mtl.Raise
@@ -13,7 +15,6 @@ import library.category.CategoryService
 import myAnimeList.MyAnimeListService
 import myAnimeList.domain.{ExternalMangaId, Manga, Term}
 
-import scala.util.control.NoStackTrace
 import domain.*
 
 case object AssetNotFound extends NoStackTrace
@@ -61,12 +62,23 @@ class AssetMappingService(
     (ExistingAsset, ExistingMalMangaMapping)
   ]] =
     (for
-      (asset, _) <- EitherT.fromOptionF[IO, FindMalMappingError, (ExistingAsset, List[ExistingAssetEntry])](
+      (asset, _) <- EitherT.fromOptionF[
+        IO,
+        FindMalMappingError,
+        (ExistingAsset, List[ExistingAssetEntry])
+      ](
         assetService.find(assetId),
         AssetNotFound
       )
-      categoryId <- EitherT.fromOption[IO](asset.categoryId, CategoryNotFound: FindMalMappingError)
-      category <- EitherT.fromOptionF[IO, FindMalMappingError, library.category.domain.ExistingCategory](
+      categoryId <- EitherT.fromOption[IO](
+        asset.categoryId,
+        CategoryNotFound: FindMalMappingError
+      )
+      category <- EitherT.fromOptionF[
+        IO,
+        FindMalMappingError,
+        library.category.domain.ExistingCategory
+      ](
         categoryService.find(categoryId),
         CategoryNotFound
       )
@@ -74,9 +86,10 @@ class AssetMappingService(
         MangaId(asset.id, category.name),
         AssetIsNotManga: FindMalMappingError
       )
-      mapping <- EitherT.liftF[IO, FindMalMappingError, Option[ExistingMalMangaMapping]](
-        repo.findMapping(mangaId).transact(xa)
-      )
+      mapping <- EitherT
+        .liftF[IO, FindMalMappingError, Option[ExistingMalMangaMapping]](
+          repo.findMapping(mangaId).transact(xa)
+        )
     yield mapping.map(asset -> _)).value.flatMap:
       case Left(error)   => error.raise
       case Right(result) => result.pure

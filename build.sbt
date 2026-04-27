@@ -178,9 +178,11 @@ lazy val app = project
     scraper,
     assetScraping,
     assetImporting,
+    assetMapping,
     snapshot,
     progressTracking,
-    authorMerging
+    authorMerging,
+    mangadex
   )
   .dependsOn(
     core,

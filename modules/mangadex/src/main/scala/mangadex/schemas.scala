@@ -58,11 +58,13 @@ object manga:
       relationships: Option[List[Relationship]]
   ) derives Decoder:
     val authorNames: List[String] =
-      relationships.getOrElse(Nil).collect:
-        case Relationship(t, Some(RelationshipAttributes(Some(name))))
-            if t == "author" || t == "artist" =>
-          name
-      .distinct
+      relationships
+        .getOrElse(Nil)
+        .collect:
+          case Relationship(t, Some(RelationshipAttributes(Some(name))))
+              if t == "author" || t == "artist" =>
+            name
+        .distinct
 
   case class GetMangaResponse(data: Manga) derives Decoder
 
