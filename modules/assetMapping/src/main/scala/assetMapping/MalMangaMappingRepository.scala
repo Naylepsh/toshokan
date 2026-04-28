@@ -7,6 +7,7 @@ import db.extensions.*
 import doobie.*
 import doobie.implicits.*
 import library.asset.domain.AssetId
+import library.category.domain.MangaId
 import myAnimeList.domain.ExternalMangaId
 import neotype.*
 import neotype.interop.doobie.given

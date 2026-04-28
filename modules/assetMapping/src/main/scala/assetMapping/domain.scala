@@ -1,17 +1,8 @@
 package assetMapping
 package domain
 
-import cats.syntax.all.*
-import library.asset.domain.AssetId
-import library.category.domain.CategoryName
+import library.category.domain.MangaId
 import myAnimeList.domain.ExternalMangaId
-import neotype.*
-
-type MangaId = MangaId.Type
-object MangaId extends neotype.Newtype[Long]:
-  def apply(assetId: AssetId, categoryName: CategoryName): Option[MangaId] =
-    Option
-      .when(categoryName.toLowerCase().eqv("manga"))(MangaId(assetId.unwrap))
 
 type MalMangaMappingId = MalMangaMappingId.Type
 object MalMangaMappingId extends neotype.Newtype[Long]

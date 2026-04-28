@@ -3,35 +3,17 @@ package domain
 
 import java.time.LocalDateTime
 
-import cats.syntax.all.*
-import library.asset.domain.{AssetId, EntryId, EntryNo}
-import library.category.domain.CategoryName
-import myAnimeList.domain.{ExternalMangaId, LatestChapter}
-import neotype.*
-
-type MangaId = MangaId.Type
-object MangaId extends neotype.Newtype[Long]:
-  def apply(assetId: AssetId, categoryName: CategoryName): Option[MangaId] =
-    Option
-      .when(categoryName.toLowerCase().eqv("manga"))(MangaId(assetId.unwrap))
+import library.asset.domain.{EntryId, EntryNo}
+import myAnimeList.domain.LatestChapter
 
 type MangaTitle = MangaTitle.Type
 object MangaTitle extends neotype.Subtype[String]
-
-type MalMangaMappingId = MalMangaMappingId.Type
-object MalMangaMappingId extends neotype.Newtype[Long]
 
 type DateMarkedSeen = DateMarkedSeen.Type
 object DateMarkedSeen extends neotype.Subtype[LocalDateTime]
 
 type WasEntrySeen = WasEntrySeen.Type
 object WasEntrySeen extends neotype.Subtype[Boolean]
-
-case class ExistingMalMangaMapping(
-    id: MalMangaMappingId,
-    internalId: MangaId,
-    externalId: ExternalMangaId
-)
 
 case class EntryProgress(
     entryId: EntryId,
