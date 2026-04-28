@@ -3,6 +3,8 @@ package assetImporting
 import java.net.URI
 
 import cats.effect.IO
+import cats.mtl.Handle
+import cats.syntax.all.*
 import db.migrations.applyMigrations
 import db.transactors.inMemoryTransactor
 import doobie.Transactor
@@ -25,44 +27,60 @@ class AssetImportingServiceSuite extends munit.CatsEffectSuite:
 
   withService.test("imports asset with authors from Mangadex"):
     (service, assetService, authorRepo, xa) =>
-      for
-        asset   <- service.importFromMangadex(testMangadexUri)
-        found   <- assetService.find(asset.id)
-        authors <- authorRepo.findByIds(asset.authors).transact(xa)
-      yield
-        assertEquals(asset.title, AssetTitle("Test Manga"))
-        assert(found.isDefined)
-        assertEquals(
-          authors.map(_.name).toSet,
-          Set(AuthorName("Author One"), AuthorName("Artist Two"))
-        )
-        assertEquals(asset.authors.length, 2)
+      Handle
+        .allow[domain.ImportError]:
+          for
+            asset   <- service.importFromMangadex(testMangadexUri)
+            found   <- assetService.find(asset.id)
+            authors <- authorRepo.findByIds(asset.authors).transact(xa)
+          yield
+            assertEquals(asset.title, AssetTitle("Test Manga"))
+            assert(found.isDefined)
+            assertEquals(
+              authors.map(_.name).toSet,
+              Set(AuthorName("Author One"), AuthorName("Artist Two"))
+            )
+            assertEquals(asset.authors.length, 2)
+        .rescue: error =>
+          IO(fail(s"Unexpected error: $error"))
 
   withService.test("importing same manga twice reuses existing authors"):
     (service, _, authorRepo, xa) =>
-      for
-        asset1 <- service.importFromMangadex(testMangadexUri)
-        // second import will fail because asset already exists,
-        // but authors should have been created only once
-        _ <- service.importFromMangadex(testMangadexUri2).attempt
-        authors <- authorRepo
-          .findOrAdd(
-            Set(AuthorName("Author One"), AuthorName("Artist Two"))
-          )
-          .transact(xa)
-      yield
-        assertEquals(authors.size, 2)
-        assertEquals(asset1.authors.length, 2)
+      Handle
+        .allow[domain.ImportError]:
+          for
+            asset1 <- service.importFromMangadex(testMangadexUri)
+            // second import will fail because asset already exists,
+            // but authors should have been created only once
+            result <- Handle
+              .allow[domain.ImportError](
+                service.importFromMangadex(testMangadexUri2).map(_.asRight)
+              )
+              .rescue(_.asLeft.pure)
+            authors <- authorRepo
+              .findOrAdd(
+                Set(AuthorName("Author One"), AuthorName("Artist Two"))
+              )
+              .transact(xa)
+          yield
+            assertEquals(authors.size, 2)
+            assertEquals(asset1.authors.length, 2)
+        .rescue: error =>
+          IO(fail(s"Unexpected error: $error"))
 
   withService.test("imports asset with no authors when Mangadex returns none"):
     (service, assetService, _, _) =>
-      for
-        asset <- service.importFromMangadex(testMangadexUriNoAuthors)
-        found <- assetService.find(asset.id)
-      yield
-        assertEquals(asset.title, AssetTitle("No Author Manga"))
-        assert(found.isDefined)
-        assertEquals(asset.authors, List.empty)
+      Handle
+        .allow[domain.ImportError]:
+          for
+            asset <- service.importFromMangadex(testMangadexUriNoAuthors)
+            found <- assetService.find(asset.id)
+          yield
+            assertEquals(asset.title, AssetTitle("No Author Manga"))
+            assert(found.isDefined)
+            assertEquals(asset.authors, List.empty)
+        .rescue: error =>
+          IO(fail(s"Unexpected error: $error"))
 
 object AssetImportingServiceSuite:
   val testMangadexUri =

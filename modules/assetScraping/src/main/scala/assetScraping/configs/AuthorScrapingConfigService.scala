@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
+import core.syntax.*
 import doobie.*
 import doobie.implicits.*
 import library.author.AuthorRepository
@@ -41,18 +42,18 @@ object AuthorScrapingConfigService:
     override def add(
         scrapingConfig: NewAuthorScrapingConfig
     ): Raise[IO, AddAuthorScrapingConfig] ?=> IO[ExistingAuthorScrapingConfig] =
-      authorRepository
-        .find(scrapingConfig.authorId)
-        .transact(xa)
-        .flatMap:
-          case Some(_) =>
-            repository
-              .add(scrapingConfig)
-              .transact(xa)
-              .flatMap:
-                case Right(config) => config.pure
-                case Left(error)   => error.raise
-          case None => AddAuthorScrapingConfig.AuthorDoesNotExist.raise
+      for
+        _ <- authorRepository
+          .find(scrapingConfig.authorId)
+          .transact(xa)
+          .someOrRaise(AddAuthorScrapingConfig.AuthorDoesNotExist)
+        result <- repository
+          .add(scrapingConfig)
+          .transact(xa)
+          .flatMap:
+            case Right(config) => config.pure
+            case Left(error)   => error.raise
+      yield result
 
     override def delete(id: AuthorScrapingConfigId): IO[Unit] =
       repository.delete(id).transact(xa).void

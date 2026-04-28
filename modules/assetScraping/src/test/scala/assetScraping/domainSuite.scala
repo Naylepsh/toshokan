@@ -75,5 +75,13 @@ class domainSuite extends munit.FunSuite:
         AuthorSite.values.map(_.toString).toSet
     assertEquals(
       allSiteNames,
-      Set("Mangadex", "Mangakakalot", "Yatta", "Empik", "DynastyScans", "Batoto", "Hitomi")
+      Set(
+        "Mangadex",
+        "Mangakakalot",
+        "Yatta",
+        "Empik",
+        "DynastyScans",
+        "Batoto",
+        "Hitomi"
+      )
     )

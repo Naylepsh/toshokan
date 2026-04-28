@@ -20,3 +20,10 @@ type NoMalIdAvailable = NoMalIdAvailable.type
 
 case object NoTitleTranslation extends NoStackTrace
 type NoTitleTranslation = NoTitleTranslation.type
+
+enum ImportError:
+  case CategoryDoesNotExist
+  case AssetAlreadyExists
+  case NoTitleTranslation
+  case ScrapingConfigError(message: String)
+  case MappingError(message: String)

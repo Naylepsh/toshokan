@@ -5,8 +5,10 @@ import assetMapping.{AssetMappingService, AssignExternalIdToMangaError}
 import assetScraping.configs.AssetScrapingConfigService
 import assetScraping.configs.domain.*
 import cats.effect.IO
-import cats.mtl.Handle
+import cats.mtl.syntax.all.*
+import cats.mtl.{Handle, Raise}
 import cats.syntax.all.*
+import core.syntax.*
 import doobie.*
 import doobie.implicits.*
 import library.asset.AssetService
@@ -14,7 +16,7 @@ import library.asset.domain.*
 import library.author.AuthorRepository
 import library.author.domain.AuthorName
 import library.category.CategoryService
-import library.category.domain.{CategoryDoesNotExist, ExistingCategory}
+import library.category.domain.ExistingCategory
 import mangadex.MangadexApi
 import mangadex.schemas.manga.GetMangaResponse
 import myAnimeList.domain.ExternalMangaId
@@ -30,18 +32,19 @@ class AssetImportingService(
     mangadex: MangadexApi,
     xa: Transactor[IO]
 ):
-  def importFromMangadex(uri: MangadexMangaUri): IO[ExistingAsset] =
-    categoryService.findManga.flatMap:
-      case None =>
-        IO.raiseError(CategoryDoesNotExist)
-      case Some(manga) =>
-        for
-          mangaResponse <- getMangaFromMangadex(uri.id)
-          malId = extractMalId(mangaResponse)
-          createdAsset <- createAsset(mangaResponse, manga)
-          _            <- createScrapingConfig(createdAsset, uri)
-          _ <- malId.traverse(assignExternalIdToManga(createdAsset, _))
-        yield createdAsset
+  def importFromMangadex(
+      uri: MangadexMangaUri
+  ): Raise[IO, ImportError] ?=> IO[ExistingAsset] =
+    for
+      manga <- categoryService.findManga.someOrRaise(
+        ImportError.CategoryDoesNotExist
+      )
+      mangaResponse <- getMangaFromMangadex(uri.id)
+      malId = extractMalId(mangaResponse)
+      createdAsset <- createAsset(mangaResponse, manga)
+      _            <- createScrapingConfig(createdAsset, uri)
+      _            <- malId.traverse(assignExternalIdToManga(createdAsset, _))
+    yield createdAsset
 
   private def getMangaFromMangadex(id: MangadexId) =
     mangadex.getManga(id.toString).rethrow
@@ -54,10 +57,10 @@ class AssetImportingService(
   private def createAsset(
       mangaResponse: GetMangaResponse,
       manga: ExistingCategory
-  ) =
+  )(using Raise[IO, ImportError]) =
     for
       title <- mangaResponse.data.attributes.preferredTitle
-        .liftTo[IO](new RuntimeException(NoTitleTranslation.toString))
+        .orRaise(ImportError.NoTitleTranslation)
       authors <- authorRepository
         .findOrAdd(
           mangaResponse.data.authorNames.map(AuthorName(_)).toSet
@@ -73,35 +76,36 @@ class AssetImportingService(
                 authors.map(_.id).toList
               )
             )
-          .rescue: error =>
-            IO.raiseError(new RuntimeException(error.toString))
+          .rescue: _ =>
+            ImportError.AssetAlreadyExists.raise
     yield result
 
   private def createScrapingConfig(
       asset: ExistingAsset,
       uri: MangadexMangaUri
-  ): IO[Unit] =
+  )(using Raise[IO, ImportError]): IO[Unit] =
     for
       config <- NewAssetScrapingConfig(
         ScrapingConfigUri(uri),
         AssetSite.Mangadex,
         IsConfigEnabled(true),
         asset.id
-      ).leftMap(error => new RuntimeException(error.toString)).liftTo[IO]
-      result <-
+      ) match
+        case Right(c)    => IO.pure(c)
+        case Left(error) => ImportError.ScrapingConfigError(error).raise
+      _ <-
         Handle
           .allow[AddScrapingConfigError]:
             assetScrapingConfigService.add(config).void
-          .rescue:
-            case error: AddScrapingConfigError =>
-              IO.raiseError(new RuntimeException(error.toString))
-    yield result
+          .rescue: error =>
+            ImportError.ScrapingConfigError(error.toString).raise
+    yield ()
 
   private def assignExternalIdToManga(
       asset: ExistingAsset,
       malId: ExternalMangaId
-  ) = Handle
+  )(using Raise[IO, ImportError]) = Handle
     .allow[AssignExternalIdToMangaError]:
       assetMappingService.assignExternalIdToManga(malId, asset.id)
-    .rescue:
-      case error => IO.raiseError(error)
+    .rescue: error =>
+      ImportError.MappingError(error.toString).raise

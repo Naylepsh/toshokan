@@ -45,8 +45,9 @@ object ProgressTrackingService:
       (ExistingAsset, ExistingAssetEntry, Set[AuthorName])
     ] =
       for
-        result           <- assetService.find(assetId)
-        (asset, entries) <- result.orRaise(UpdateEntryError.AssetDoesNotExists)
+        (asset, entries) <- assetService
+          .find(assetId)
+          .someOrRaise(UpdateEntryError.AssetDoesNotExists)
         entry <- entries
           .find(_.id.eqv(entryId))
           .orRaise(UpdateEntryError.EntryDoesNotExist)

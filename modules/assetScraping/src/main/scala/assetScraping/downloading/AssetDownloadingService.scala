@@ -11,9 +11,10 @@ import assetScraping.downloading.domain.{
   DownloadDir
 }
 import cats.effect.IO
-import cats.mtl.{Handle, Raise}
 import cats.mtl.syntax.all.*
+import cats.mtl.{Handle, Raise}
 import cats.syntax.all.*
+import core.syntax.*
 import doobie.*
 import doobie.implicits.*
 import library.asset.AssetRepository
@@ -34,7 +35,9 @@ enum DownloadError:
 
 trait AssetDownloadingService[FolderCreated]:
   def download(entryId: EntryId): Raise[IO, DownloadError] ?=> IO[FolderCreated]
-  def downloadAll(assetId: AssetId): Raise[IO, DownloadError] ?=> IO[BulkDownloadProgress]
+  def downloadAll(
+      assetId: AssetId
+  ): Raise[IO, DownloadError] ?=> IO[BulkDownloadProgress]
 
 object AssetDownloadingService:
   case class Config(
@@ -49,7 +52,9 @@ object AssetDownloadingService:
       config: Config,
       xa: Transactor[IO]
   ): AssetDownloadingService[FolderCreated] = new:
-    override def downloadAll(assetId: AssetId): Raise[IO, DownloadError] ?=> IO[BulkDownloadProgress] =
+    override def downloadAll(
+        assetId: AssetId
+    ): Raise[IO, DownloadError] ?=> IO[BulkDownloadProgress] =
       for
         entryGroups <- getEntryGroupsOrderedByNo(assetId)
         initialProgress = BulkDownloadProgress.initial(
@@ -61,19 +66,18 @@ object AssetDownloadingService:
             downloadEntryGroup(progress, asset, entryNo, entryGroup)
       yield finalProgress
 
-    private def getEntryGroupsOrderedByNo(assetId: AssetId)(using Raise[IO, DownloadError]) =
-      assetRepository
-        .findById(assetId)
-        .transact(xa)
-        .flatMap:
-          case None => DownloadError.AssetNotFound(assetId).raise
-          case Some(asset, entries) =>
-            entries
-              .groupBy(_.no)
-              .toList
-              .sortBy(_._1)
-              .map((entryNo, entryGroup) => (asset, entryNo, entryGroup))
-              .pure
+    private def getEntryGroupsOrderedByNo(
+        assetId: AssetId
+    )(using Raise[IO, DownloadError]) =
+      for (asset, entries) <- assetRepository
+          .findById(assetId)
+          .transact(xa)
+          .someOrRaise(DownloadError.AssetNotFound(assetId))
+      yield entries
+        .groupBy(_.no)
+        .toList
+        .sortBy(_._1)
+        .map((entryNo, entryGroup) => (asset, entryNo, entryGroup))
 
     private def downloadEntryGroup(
         progress: BulkDownloadProgress,
@@ -84,9 +88,12 @@ object AssetDownloadingService:
       for
         _ <- scribe.cats[IO].info(s"Downloading entry group ${entryNo}")
         result <- Handle
-          .allow[DownloadError](tryDownloadFromGroup(asset, entryGroup).map(_.asRight[DownloadError]))
+          .allow[DownloadError](
+            tryDownloadFromGroup(asset, entryGroup)
+              .map(_.asRight[DownloadError])
+          )
           .rescue(_.asLeft[Unit].pure)
-        _      <- IO.sleep(config.delayBetweenDownloads)
+        _ <- IO.sleep(config.delayBetweenDownloads)
         updatedProgress <- result match
           case Right(_) =>
             scribe
@@ -122,8 +129,7 @@ object AssetDownloadingService:
               yield ()
             case None =>
               if rest.nonEmpty then tryDownloadFromGroup(asset, rest)
-              else
-                DownloadError.UnsupportedUrl(entry.uri).raise
+              else DownloadError.UnsupportedUrl(entry.uri).raise
 
     private def getImageExtractor(
         entry: ExistingAssetEntry
@@ -133,7 +139,9 @@ object AssetDownloadingService:
           Some(mangadexApi.getImages(chapterId).flatMap(IO.fromEither))
         case _ => None
 
-    override def download(entryId: EntryId): Raise[IO, DownloadError] ?=> IO[FolderCreated] =
+    override def download(
+        entryId: EntryId
+    ): Raise[IO, DownloadError] ?=> IO[FolderCreated] =
       for
         (asset, entry) <- findAssetAndEntry(entryId)
         urls           <- getImageUrls(entry)
@@ -141,22 +149,22 @@ object AssetDownloadingService:
         _              <- downloadImages(urls, dir)
       yield dir
 
-    private def findAssetAndEntry(entryId: EntryId)(using Raise[IO, DownloadError]) =
+    private def findAssetAndEntry(
+        entryId: EntryId
+    )(using Raise[IO, DownloadError]) =
       for
-        maybeAssetWithEntries <- assetRepository
+        (asset, entries) <- assetRepository
           .findByEntryId(entryId)
           .transact(xa)
-        (asset, entries) <- maybeAssetWithEntries match
-          case Some(value) => IO.pure(value)
-          case None        => DownloadError.NoAssetFoundForEntry(entryId).raise
+          .someOrRaise(DownloadError.NoAssetFoundForEntry(entryId))
         entry <- entries
           .find(_.id === entryId)
-          .match
-            case Some(e) => IO.pure(e)
-            case None    => DownloadError.AssetHasNoEntry(asset.id, entryId).raise
+          .orRaise(DownloadError.AssetHasNoEntry(asset.id, entryId))
       yield (asset, entry)
 
-    private def getImageUrls(entry: ExistingAssetEntry)(using Raise[IO, DownloadError]): IO[List[URI]] =
+    private def getImageUrls(entry: ExistingAssetEntry)(using
+        Raise[IO, DownloadError]
+    ): IO[List[URI]] =
       getImageExtractor(entry) match
         case Some(imageUrlsF) => imageUrlsF
         case None =>

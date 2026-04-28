@@ -41,10 +41,14 @@ class AssetDownloadingController(
 
   private def handleError(error: DownloadError): IO[Response[IO]] =
     error match
-      case DownloadError.AssetNotFound(id)          => NotFound(s"Asset not found: $id")
-      case DownloadError.NoAssetFoundForEntry(id)   => NotFound(s"No asset found for entry: $id")
-      case DownloadError.AssetHasNoEntry(aId, eId)  => NotFound(s"Asset $aId has no entry $eId")
-      case DownloadError.UnsupportedUrl(url)        => BadRequest(s"Unsupported url for downloading: $url")
-      case DownloadError.NoEntriesApplicableForDownload => BadRequest("No entries applicable for download")
+      case DownloadError.AssetNotFound(id) => NotFound(s"Asset not found: $id")
+      case DownloadError.NoAssetFoundForEntry(id) =>
+        NotFound(s"No asset found for entry: $id")
+      case DownloadError.AssetHasNoEntry(aId, eId) =>
+        NotFound(s"Asset $aId has no entry $eId")
+      case DownloadError.UnsupportedUrl(url) =>
+        BadRequest(s"Unsupported url for downloading: $url")
+      case DownloadError.NoEntriesApplicableForDownload =>
+        BadRequest("No entries applicable for download")
 
   val routes = Router("asset-downloading" -> httpRoutes)
