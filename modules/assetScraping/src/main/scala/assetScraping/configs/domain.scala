@@ -15,7 +15,13 @@ type ScrapingConfigUri = ScrapingConfigUri.Type
 object ScrapingConfigUri extends neotype.Subtype[URI]
 
 type IsConfigEnabled = IsConfigEnabled.Type
-object IsConfigEnabled extends neotype.Subtype[Boolean]
+object IsConfigEnabled extends neotype.Subtype[Boolean]:
+  given Decoder[IsConfigEnabled] =
+    Decoder[Boolean].map(IsConfigEnabled.apply) or Decoder[String].emap:
+      case "true" | "on" => IsConfigEnabled(true).asRight
+      case "false"       => IsConfigEnabled(false).asRight
+      case other =>
+        s"""${other} is not one of [true, false, "true", "false", "on"]""".asLeft
 
 enum AssetSite:
   case Mangakakalot, Mangadex, Yatta, Empik, DynastyScans, Batoto

@@ -91,13 +91,6 @@ object AssetScrapingController:
     def unapply(str: String): Option[AssetScrapingConfigId] =
       str.toIntOption.map(AssetScrapingConfigId(_))
 
-  given Decoder[IsConfigEnabled] =
-    Decoder[Boolean].map(IsConfigEnabled.apply) or Decoder[String].emap:
-      case "true" | "on" => IsConfigEnabled(true).asRight
-      case "false"       => IsConfigEnabled(false).asRight
-      case other =>
-        s"""${other} is not one of [true, false, "true", "false", "on"]""".asLeft
-
   case class AssetScrapingConfigDTO(
       uri: ScrapingConfigUri,
       site: AssetSite,
