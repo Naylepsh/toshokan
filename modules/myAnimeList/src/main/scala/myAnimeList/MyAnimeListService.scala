@@ -47,13 +47,12 @@ class MyAnimeListServiceNoop extends MyAnimeListService:
     IO.unit
 
 class MyAnimeListServiceImpl(
-    xa: Transactor[IO],
     malClient: MyAnimeListClient,
-    tokenRef: Ref[IO, Option[AuthToken]],
+    tokenManager: TokenManager,
     codeChallengeRef: Ref[IO, Option[String]]
 ) extends MyAnimeListService:
   override def searchForManga(term: Term): IO[List[Manga]] =
-    withToken: token =>
+    tokenManager.withToken: token =>
       term match
         case Term.Id(id) =>
           malClient
@@ -69,7 +68,7 @@ class MyAnimeListServiceImpl(
                 Manga(ExternalMangaId(mangaData.node.id), MangaTitle(mangaData.node.title))
 
   override def updateProgress(malId: ExternalMangaId, chapter: LatestChapter): IO[Unit] =
-    withToken(malClient.updateStatus(_, malId, chapter))
+    tokenManager.withToken(malClient.updateStatus(_, malId, chapter))
 
   override val prepareForTokenAcquisition: IO[Uri] =
     for
@@ -82,14 +81,36 @@ class MyAnimeListServiceImpl(
     codeChallengeRef.get.flatMap(_.fold(NoCodeChallenge.raise): codeChallenge =>
       malClient
         .acquireToken(code, codeChallenge)
-        .flatMap(saveToken)
+        .flatMap(tokenManager.saveToken)
         .flatTap(_ => codeChallengeRef.set(None))
         .void)
 
-  private def withToken[A](f: AuthToken => IO[A]) =
+object MyAnimeListServiceImpl:
+  def make(xa: Transactor[IO], malClient: MyAnimeListClient): IO[MyAnimeListServiceImpl] =
+    for
+      tokenRef      <- Ref.of[IO, Option[AuthToken]](None)
+      codeChallenge <- Ref.of[IO, Option[String]](None)
+      tokenManager = TokenManager(malClient, tokenRef, xa)
+    yield MyAnimeListServiceImpl(malClient, tokenManager, codeChallenge)
+
+private class TokenManager(
+    malClient: MyAnimeListClient,
+    tokenRef: Ref[IO, Option[AuthToken]],
+    xa: Transactor[IO]
+):
+  def withToken[A](f: AuthToken => IO[A]): IO[A] =
     tokenRef.get
       .flatMap(_.fold(getOrRefreshToken)(_.some.pure))
       .flatMap(_.fold(NoAuthToken.raiseError[IO, A])(f))
+
+  def saveToken(token: AuthToken): IO[Unit] =
+    IO.realTime.flatMap: now =>
+      val nowMillis              = now.toMillis
+      val refreshTokenExpiresAt  = nowMillis + (token.expiresIn * 1000) * 3
+      val accessTokenExpiresAt   = nowMillis + (token.expiresIn * 1000)
+      val saveAccessToken  = TokensSql.upsertToken("mal-access-token", token.accessToken, accessTokenExpiresAt)
+      val saveRefreshToken = TokensSql.upsertToken("mal-refresh-token", token.refreshToken, refreshTokenExpiresAt)
+      (saveAccessToken *> saveRefreshToken).transact(xa)
 
   private val getOrRefreshToken: IO[Option[AuthToken]] =
     getToken
@@ -98,7 +119,7 @@ class MyAnimeListServiceImpl(
           AuthToken(0L, refreshToken, accessToken).some.pure
         case (None, Some(refreshToken)) =>
           scribe.cats[IO].info("Access token expired, refreshing...")
-            *> updateToken(refreshToken).map(_.some)
+            *> malClient.refreshAuthToken(refreshToken).flatTap(saveToken).map(_.some)
         case _ => IO.pure(None)
       .flatMap: token =>
         tokenRef.set(token).as(token)
@@ -108,25 +129,6 @@ class MyAnimeListServiceImpl(
       access <- TokensSql.getToken("mal-access-token").transact(xa).map(_.map(AccessToken(_)))
       refresh <- TokensSql.getToken("mal-refresh-token").transact(xa).map(_.map(RefreshToken(_)))
     yield (access, refresh)
-
-  private def updateToken(token: RefreshToken): IO[AuthToken] =
-    malClient.refreshAuthToken(token).flatTap(saveToken)
-
-  private def saveToken(token: AuthToken): IO[Unit] =
-    IO.realTime.flatMap: now =>
-      val nowMillis              = now.toMillis
-      val refreshTokenExpiresAt  = nowMillis + (token.expiresIn * 1000) * 3
-      val accessTokenExpiresAt   = nowMillis + (token.expiresIn * 1000)
-      val saveAccessToken  = TokensSql.upsertToken("mal-access-token", token.accessToken, accessTokenExpiresAt)
-      val saveRefreshToken = TokensSql.upsertToken("mal-refresh-token", token.refreshToken, refreshTokenExpiresAt)
-      (saveAccessToken *> saveRefreshToken).transact(xa)
-
-object MyAnimeListServiceImpl:
-  def make(xa: Transactor[IO], malClient: MyAnimeListClient): IO[MyAnimeListServiceImpl] =
-    for
-      token         <- Ref.of[IO, Option[AuthToken]](None)
-      codeChallenge <- Ref.of[IO, Option[String]](None)
-    yield MyAnimeListServiceImpl(xa, malClient, token, codeChallenge)
 
 private object Tokens extends TableDefinition("tokens"):
   val id        = Column[Long]("id")
