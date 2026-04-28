@@ -13,6 +13,7 @@ object MangadexMangaUri extends neotype.Subtype[URI]:
   extension (uri: MangadexMangaUri)
     def id: MangadexId = uri.toString match
       case s"https://mangadex.org/title/$id/$_" => MangadexId(id)
+      case s"https://mangadex.org/title/$id"    => MangadexId(id)
 
 case object NoMalIdAvailable extends NoStackTrace
 type NoMalIdAvailable = NoMalIdAvailable.type
