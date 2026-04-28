@@ -163,7 +163,7 @@ private object AssetScrapingConfigs
   val id        = Column[AssetScrapingConfigId]("id")
   val uri       = Column[ScrapingConfigUri]("uri")
   val isEnabled = Column[IsConfigEnabled]("is_enabled")
-  val site      = Column[Site]("site")
+  val site      = Column[AssetSite]("site")
   val assetId   = Column[AssetId]("asset_id")
 
   val *           = Columns((id, uri, site, isEnabled, assetId))

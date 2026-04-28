@@ -21,7 +21,7 @@ import scraper.domain.*
 
 import configs.{AssetScrapingConfigService, AuthorScrapingConfigService}
 import configs.domain.{
-  Site,
+  AssetSite,
   AuthorSite,
   ExistingAssetScrapingConfig,
   ExistingAuthorScrapingConfig
@@ -48,7 +48,7 @@ object AssetScrapingService:
       authorRepository: AuthorRepository,
       scheduleService: ScheduleService,
       scraper: Scraper,
-      pickAssetScraper: Site => SiteScraper,
+      pickAssetScraper: AssetSite => SiteScraper,
       pickAuthorScraper: AuthorSite => SiteScraperOfAuthor,
       xa: Transactor[IO]
   ): AssetScrapingService = new:

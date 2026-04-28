@@ -1,6 +1,6 @@
 package app.wiring
 
-import assetScraping.configs.domain.{AuthorSite, Site}
+import assetScraping.configs.domain.{AssetSite, AuthorSite}
 import cats.effect.IO
 import com.microsoft.playwright.Browser
 import mangadex.MangadexApi
@@ -16,7 +16,7 @@ import sttp.capabilities.WebSockets
 import sttp.client3.SttpBackend
 
 case class SiteScrapers(
-    forAsset: Site => SiteScraper,
+    forAsset: AssetSite => SiteScraper,
     forAuthor: AuthorSite => SiteScraperOfAuthor
 )
 
@@ -34,14 +34,13 @@ object SiteScrapers:
     val dynastyScansScraper = DynastyScansScraper()
     val batotoScraper       = BatotoScraper()
 
-    val pickAssetScraper: Site => SiteScraper =
-      case Site.Mangadex     => mangadexScraper
-      case Site.Mangakakalot => mangakakalotScraper
-      case Site.Yatta        => yattaScraper
-      case Site.Empik        => empikScraper
-      case Site.DynastyScans => dynastyScansScraper
-      case Site.Batoto       => batotoScraper
-      case _                 => ???
+    val pickAssetScraper: AssetSite => SiteScraper =
+      case AssetSite.Mangadex     => mangadexScraper
+      case AssetSite.Mangakakalot => mangakakalotScraper
+      case AssetSite.Yatta        => yattaScraper
+      case AssetSite.Empik        => empikScraper
+      case AssetSite.DynastyScans => dynastyScansScraper
+      case AssetSite.Batoto       => batotoScraper
 
     val pickAuthorScraper: AuthorSite => SiteScraperOfAuthor =
       case AuthorSite.Hitomi => hitomiScraper

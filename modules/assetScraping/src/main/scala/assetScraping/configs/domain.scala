@@ -17,45 +17,40 @@ object ScrapingConfigUri extends neotype.Subtype[URI]
 type IsConfigEnabled = IsConfigEnabled.Type
 object IsConfigEnabled extends neotype.Subtype[Boolean]
 
-enum Site:
-  case Mangakakalot, Mangadex, Yatta, Hitomi, Empik, DynastyScans, Batoto
+enum AssetSite:
+  case Mangakakalot, Mangadex, Yatta, Empik, DynastyScans, Batoto
 
-object Site:
-  def supportedForAuthors: List[Site] = List(Hitomi)
-
+object AssetSite:
   // SQL
-  given Read[Site] = Read[String].map:
+  given Read[AssetSite] = Read[String].map:
     case "mangadex"      => Mangadex
     case "mangakakalot"  => Mangakakalot
     case "yatta"         => Yatta
-    case "hitomi"        => Hitomi
     case "empik"         => Empik
     case "dynasty-scans" => DynastyScans
     case "batoto"        => Batoto
-  given Write[Site] = Write[String].contramap:
+  given Write[AssetSite] = Write[String].contramap:
     case Mangadex     => "mangadex"
     case Mangakakalot => "mangakakalot"
     case Yatta        => "yatta"
-    case Hitomi       => "hitomi"
     case Empik        => "empik"
     case DynastyScans => "dynasty-scans"
     case Batoto       => "batoto"
 
   // JSON
-  given Decoder[Site] = Decoder[String].emap:
+  given Decoder[AssetSite] = Decoder[String].emap:
     case "Mangadex"     => Mangadex.asRight
     case "Mangakakalot" => Mangakakalot.asRight
     case "Yatta"        => Yatta.asRight
-    case "Hitomi"       => Hitomi.asRight
     case "Empik"        => Empik.asRight
     case "DynastyScans" => DynastyScans.asRight
     case "Batoto"       => Batoto.asRight
-    case other          => s"'$other' is not a valid site".asLeft
-  given Encoder[Site] = Encoder[String].contramap(_.toString)
+    case other          => s"'$other' is not a valid asset site".asLeft
+  given Encoder[AssetSite] = Encoder[String].contramap(_.toString)
 
 case class NewAssetScrapingConfig(
     uri: ScrapingConfigUri,
-    site: Site,
+    site: AssetSite,
     isEnabled: IsConfigEnabled,
     assetId: AssetId
 )
@@ -73,14 +68,13 @@ object NewAssetScrapingConfig:
   private val mangakakalotUri =
     "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com|www.mangakakalot.gg)/.+".r
   private val yattaUri        = "^https://yatta.pl/.+".r
-  private val hitomiUri       = "^https://hitomi.la/artist/(.+).html$".r
   private val empikUri        = "^https://www.empik.com/ksiazki.+".r
   private val dynastyScansUri = "^https://dynasty-scans.com/series/.+".r
   private val batotoUri       = "^https://bato.si/title/([0-9]+)(?:-.*)?/?.*".r
 
   def apply(
       uri: ScrapingConfigUri,
-      site: Site,
+      site: AssetSite,
       isEnabled: IsConfigEnabled,
       assetId: AssetId
   ): Either[String, NewAssetScrapingConfig] =
@@ -90,12 +84,12 @@ object NewAssetScrapingConfig:
 
   def normalize(
       uri: ScrapingConfigUri,
-      site: Site,
+      site: AssetSite,
       isEnabled: IsConfigEnabled,
       assetId: AssetId
   ) =
     val normalizedUri = site match
-      case Site.Mangadex =>
+      case AssetSite.Mangadex =>
         uri.toString match
           case mangadexUriWithTitleRegex(_, title) =>
             ScrapingConfigUri(
@@ -107,32 +101,27 @@ object NewAssetScrapingConfig:
             ).asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case Site.Mangakakalot =>
+      case AssetSite.Mangakakalot =>
         uri.toString match
           case mangakakalotUri(_) => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case Site.Yatta =>
+      case AssetSite.Yatta =>
         uri.toString match
           case yattaUri() => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case Site.Hitomi =>
-        uri.toString match
-          case hitomiUri(_) => uri.asRight
-          case other =>
-            s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case Site.Empik =>
+      case AssetSite.Empik =>
         uri.toString match
           case empikUri() => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case Site.DynastyScans =>
+      case AssetSite.DynastyScans =>
         uri.toString match
           case dynastyScansUri() => uri.asRight
           case other =>
             s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case Site.Batoto =>
+      case AssetSite.Batoto =>
         uri.toString match
           case batotoUri(mangaId) =>
             ScrapingConfigUri(URI(s"https://bato.si/title/$mangaId")).asRight
@@ -145,7 +134,7 @@ object NewAssetScrapingConfig:
 case class ExistingAssetScrapingConfig(
     id: AssetScrapingConfigId,
     uri: ScrapingConfigUri,
-    site: Site,
+    site: AssetSite,
     isEnabled: IsConfigEnabled,
     assetId: AssetId
 )
@@ -153,7 +142,7 @@ object ExistingAssetScrapingConfig:
   def apply(
       id: AssetScrapingConfigId,
       uri: ScrapingConfigUri,
-      site: Site,
+      site: AssetSite,
       isEnabled: IsConfigEnabled,
       assetId: AssetId
   ): Either[String, ExistingAssetScrapingConfig] =

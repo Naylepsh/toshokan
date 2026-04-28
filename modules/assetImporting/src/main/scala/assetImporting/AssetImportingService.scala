@@ -84,7 +84,7 @@ class AssetImportingService(
     for
       config <- NewAssetScrapingConfig(
         ScrapingConfigUri(uri),
-        Site.Mangadex,
+        AssetSite.Mangadex,
         IsConfigEnabled(true),
         asset.id
       ).leftMap(error => new RuntimeException(error.toString)).liftTo[IO]

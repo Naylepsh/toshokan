@@ -100,7 +100,7 @@ object AssetScrapingController:
 
   case class AssetScrapingConfigDTO(
       uri: ScrapingConfigUri,
-      site: Site,
+      site: AssetSite,
       isEnabled: Option[IsConfigEnabled]
   ) derives Decoder:
     def toDomain(assetId: AssetId): Either[String, NewAssetScrapingConfig] =

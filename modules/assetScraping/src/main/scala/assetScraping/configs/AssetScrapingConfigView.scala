@@ -6,7 +6,7 @@ import library.asset.domain.{AssetId, ExistingAsset}
 import neotype.*
 import scalatags.Text.all.*
 
-import domain.{ExistingAssetScrapingConfig, Site}
+import domain.{ExistingAssetScrapingConfig, AssetSite}
 
 class AssetScrapingConfigView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
@@ -105,7 +105,7 @@ class AssetScrapingConfigView(navBarItems: List[NavBarItem]):
         select(
           name := "site",
           cls  := "select bg-transparent",
-          Site.values.map: site =>
+          AssetSite.values.map: site =>
             var modifiers = (value := site.toString) :: Nil
             config
               .map(_.site)
