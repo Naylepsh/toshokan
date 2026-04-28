@@ -108,7 +108,10 @@ object AssetImportingServiceSuite:
       assetScraping.configs.AssetScrapingConfigService
         .make(configRepo, assetService, xa)
     for
-      malService <- myAnimeList.MyAnimeListServiceImpl.make(xa, noopMalClient)
+      malService <- myAnimeList.MyAnimeListServiceImpl.make(
+        xa,
+        myAnimeList.MyAnimeListClient.noop
+      )
       mappingService = assetMapping.AssetMappingService(
         assetService,
         categoryService,
