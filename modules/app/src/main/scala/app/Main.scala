@@ -81,9 +81,8 @@ object Main extends IOApp.Simple:
     )
     val authorMergeController = AuthorMergeController(
       authorMergeService,
-      library.authorRepository,
-      library.authorView,
-      xa
+      library.authorService,
+      library.authorView
     )
     val externals =
       app.wiring.ExternalServices.make(httpBackend, malAuth, random)

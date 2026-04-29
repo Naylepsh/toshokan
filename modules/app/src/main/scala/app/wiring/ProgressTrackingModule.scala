@@ -24,7 +24,7 @@ object ProgressTrackingModule:
       library.assetService,
       mappingModule.service,
       entryProgressRepository,
-      library.authorRepository,
+      library.authorService,
       xa
     )
     val view       = ProgressTrackingView(navBarItems)
