@@ -50,6 +50,21 @@ object View:
       )
     )
 
+  def errorPage(
+      statusCode: Int,
+      message: String,
+      navBarItems: List[NavBarItem] = Nil
+  ) =
+    layout(
+      Some(s"$statusCode"),
+      div(
+        cls := "mt-16 flex flex-col items-center",
+        h1(cls := "text-6xl font-bold text-base-content/20", statusCode.toString),
+        p(cls := "mt-4 text-lg", message)
+      ),
+      navBarItems
+    )
+
   /** This navbar does not support small resolutions
     */
   def navBar(items: List[NavBarItem]) =

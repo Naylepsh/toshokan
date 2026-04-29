@@ -58,7 +58,21 @@ class AssetMappingController(
                   `Content-Type`(MediaType.text.html)
                 )
         .rescue:
-          case error => IO.raiseError(error)
+          case AssetNotFound =>
+            NotFound(
+              view.renderError(404, s"Asset $id not found"),
+              `Content-Type`(MediaType.text.html)
+            )
+          case CategoryNotFound =>
+            BadRequest(
+              view.renderError(400, s"Asset $id has no category"),
+              `Content-Type`(MediaType.text.html)
+            )
+          case AssetIsNotManga =>
+            BadRequest(
+              view.renderError(400, s"Asset $id is not a manga"),
+              `Content-Type`(MediaType.text.html)
+            )
 
     case req @ POST -> Root =>
       withJsonErrorsHandled[NewMalMangaMappingDTO](req): newMalLinking =>
