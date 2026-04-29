@@ -2,6 +2,8 @@ package assetScraping.configs.domain
 
 import java.net.URI
 
+import scala.util.chaining.*
+
 import cats.syntax.all.*
 import doobie.util.{Read, Write}
 import io.circe.{Decoder, Encoder}
@@ -54,7 +56,7 @@ object AssetSite:
     case other          => s"'$other' is not a valid asset site".asLeft
   given Encoder[AssetSite] = Encoder[String].contramap(_.toString)
 
-case class NewAssetScrapingConfig(
+case class NewAssetScrapingConfig private (
     uri: ScrapingConfigUri,
     site: AssetSite,
     isEnabled: IsConfigEnabled,
@@ -62,21 +64,33 @@ case class NewAssetScrapingConfig(
 )
 
 object NewAssetScrapingConfig:
-  private val mangadexUriWithTitleRegex =
-    "^https://mangadex.org/title/([-a-zA-z0-9]+)/(.+)/?$".r
-  private val mangadexUriWithoutTitleRegex =
-    "^https://mangadex.org/title/([-a-zA-z0-9]+)/?$".r
-  /*
-   * There are multiple formats in mangakakalot site family
-   * and including them all is a PITA.
-   * Hence a simple domain check will do
-   */
-  private val mangakakalotUri =
-    "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com|www.mangakakalot.gg)/.+".r
-  private val yattaUri        = "^https://yatta.pl/.+".r
-  private val empikUri        = "^https://www.empik.com/ksiazki.+".r
-  private val dynastyScansUri = "^https://dynasty-scans.com/series/.+".r
-  private val batotoUri       = "^https://bato.si/title/([0-9]+)(?:-.*)?/?.*".r
+  private case class SiteUriRule(
+      pattern: scala.util.matching.Regex,
+      normalize: (
+          ScrapingConfigUri,
+          scala.util.matching.Regex.Match
+      ) => ScrapingConfigUri = (uri, _) => uri
+  )
+
+  private val siteRules: Map[AssetSite, SiteUriRule] = Map(
+    AssetSite.Mangadex -> SiteUriRule(
+      "^https://mangadex.org/title/([-a-zA-z0-9]+)(?:/.*)?$".r,
+      (_, m) =>
+        ScrapingConfigUri(URI(s"https://mangadex.org/title/${m.group(1)}"))
+    ),
+    AssetSite.Mangakakalot -> SiteUriRule(
+      "^https://(mangakakalot.com|chapmanganato.to|chapmanganato.com|www.mangakakalot.gg)/.+".r
+    ),
+    AssetSite.Yatta -> SiteUriRule("^https://yatta.pl/.+".r),
+    AssetSite.Empik -> SiteUriRule("^https://www.empik.com/ksiazki.+".r),
+    AssetSite.DynastyScans -> SiteUriRule(
+      "^https://dynasty-scans.com/series/.+".r
+    ),
+    AssetSite.Batoto -> SiteUriRule(
+      "^https://bato.si/title/([0-9]+)(?:-.*)?/?.*".r,
+      (_, m) => ScrapingConfigUri(URI(s"https://bato.si/title/${m.group(1)}"))
+    )
+  )
 
   def apply(
       uri: ScrapingConfigUri,
@@ -94,48 +108,18 @@ object NewAssetScrapingConfig:
       isEnabled: IsConfigEnabled,
       assetId: AssetId
   ) =
-    val normalizedUri = site match
-      case AssetSite.Mangadex =>
-        uri.toString match
-          case mangadexUriWithTitleRegex(_, title) =>
-            ScrapingConfigUri(
-              URI(uri.toString.replace(s"/$title", ""))
-            ).asRight
-          case mangadexUriWithoutTitleRegex(mangaId) =>
-            ScrapingConfigUri(
-              URI(s"https://mangadex.org/title/$mangaId")
-            ).asRight
-          case other =>
-            s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case AssetSite.Mangakakalot =>
-        uri.toString match
-          case mangakakalotUri(_) => uri.asRight
-          case other =>
-            s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case AssetSite.Yatta =>
-        uri.toString match
-          case yattaUri() => uri.asRight
-          case other =>
-            s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case AssetSite.Empik =>
-        uri.toString match
-          case empikUri() => uri.asRight
-          case other =>
-            s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case AssetSite.DynastyScans =>
-        uri.toString match
-          case dynastyScansUri() => uri.asRight
-          case other =>
-            s"Uri: $other is not a valid config uri of site: $site".asLeft
-      case AssetSite.Batoto =>
-        uri.toString match
-          case batotoUri(mangaId) =>
-            ScrapingConfigUri(URI(s"https://bato.si/title/$mangaId")).asRight
-          case other =>
-            s"Uri: $other is not a valid config uri of site: $site".asLeft
-
-    normalizedUri.map: uri =>
+    normalizeUri(uri, site).map: uri =>
       (uri, site, isEnabled, assetId)
+
+  private def normalizeUri(
+      uri: ScrapingConfigUri,
+      site: AssetSite
+  ): Either[String, ScrapingConfigUri] =
+    siteRules(site).pipe: rule =>
+      rule.pattern
+        .findFirstMatchIn(uri.toString)
+        .map(rule.normalize(uri, _))
+        .toRight(s"Uri: $uri is not a valid config uri of site: $site")
 
 case class ExistingAssetScrapingConfig(
     id: AssetScrapingConfigId,
