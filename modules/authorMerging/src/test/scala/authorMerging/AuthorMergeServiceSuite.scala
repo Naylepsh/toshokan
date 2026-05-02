@@ -172,7 +172,8 @@ class AuthorMergeServiceSuite extends CatsEffectSuite:
       _ <- service.mergeAuthors(NonEmptyList.of(AuthorId(2)), AuthorId(1))
       // findOrAdd with old name should return the target author
       result <- authorRepo.findOrAdd(Set(AuthorName("Author B"))).transact(xa)
-      _ = assertEquals(result.size, 1)
-      _ = assertEquals(result.head.id, AuthorId(1))
-      _ = assertEquals(result.head.name, AuthorName("Author A"))
+      _        = assertEquals(result.size, 1)
+      resolved = result(AuthorName("Author B"))
+      _        = assertEquals(resolved.id, AuthorId(1))
+      _        = assertEquals(resolved.name, AuthorName("Author A"))
     yield ()

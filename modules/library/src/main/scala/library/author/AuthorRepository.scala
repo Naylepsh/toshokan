@@ -16,7 +16,9 @@ trait AuthorRepository:
   def find(id: AuthorId): ConnectionIO[Option[ExistingAuthor]]
   def findAll: ConnectionIO[List[ExistingAuthor]]
   def findByIds(ids: List[AuthorId]): ConnectionIO[List[ExistingAuthor]]
-  def findOrAdd(authors: Set[AuthorName]): ConnectionIO[Set[ExistingAuthor]]
+  def findOrAdd(
+      authors: Set[AuthorName]
+  ): ConnectionIO[Map[AuthorName, ExistingAuthor]]
   def findAssetsByAuthor(
       authorId: AuthorId
   ): ConnectionIO[List[ExistingAsset]]
@@ -88,16 +90,27 @@ object AuthorRepository:
 
       override def findOrAdd(
           authors: Set[AuthorName]
-      ): ConnectionIO[Set[ExistingAuthor]] =
-        if authors.isEmpty then Set.empty.pure[ConnectionIO]
+      ): ConnectionIO[Map[AuthorName, ExistingAuthor]] =
+        if authors.isEmpty then Map.empty.pure[ConnectionIO]
         else
           for
             existingAuthors <- findByNames(authors)
+            existingByName = existingAuthors.map(a => a.name -> a).toMap
             remainingNames = authors.diff(existingAuthors.map(_.name))
             aliasedAuthors <- resolveAliases(remainingNames)
+            aliasedByInput = aliasedAuthors
+              .map((alias, author) => alias -> author)
+              .toMap
             newNames = remainingNames.diff(aliasedAuthors.map(_._1))
             newAuthors <- add(newNames.map(NewAuthor.apply))
-          yield existingAuthors ++ aliasedAuthors.map(_._2) ++ newAuthors
+            _ <- newAuthors.toList.traverse_ : author =>
+              val lower = AuthorName(author.name.toLowerCase)
+              if lower != author.name then
+                sql"""INSERT OR IGNORE INTO ${AuthorAliases} (${AuthorAliases.aliasName}, ${AuthorAliases.authorId})
+                      VALUES ($lower, ${author.id})""".update.run.void
+              else FC.unit
+            newByName = newAuthors.map(a => a.name -> a).toMap
+          yield existingByName ++ aliasedByInput ++ newByName
 
       override def findAssetsByAuthor(
           authorId: AuthorId

@@ -73,7 +73,7 @@ class AssetImportingService(
               NewAsset(
                 AssetTitle(title),
                 manga.id.some,
-                authors.map(_.id).toList
+                authors.values.map(_.id).toList
               )
             )
           .rescue: _ =>

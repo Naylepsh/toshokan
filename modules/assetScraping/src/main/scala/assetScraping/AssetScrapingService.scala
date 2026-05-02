@@ -146,7 +146,7 @@ object AssetScrapingService:
           .toSet
           .pipe(authorRepository.findOrAdd)
           .transact(xa)
-        authorToId = authors.map(author => author.name -> author.id).toMap
+        authorToId = authors.map((name, author) => name -> author.id)
         entryToAssetTitle = successfulResults
           .flatMap: (_, assets) =>
             assets.flatMap: asset =>
@@ -154,17 +154,22 @@ object AssetScrapingService:
                 _ -> library.asset.domain.AssetTitle(asset.assetTitle)
               )
           .toMap
-        assetsToAdd = successfulResults.flatMap: (_, assets) =>
+        assetsToAdd = successfulResults.flatMap: (label, assets) =>
+          val labelAuthorId = library.author.domain.AuthorId(label: Long)
           assets.map: asset =>
             val assetAuthors =
               asset.authors.map(library.author.domain.AuthorName.apply)
+            val authorIds = assetAuthors
+              .map(authorToId.get)
+              .collect { case Some(id) => id }
+              .toList
+            val allAuthorIds =
+              if authorIds.contains(labelAuthorId) then authorIds
+              else labelAuthorId :: authorIds
             NewAsset(
               library.asset.domain.AssetTitle(asset.assetTitle),
               None,
-              assetAuthors
-                .map(authorToId.get)
-                .collect { case Some(id) => id }
-                .toList
+              allAuthorIds
             )
         assets <- assetRepository.findOrAdd(assetsToAdd.toSet).transact(xa)
         result <- entryToAssetTitle
