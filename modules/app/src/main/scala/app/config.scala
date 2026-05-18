@@ -10,7 +10,17 @@ import cats.syntax.all.*
 import http.View.NavBarItem
 import myAnimeList.MalAuth
 
-def load =
+case class AppConfig(
+    server: ServerConfig,
+    database: db.Config,
+    snapshotConfig: Option[snapshot.git.Config],
+    malAuth: Option[MalAuth],
+    downloadDir: DownloadDir,
+    navBarItems: List[NavBarItem],
+    useDnsOverHttps: Boolean
+)
+
+def load: IO[AppConfig] =
   IO.delay:
     val databaseUrl              = sys.env("DATABASE_URL")
     val snapshotPath             = sys.env.get("SNAPSHOT_PATH")
@@ -41,7 +51,7 @@ def load =
       NavBarItem("Shutdown", "/shutdown")
     )
 
-    (
+    AppConfig(
       serverConfig,
       dbConfig,
       snapshotConfig,

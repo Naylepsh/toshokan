@@ -10,17 +10,19 @@ object TitleNormalizer:
   private val commonPunctuation = "[.,\\-~!?:;'\"]+".r
   private val multipleSpaces    = "\\s+".r
 
+  private val steps: List[String => String] = List(
+    altTitleSeparator.replaceFirstIn(_, ""),
+    parenthetical.replaceFirstIn(_, ""),
+    volumeChapter.replaceFirstIn(_, ""),
+    trailingSono.replaceFirstIn(_, ""),
+    trailingNumber.replaceFirstIn(_, ""),
+    _.toLowerCase.trim,
+    commonPunctuation.replaceAllIn(_, ""),
+    multipleSpaces.replaceAllIn(_, " ").trim
+  )
+
   def normalize(title: String): String =
-    var t = title
-    t = altTitleSeparator.replaceFirstIn(t, "")
-    t = parenthetical.replaceFirstIn(t, "")
-    t = volumeChapter.replaceFirstIn(t, "")
-    t = trailingSono.replaceFirstIn(t, "")
-    t = trailingNumber.replaceFirstIn(t, "")
-    t = t.toLowerCase.trim
-    t = commonPunctuation.replaceAllIn(t, "")
-    t = multipleSpaces.replaceAllIn(t, " ").trim
-    t
+    steps.foldLeft(title)((t, step) => step(t))
 
   private val minLengthForFuzzy = 8
 

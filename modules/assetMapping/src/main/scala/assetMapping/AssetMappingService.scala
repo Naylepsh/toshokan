@@ -12,6 +12,7 @@ import doobie.implicits.*
 import library.asset.AssetService
 import library.asset.domain.*
 import library.category.CategoryService
+import library.category.domain.MangaId
 import myAnimeList.MyAnimeListService
 import myAnimeList.domain.{ExternalMangaId, Manga, Term}
 

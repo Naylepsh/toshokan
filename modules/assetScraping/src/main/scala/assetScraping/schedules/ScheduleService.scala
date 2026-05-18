@@ -7,6 +7,7 @@ import cats.mtl.Raise
 import cats.mtl.implicits.*
 import cats.syntax.all.*
 import core.given
+import core.syntax.*
 import doobie.*
 import doobie.implicits.toConnectionIOOps
 import library.asset.AssetService
@@ -75,26 +76,27 @@ object ScheduleService:
     override def add(
         schedule: ScrapingSchedule.Category
     ): Raise[IO, AddScheduleError] ?=> IO[Unit] =
-      categoryService
-        .find(schedule.categoryId)
-        .flatMap:
-          case Some(_) => repository.add(schedule).transact(xa)
-          case None    => AddScheduleError.CategoryDoesNotExist.raise
+      for
+        _ <- categoryService
+          .find(schedule.categoryId)
+          .someOrRaise(AddScheduleError.CategoryDoesNotExist)
+        _ <- repository.add(schedule).transact(xa)
+      yield ()
 
     override def update(
         schedule: ScrapingSchedule.Category
     ): Raise[IO, UpdateScheduleError] ?=> IO[Unit] =
-      categoryService
-        .find(schedule.categoryId)
-        .flatMap:
-          case Some(_) =>
-            repository
-              .update(schedule)
-              .transact(xa)
-              .flatMap:
-                case Left(error) => error.raise
-                case Right(())   => ().pure
-          case None => UpdateScheduleError.CategoryDoesNotExist.raise
+      for
+        _ <- categoryService
+          .find(schedule.categoryId)
+          .someOrRaise(UpdateScheduleError.CategoryDoesNotExist)
+        result <- repository
+          .update(schedule)
+          .transact(xa)
+          .flatMap:
+            case Left(error) => error.raise
+            case Right(())   => ().pure
+      yield result
 
   private def extractAssetsEligibleForScraping(
       schedules: List[ScrapingSchedule.Category],

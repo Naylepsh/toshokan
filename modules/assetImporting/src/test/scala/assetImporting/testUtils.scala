@@ -8,32 +8,6 @@ import cats.syntax.all.*
 import mangadex.MangadexApi
 import mangadex.schemas.*
 import mangadex.schemas.manga.*
-import myAnimeList.*
-import myAnimeList.domain.{ExternalMangaId, LatestChapter, Term}
-import myAnimeList.schemas.{AuthToken, RefreshToken}
-import sttp.model.Uri
-
-val noopMalClient: MyAnimeListClient = new:
-  override def generateCodeChallenge: IO[String] = IO.pure("CH4LL3NG3")
-  override def createAuthorizationLink(codeChallenge: String): Uri  = ???
-  override def refreshAuthToken(token: RefreshToken): IO[AuthToken] = ???
-  override def acquireToken(
-      code: String,
-      codeChallenge: String
-  ): IO[AuthToken] = ???
-  override def searchManga(
-      token: AuthToken,
-      term: Term.Name
-  ): IO[myAnimeList.schemas.GetMangaListSuccess] = ???
-  override def find(
-      token: AuthToken,
-      mangaId: ExternalMangaId
-  ): IO[Option[myAnimeList.schemas.Manga]] = ???
-  override def updateStatus(
-      token: AuthToken,
-      mangaId: ExternalMangaId,
-      latestChapter: LatestChapter
-  ): IO[Unit] = ???
 
 val stubMangadexApi: MangadexApi = new:
   override def getManga(

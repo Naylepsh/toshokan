@@ -6,7 +6,7 @@ import library.author.domain.{AuthorId, ExistingAuthor}
 import neotype.*
 import scalatags.Text.all.*
 
-import domain.{ExistingAuthorScrapingConfig, Site}
+import domain.{ExistingAuthorScrapingConfig, AuthorSite}
 
 class AuthorScrapingConfigView(navBarItems: List[NavBarItem]):
   given Conversion[scalatags.Text.TypedTag[String], String] = _.toString
@@ -105,7 +105,7 @@ class AuthorScrapingConfigView(navBarItems: List[NavBarItem]):
         select(
           name := "site",
           cls  := "select bg-transparent",
-          Site.supportedForAuthors.map: site =>
+          AuthorSite.values.map: site =>
             var modifiers = (value := site.toString) :: Nil
             config
               .map(_.site)

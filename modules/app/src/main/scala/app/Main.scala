@@ -24,36 +24,28 @@ import middleware.logErrors
 object Main extends IOApp.Simple:
   def run: IO[Unit] =
     for
-      _ <- logging.init
-      (
-        serverConfig,
-        dbConfig,
-        snapshotConfig,
-        malAuth,
-        downloadDir,
-        navBarItems,
-        useDnsOverHttps
-      )      <- config.load
+      _      <- logging.init
+      cfg    <- config.load
       random <- Random.scalaUtilRandom[IO]
       result <- app.wiring.CrossCuttingConcernsModule
-        .setupResources(dbConfig, useDnsOverHttps)
+        .setupResources(cfg.database, cfg.useDnsOverHttps)
         .use: resources =>
-          val snapshotManager = snapshotConfig
+          val snapshotManager = cfg.snapshotConfig
             .map(snapshot.git.GitSnapshotManager(_))
             .getOrElse(snapshot.NoopSnapshotManager())
           createControllers(
             resources.xa,
             resources.httpBackend,
             resources.browser,
-            malAuth,
-            downloadDir,
+            cfg.malAuth,
+            cfg.downloadDir,
             resources.shutdownSignal,
-            navBarItems,
+            cfg.navBarItems,
             random
           ).flatMap(routes =>
             snapshotManager.saveIfDue() *>
               startServer(
-                serverConfig,
+                cfg.server,
                 Routed.combine(routes),
                 resources.shutdownSignal
               )
@@ -81,9 +73,8 @@ object Main extends IOApp.Simple:
     )
     val authorMergeController = AuthorMergeController(
       authorMergeService,
-      library.authorRepository,
-      library.authorView,
-      xa
+      library.authorService,
+      library.authorView
     )
     val externals =
       app.wiring.ExternalServices.make(httpBackend, malAuth, random)

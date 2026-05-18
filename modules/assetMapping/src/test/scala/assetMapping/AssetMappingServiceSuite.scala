@@ -16,10 +16,8 @@ import library.category.domain.{
   NewCategory
 }
 import library.category.{CategoryRepository, CategoryService}
-import myAnimeList.MyAnimeListServiceImpl
 import myAnimeList.domain.ExternalMangaId
-
-import testUtils.noopMalClient
+import myAnimeList.{MyAnimeListClient, MyAnimeListServiceImpl}
 
 class AssetMappingServiceSuite extends munit.CatsEffectSuite:
   import AssetMappingServiceSuite.*
@@ -163,7 +161,7 @@ object AssetMappingServiceSuite:
     val assetService    = AssetService.make(AssetRepository.make, xa)
     val categoryService = CategoryService.make(CategoryRepository.make, xa)
     MyAnimeListServiceImpl
-      .make(xa, noopMalClient)
+      .make(xa, MyAnimeListClient.noop)
       .map: malService =>
         val service =
           AssetMappingService(

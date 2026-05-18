@@ -289,11 +289,17 @@ object AssetRepository:
                 newAssets.filter(a => !existingTitles.contains(a.title))
               (existing, missing)
             .flatMap: (existing, missing) =>
-              missing.toList
-                .traverse(addWithoutChecking)
-                .map: added =>
-                  (existing ++ added
-                    .map(a => a.toDomain(assetsByTitle(a.title).authors))).toSet
+              val linkAuthorsForExisting = existing.traverse_ : asset =>
+                asset.authors.traverse_ : authorId =>
+                  sql"INSERT OR IGNORE INTO ${AssetsAuthors} (${AssetsAuthors.assetId}, ${AssetsAuthors.authorId}) VALUES (${asset.id}, $authorId)".update.run
+              linkAuthorsForExisting *>
+                missing.toList
+                  .traverse(addWithoutChecking)
+                  .map: added =>
+                    (existing ++ added
+                      .map(a =>
+                        a.toDomain(assetsByTitle(a.title).authors)
+                      )).toSet
 
     private def findAsset(assetId: AssetId): ConnectionIO[Option[AssetModel]] =
       sql"""

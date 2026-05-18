@@ -75,13 +75,6 @@ object AuthorScrapingController:
     def unapply(str: String): Option[AuthorScrapingConfigId] =
       str.toIntOption.map(AuthorScrapingConfigId(_))
 
-  given Decoder[IsConfigEnabled] =
-    Decoder[Boolean].map(IsConfigEnabled.apply) or Decoder[String].emap:
-      case "true" | "on" => IsConfigEnabled(true).asRight
-      case "false"       => IsConfigEnabled(false).asRight
-      case other =>
-        s"""${other} is not one of [true, false, "true", "false", "on"]""".asLeft
-
   case class AuthorScrapingConfigDTO(
       uri: ScrapingConfigUri,
       site: AuthorSite,

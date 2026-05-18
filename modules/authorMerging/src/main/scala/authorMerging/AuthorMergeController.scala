@@ -3,11 +3,9 @@ package authorMerging
 import cats.data.{NonEmptyList, NonEmptySet}
 import cats.effect.IO
 import core.types.AtLeastTwoUnique
-import doobie.*
-import doobie.implicits.*
 import io.circe.Decoder
 import library.author.domain.*
-import library.author.{AuthorRepository, AuthorView}
+import library.author.{AuthorService, AuthorView}
 import neotype.interop.cats.given
 import neotype.interop.circe.given
 import org.http4s.*
@@ -18,9 +16,8 @@ import org.typelevel.ci.CIString
 
 class AuthorMergeController(
     mergeService: AuthorMergeService,
-    repository: AuthorRepository,
-    view: AuthorView,
-    xa: Transactor[IO]
+    authorService: AuthorService,
+    view: AuthorView
 ) extends http.Controller:
   import http.Controller.given
   import AuthorMergeController.{*, given}
@@ -28,9 +25,8 @@ class AuthorMergeController(
   private val httpRoutes = HttpRoutes.of[IO]:
     case req @ POST -> Root / "merge" / "preview" =>
       withJsonErrorsHandled[AuthorMergeRequest](req): merge =>
-        repository
+        authorService
           .findByIds(merge.authorIds.toList)
-          .transact(xa)
           .flatMap: authors =>
             if authors.size < 2 then
               BadRequest("Some selected authors were not found")

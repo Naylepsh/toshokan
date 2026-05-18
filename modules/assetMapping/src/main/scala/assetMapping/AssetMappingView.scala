@@ -1,6 +1,7 @@
 package assetMapping
 
 import cats.syntax.all.*
+import http.View
 import http.View.{NavBarItem, layout}
 import io.circe.syntax.*
 import library.asset.domain.*
@@ -15,6 +16,9 @@ import domain.ExistingMalMangaMapping
 import schemas.NewMalMangaMappingDTO
 
 class AssetMappingView(navBarItems: List[NavBarItem]):
+  def renderError(statusCode: Int, message: String): TypedTag[String] =
+    View.errorPage(statusCode, message, navBarItems)
+
   def renderMangaSearch(
       mangaTitle: AssetTitle,
       mangaId: AssetId

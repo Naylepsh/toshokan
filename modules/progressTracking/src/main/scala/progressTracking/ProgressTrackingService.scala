@@ -10,7 +10,7 @@ import doobie.implicits.*
 import library.asset.AssetService
 import library.asset.domain.*
 import library.asset.domain.Releases.given
-import library.author.AuthorRepository
+import library.author.AuthorService
 import library.author.domain.AuthorName
 import myAnimeList.MyAnimeListService
 import neotype.interop.cats.given
@@ -34,7 +34,7 @@ object ProgressTrackingService:
       assetService: AssetService,
       assetMappingService: AssetMappingService,
       entryProgressRepository: EntryProgressRepository,
-      authorRepository: AuthorRepository,
+      authorService: AuthorService,
       xa: Transactor[IO]
   ): ProgressTrackingService = new:
     override def updateProgress(
@@ -45,12 +45,13 @@ object ProgressTrackingService:
       (ExistingAsset, ExistingAssetEntry, Set[AuthorName])
     ] =
       for
-        result           <- assetService.find(assetId)
-        (asset, entries) <- result.orRaise(UpdateEntryError.AssetDoesNotExists)
+        (asset, entries) <- assetService
+          .find(assetId)
+          .someOrRaise(UpdateEntryError.AssetDoesNotExists)
         entry <- entries
           .find(_.id.eqv(entryId))
           .orRaise(UpdateEntryError.EntryDoesNotExist)
-        authors <- authorRepository.findByIds(asset.authors).transact(xa)
+        authors <- authorService.findByIds(asset.authors)
         _ <- entryProgressRepository.setSeen(entryId, wasEntrySeen).transact(xa)
         _ <-
           updateProgressExternally(asset, entries, entry.no)
@@ -95,8 +96,7 @@ object ProgressTrackingService:
           .transact(xa)
           .map(_.toSet)
         allAssets <- assetService.findAll
-        authors <- authorRepository.findAll
-          .transact(xa)
+        authors <- authorService.findAll
           .map: authors =>
             authors.map(author => author.id -> author.name).toMap
         unseenReleases = allAssets

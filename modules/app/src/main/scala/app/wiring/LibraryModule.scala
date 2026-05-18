@@ -4,7 +4,7 @@ import cats.effect.IO
 import doobie.Transactor
 import http.View.NavBarItem
 import library.asset.*
-import library.author.{AuthorController, AuthorRepository, AuthorView}
+import library.author.*
 import library.category.{CategoryRepository, CategoryService}
 
 case class LibraryModule(
@@ -14,6 +14,7 @@ case class LibraryModule(
     categoryRepository: CategoryRepository,
     categoryService: CategoryService,
     authorRepository: AuthorRepository,
+    authorService: AuthorService,
     authorView: AuthorView,
     authorController: AuthorController
 )
@@ -28,12 +29,13 @@ object LibraryModule:
     val authorRepository   = AuthorRepository.make
     val assetService       = AssetService.make(assetRepository, xa)
     val categoryService    = CategoryService.make(categoryRepository, xa)
+    val authorService      = AuthorService.make(authorRepository, xa)
     val assetView          = AssetView(navBarItems)
     val assetController =
       AssetController(assetService, categoryService, assetView)
     val authorView = AuthorView(navBarItems)
     val authorController =
-      AuthorController(authorRepository, assetService, authorView, xa)
+      AuthorController(authorService, assetService, authorView)
 
     LibraryModule(
       assetRepository = assetRepository,
@@ -42,6 +44,7 @@ object LibraryModule:
       categoryRepository = categoryRepository,
       categoryService = categoryService,
       authorRepository = authorRepository,
+      authorService = authorService,
       authorView = authorView,
       authorController = authorController
     )

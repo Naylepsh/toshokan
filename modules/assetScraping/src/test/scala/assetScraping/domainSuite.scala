@@ -11,17 +11,17 @@ class domainSuite extends munit.FunSuite:
   List(
     (
       "Mismatched uri",
-      Site.Mangakakalot,
+      AssetSite.Mangakakalot,
       "https://mangadex.org/title/296cbc31-af1a-4b5b-a34b-fee2b4cad542/-oshi-no-ko"
     ),
     (
       "Mismatched uri",
-      Site.Mangadex,
+      AssetSite.Mangadex,
       "https://chapmanganato.to/manga-ku987903"
     ),
     (
       "Missing manga id",
-      Site.Mangadex,
+      AssetSite.Mangadex,
       "https://mangadex.org/title"
     )
   ).foreach: (label, site, uri) =>
@@ -43,7 +43,7 @@ class domainSuite extends munit.FunSuite:
     val configs = uris.traverse: uri =>
       NewAssetScrapingConfig(
         ScrapingConfigUri(URI(uri)),
-        Site.Mangadex,
+        AssetSite.Mangadex,
         IsConfigEnabled(true),
         AssetId(42)
       )
@@ -60,7 +60,7 @@ class domainSuite extends munit.FunSuite:
           "https://bato.si/title/161599-the-maid-s-three-star-cuisine-in-another-world-i-used-real-life-dishes-to-become-a-palace-sensation"
         )
       ),
-      Site.Batoto,
+      AssetSite.Batoto,
       IsConfigEnabled(true),
       AssetId(42)
     )
@@ -68,3 +68,20 @@ class domainSuite extends munit.FunSuite:
       case Left(error) => assert(false, s"Config creation failed: $error")
       case Right(config) =>
         assertEquals(config.uri.toString, "https://bato.si/title/161599")
+
+  test("AssetSite and AuthorSite cover all known sites"):
+    val allSiteNames =
+      AssetSite.values.map(_.toString).toSet ++
+        AuthorSite.values.map(_.toString).toSet
+    assertEquals(
+      allSiteNames,
+      Set(
+        "Mangadex",
+        "Mangakakalot",
+        "Yatta",
+        "Empik",
+        "DynastyScans",
+        "Batoto",
+        "Hitomi"
+      )
+    )

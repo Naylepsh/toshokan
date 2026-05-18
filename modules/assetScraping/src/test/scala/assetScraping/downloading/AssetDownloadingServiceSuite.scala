@@ -5,7 +5,8 @@ import scala.concurrent.duration.*
 import assetScraping.downloading.domain.DownloadDir
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.syntax.eq.*
+import cats.mtl.Handle
+import cats.syntax.all.*
 import core.types.PositiveInt
 import db.migrations.applyMigrations
 import db.transactors.inMemoryTransactor
@@ -127,13 +128,17 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
       xa
     )
 
-    service
-      .downloadAll(AssetId(1))
-      .map: progress =>
-        assertEquals(progress.totalEntries, 2)
-        assertEquals(progress.completedEntries, 2)
-        assertEquals(progress.failedEntries.size, 0)
-        assert(progress.isComplete)
+    Handle
+      .allow[DownloadError]:
+        service
+          .downloadAll(AssetId(1))
+          .map: progress =>
+            assertEquals(progress.totalEntries, 2)
+            assertEquals(progress.completedEntries, 2)
+            assertEquals(progress.failedEntries.size, 0)
+            assert(progress.isComplete)
+      .rescue: error =>
+        IO(fail(s"Unexpected error: $error"))
 
   withXa.test("downloadAll handles missing asset"): xa =>
     val mockRepo = new TestAssetRepository:
@@ -158,8 +163,14 @@ class AssetDownloadingServiceSuite extends CatsEffectSuite:
       xa
     )
 
-    interceptIO[AssetNotFound]:
-      service.downloadAll(AssetId(999))
+    Handle
+      .allow[DownloadError]:
+        service.downloadAll(AssetId(999)).map(_.asRight)
+      .rescue(_.asLeft.pure)
+      .map:
+        case Left(DownloadError.AssetNotFound(id)) =>
+          assertEquals(id, AssetId(999))
+        case other => fail(s"Expected AssetNotFound, got $other")
 
 object AssetDownloadingServiceSuite:
   val mockBackend = SttpBackendStub(implicitly[MonadError[IO]])
