@@ -26,34 +26,38 @@ object IsConfigEnabled extends neotype.Subtype[Boolean]:
         s"""${other} is not one of [true, false, "true", "false", "on"]""".asLeft
 
 enum AssetSite:
-  case Mangakakalot, Mangadex, Yatta, Empik, DynastyScans, Batoto
+  case Mangakakalot, Mangadex, Yatta, Empik, DynastyScans, Batoto,
+    ChainedSoldier
 
 object AssetSite:
   // SQL
   given Read[AssetSite] = Read[String].map:
-    case "mangadex"      => Mangadex
-    case "mangakakalot"  => Mangakakalot
-    case "yatta"         => Yatta
-    case "empik"         => Empik
-    case "dynasty-scans" => DynastyScans
-    case "batoto"        => Batoto
+    case "mangadex"        => Mangadex
+    case "mangakakalot"    => Mangakakalot
+    case "yatta"           => Yatta
+    case "empik"           => Empik
+    case "dynasty-scans"   => DynastyScans
+    case "batoto"          => Batoto
+    case "chained-soldier" => ChainedSoldier
   given Write[AssetSite] = Write[String].contramap:
-    case Mangadex     => "mangadex"
-    case Mangakakalot => "mangakakalot"
-    case Yatta        => "yatta"
-    case Empik        => "empik"
-    case DynastyScans => "dynasty-scans"
-    case Batoto       => "batoto"
+    case Mangadex       => "mangadex"
+    case Mangakakalot   => "mangakakalot"
+    case Yatta          => "yatta"
+    case Empik          => "empik"
+    case DynastyScans   => "dynasty-scans"
+    case Batoto         => "batoto"
+    case ChainedSoldier => "chained-soldier"
 
   // JSON
   given Decoder[AssetSite] = Decoder[String].emap:
-    case "Mangadex"     => Mangadex.asRight
-    case "Mangakakalot" => Mangakakalot.asRight
-    case "Yatta"        => Yatta.asRight
-    case "Empik"        => Empik.asRight
-    case "DynastyScans" => DynastyScans.asRight
-    case "Batoto"       => Batoto.asRight
-    case other          => s"'$other' is not a valid asset site".asLeft
+    case "Mangadex"       => Mangadex.asRight
+    case "Mangakakalot"   => Mangakakalot.asRight
+    case "Yatta"          => Yatta.asRight
+    case "Empik"          => Empik.asRight
+    case "DynastyScans"   => DynastyScans.asRight
+    case "Batoto"         => Batoto.asRight
+    case "ChainedSoldier" => ChainedSoldier.asRight
+    case other            => s"'$other' is not a valid asset site".asLeft
   given Encoder[AssetSite] = Encoder[String].contramap(_.toString)
 
 case class NewAssetScrapingConfig private (
@@ -89,6 +93,9 @@ object NewAssetScrapingConfig:
     AssetSite.Batoto -> SiteUriRule(
       "^https://bato.si/title/([0-9]+)(?:-.*)?/?.*".r,
       (_, m) => ScrapingConfigUri(URI(s"https://bato.si/title/${m.group(1)}"))
+    ),
+    AssetSite.ChainedSoldier -> SiteUriRule(
+      "^https://chained-soldier.live/.+".r
     )
   )
 
