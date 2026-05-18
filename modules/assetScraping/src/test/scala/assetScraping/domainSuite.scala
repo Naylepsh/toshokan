@@ -82,6 +82,7 @@ class domainSuite extends munit.FunSuite:
         "Empik",
         "DynastyScans",
         "Batoto",
+        "ChainedSoldier",
         "Hitomi"
       )
     )

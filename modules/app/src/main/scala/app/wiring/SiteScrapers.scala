@@ -6,6 +6,7 @@ import com.microsoft.playwright.Browser
 import mangadex.MangadexApi
 import scraper.domain.{SiteScraper, SiteScraperOfAuthor}
 import scraper.sites.batoto.BatotoScraper
+import scraper.sites.chainedSoldier.ChainedSoldierScraper
 import scraper.sites.dynastyScans.DynastyScansScraper
 import scraper.sites.empik.EmpikScraper
 import scraper.sites.hitomi.HitomiScraper
@@ -25,22 +26,24 @@ object SiteScrapers:
       backend: SttpBackend[IO, WebSockets],
       browser: Browser
   ): SiteScrapers =
-    val mangadexApi         = MangadexApi.make(backend)
-    val mangadexScraper     = MangadexScraper(mangadexApi)
-    val mangakakalotScraper = MangakakalotScraper()
-    val yattaScraper        = YattaScraper()
-    val hitomiScraper       = HitomiScraper(browser, timeout = 10_000)
-    val empikScraper        = EmpikScraper()
-    val dynastyScansScraper = DynastyScansScraper()
-    val batotoScraper       = BatotoScraper()
+    val mangadexApi           = MangadexApi.make(backend)
+    val mangadexScraper       = MangadexScraper(mangadexApi)
+    val mangakakalotScraper   = MangakakalotScraper()
+    val yattaScraper          = YattaScraper()
+    val hitomiScraper         = HitomiScraper(browser, timeout = 10_000)
+    val empikScraper          = EmpikScraper()
+    val dynastyScansScraper   = DynastyScansScraper()
+    val batotoScraper         = BatotoScraper()
+    val chainedSoldierScraper = ChainedSoldierScraper()
 
     val pickAssetScraper: AssetSite => SiteScraper =
-      case AssetSite.Mangadex     => mangadexScraper
-      case AssetSite.Mangakakalot => mangakakalotScraper
-      case AssetSite.Yatta        => yattaScraper
-      case AssetSite.Empik        => empikScraper
-      case AssetSite.DynastyScans => dynastyScansScraper
-      case AssetSite.Batoto       => batotoScraper
+      case AssetSite.Mangadex       => mangadexScraper
+      case AssetSite.Mangakakalot   => mangakakalotScraper
+      case AssetSite.Yatta          => yattaScraper
+      case AssetSite.Empik          => empikScraper
+      case AssetSite.DynastyScans   => dynastyScansScraper
+      case AssetSite.Batoto         => batotoScraper
+      case AssetSite.ChainedSoldier => chainedSoldierScraper
 
     val pickAuthorScraper: AuthorSite => SiteScraperOfAuthor =
       case AuthorSite.Hitomi => hitomiScraper

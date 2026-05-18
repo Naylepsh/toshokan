@@ -13,6 +13,7 @@ import org.http4s.headers.*
 import org.http4s.server.Router
 
 import domain.*
+import domain.IsConfigEnabled.given
 
 class AssetScrapingConfigController(
     service: AssetScrapingConfigService,
