@@ -63,11 +63,11 @@ object AssetRepository:
       A(_.categoryId),
       C(_.name_).option,
       AA(_.authorId).option,
-      AE(_.id).option,
-      AE(_.title).option,
-      AE(_.no).option,
-      AE(_.uri).option,
-      AE(_.dateUploaded).option
+      AE(_.id),
+      AE(_.title),
+      AE(_.no),
+      AE(_.uri),
+      AE(_.dateUploaded)
     )
 
   val make: AssetRepository = new:
@@ -80,33 +80,31 @@ object AssetRepository:
           FROM ${A}
           LEFT JOIN ${C} ON ${C(_.id)} = ${A(_.categoryId)}
           LEFT JOIN ${AA} ON ${AA(_.assetId)} = ${A(_.id)}
-          LEFT JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
+          JOIN ${AE} ON ${AE(_.assetId)} = ${A(_.id)}
           ORDER BY ${A(_.id)}
       """
         .queryOf(findAllColumns)
         .to[List]
         .map: rows =>
           rows
-            .groupBy(row => (row._1, row._2, row._3, row._4))
-            .map: (asset, records) =>
-              val (id, title, categoryId, categoryName) = asset
+            .groupBy(_._1)
+            .map: (id, records) =>
+              val first   = records.head
               val authors = records.mapFilter(_._5)
               val entries = records
                 .map: record =>
-                  (
+                  Tuples.from[ExistingAssetEntry](
                     record._6,
                     record._7,
                     record._8,
                     record._9,
                     record._10,
-                    id.some
-                  ).tupled
-                    .map(Tuples.from[ExistingAssetEntry](_))
-                .collect:
-                  case Some(entry) => entry
+                    id
+                  )
+                .distinctBy(_.id)
               (
-                ExistingAsset(id, title, categoryId, authors),
-                categoryName,
+                ExistingAsset(id, first._2, first._3, authors),
+                first._4,
                 entries
               )
             .toList
