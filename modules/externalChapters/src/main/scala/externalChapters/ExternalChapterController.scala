@@ -23,17 +23,22 @@ class ExternalChapterController(
   import ExternalChapterController.*
 
   private val httpRoutes = HttpRoutes.of[IO]:
-    case GET -> Root :? OptionalPageQueryParam(page) =>
+    case GET -> Root :? OptionalPageQueryParam(
+          page
+        ) +& OptionalSearchQueryParam(
+          search
+        ) =>
       val current = page.getOrElse(1).max(1)
+      val query   = search.map(_.trim).filter(_.nonEmpty)
       (
-        repository.findPage((current - 1) * pageSize, pageSize),
-        repository.count
+        repository.findPage((current - 1) * pageSize, pageSize, query),
+        repository.count(query)
       ).tupled
         .transact(xa)
         .flatMap: (chapters, total) =>
           val totalPages = ((total + pageSize - 1) / pageSize).max(1)
           Ok(
-            view.renderChapters(chapters, current, totalPages),
+            view.renderChapters(chapters, current, totalPages, query),
             `Content-Type`(MediaType.text.html)
           )
 
@@ -112,3 +117,6 @@ object ExternalChapterController:
 
   object OptionalPageQueryParam
       extends OptionalQueryParamDecoderMatcher[Int]("page")
+
+  object OptionalSearchQueryParam
+      extends OptionalQueryParamDecoderMatcher[String]("q")

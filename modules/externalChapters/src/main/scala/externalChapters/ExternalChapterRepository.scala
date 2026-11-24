@@ -12,8 +12,12 @@ import neotype.interop.doobie.given
 trait ExternalChapterRepository:
   def findAll: ConnectionIO[List[ExternalChapter]]
   def findById(id: ChapterId): ConnectionIO[Option[ExternalChapter]]
-  def findPage(offset: Int, limit: Int): ConnectionIO[List[ExternalChapter]]
-  def count: ConnectionIO[Int]
+  def findPage(
+      offset: Int,
+      limit: Int,
+      query: Option[String]
+  ): ConnectionIO[List[ExternalChapter]]
+  def count(query: Option[String]): ConnectionIO[Int]
 
   /** Leaves the asset / entry links untouched and clears `missingSince` */
   def upsert(
@@ -34,12 +38,22 @@ object ExternalChapterRepository:
     override def findById(id: ChapterId) =
       select(fr"WHERE ${Chapters.id === id}").option
 
-    override def findPage(offset: Int, limit: Int) =
-      select(fr"ORDER BY ${Chapters.chapterName} LIMIT $limit OFFSET $offset")
-        .to[List]
+    override def findPage(offset: Int, limit: Int, query: Option[String]) =
+      select(
+        matching(query) ++
+          fr"ORDER BY ${Chapters.chapterName} LIMIT $limit OFFSET $offset"
+      ).to[List]
 
-    override def count =
-      sql"SELECT COUNT(*) FROM ${Chapters}".query[Int].unique
+    override def count(query: Option[String]) =
+      (sql"SELECT COUNT(*) FROM ${Chapters} " ++ matching(query))
+        .query[Int]
+        .unique
+
+    // instr instead of LIKE so that % and _ in the query are taken literally
+    private def matching(query: Option[String]) =
+      query.fold(fr"")(q =>
+        fr"WHERE instr(lower(${Chapters.chapterName}), lower($q)) > 0 "
+      )
 
     override def upsert(
         name: ChapterName,

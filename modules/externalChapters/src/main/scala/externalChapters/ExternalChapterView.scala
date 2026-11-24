@@ -1,5 +1,8 @@
 package externalChapters
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets.UTF_8
+
 import cats.syntax.all.*
 import externalChapters.domain.*
 import http.View.{NavBarItem, layout}
@@ -10,16 +13,33 @@ class ExternalChapterView(navBarItems: List[NavBarItem]):
   def renderChapters(
       chapters: List[ExternalChapter],
       page: Int,
-      totalPages: Int
+      totalPages: Int,
+      query: Option[String]
   ): TypedTag[String] =
     layout(
       "External chapters".some,
       div(
         cls := "mt-5",
-        form(
-          method := "post",
-          action := "/external-chapters/scan",
-          button(`type` := "submit", cls := "btn btn-primary", "Scan")
+        div(
+          cls := "flex gap-2",
+          form(
+            method := "get",
+            action := "/external-chapters",
+            cls    := "flex gap-2 grow",
+            input(
+              `type`      := "search",
+              name        := "q",
+              value       := query.getOrElse(""),
+              placeholder := "Search by name",
+              cls         := "input input-bordered grow"
+            ),
+            button(`type` := "submit", cls := "btn", "Search")
+          ),
+          form(
+            method := "post",
+            action := "/external-chapters/scan",
+            button(`type` := "submit", cls := "btn btn-primary", "Scan")
+          )
         ),
         div(
           cls := "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-5",
@@ -27,19 +47,25 @@ class ExternalChapterView(navBarItems: List[NavBarItem]):
         ),
         div(
           cls := "join flex justify-center mt-5",
-          pageLink("«", page - 1, page > 1),
+          pageLink("«", page - 1, page > 1, query),
           button(cls := "join-item btn btn-disabled", s"$page / $totalPages"),
-          pageLink("»", page + 1, page < totalPages)
+          pageLink("»", page + 1, page < totalPages, query)
         )
       ),
       navBarItems
     )
 
-  private def pageLink(label: String, page: Int, enabled: Boolean) =
+  private def pageLink(
+      label: String,
+      page: Int,
+      enabled: Boolean,
+      query: Option[String]
+  ) =
+    val search = query.fold("")(q => s"&q=${URLEncoder.encode(q, UTF_8)}")
     if enabled then
       a(
         cls  := "join-item btn",
-        href := s"/external-chapters?page=$page",
+        href := s"/external-chapters?page=$page$search",
         label
       )
     else button(cls := "join-item btn btn-disabled", label)
