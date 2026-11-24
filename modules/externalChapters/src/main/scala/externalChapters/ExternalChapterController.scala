@@ -45,6 +45,41 @@ class ExternalChapterController(
           case ScanError.RootUnreadable(root) =>
             InternalServerError(s"Root is not readable: $root")
 
+    case GET -> Root / ChapterIdVar(id) / "read" =>
+      repository
+        .findById(id)
+        .transact(xa)
+        .flatMap:
+          case Some(chapter) if chapter.missingSince.isEmpty =>
+            Ok(view.renderReader(chapter), `Content-Type`(MediaType.text.html))
+          case _ => NotFound()
+
+    case GET -> Root / ChapterIdVar(id) / "pages" / IntVar(index) =>
+      repository
+        .findById(id)
+        .transact(xa)
+        .flatMap:
+          case Some(chapter) if chapter.missingSince.isEmpty =>
+            val path = java.nio.file.Path.of(chapter.path)
+            ChapterReader
+              .pageNames(path, chapter.kind)
+              .flatMap: names =>
+                names.lift(index) match
+                  case None => NotFound()
+                  case Some(name) =>
+                    ChapterReader
+                      .readPage(path, chapter.kind, name)
+                      .flatMap: bytes =>
+                        Ok(
+                          bytes,
+                          `Content-Type`(
+                            MediaType
+                              .forExtension(ChapterReader.extensionOf(name))
+                              .getOrElse(MediaType.application.`octet-stream`)
+                          )
+                        )
+          case _ => NotFound()
+
     case req @ GET -> Root / "thumbnail" / ChapterIdVar(id) =>
       repository
         .findById(id)

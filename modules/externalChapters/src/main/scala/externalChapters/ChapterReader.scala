@@ -37,47 +37,50 @@ object ChapterReader:
       .find(_ != 0)
       .getOrElse(0)
 
-  /** None when the path holds no images */
-  def inspect(path: Path, kind: ChapterKind): IO[Option[Pages]] =
+  /** Image file names in reading order */
+  def pageNames(path: Path, kind: ChapterKind): IO[List[String]] =
     IO.blocking:
       kind match
-        case ChapterKind.Folder  => inspectFolder(path)
-        case ChapterKind.Archive => inspectArchive(path)
+        case ChapterKind.Folder  => folderPageNames(path)
+        case ChapterKind.Archive => archivePageNames(path)
 
-  private def inspectFolder(dir: Path): Option[Pages] =
-    val images = Using.resource(Files.list(dir)): stream =>
-      stream
-        .iterator()
-        .asScala
-        .filter(p => Files.isRegularFile(p) && isImage(p.getFileName.toString))
-        .map(_.getFileName.toString)
-        .toList
-        .sorted(using naturalOrder)
-    images.headOption.map: first =>
-      Pages(
-        images.size,
-        extensionOf(first),
-        IO.blocking(Files.readAllBytes(dir.resolve(first)))
-      )
-
-  // shortcut: only top-level zip entries count as pages, upgrade if archives wrap images in a folder
-  private def inspectArchive(file: Path): Option[Pages] =
-    val images = Using.resource(ZipFile(file.toFile)): zip =>
-      zip
-        .entries()
-        .asScala
-        .filter(e => !e.isDirectory && !e.getName.contains('/'))
-        .map(_.getName)
-        .filter(isImage)
-        .toList
-        .sorted(using naturalOrder)
-    images.headOption.map: first =>
-      Pages(
-        images.size,
-        extensionOf(first),
-        IO.blocking:
-          Using.resource(ZipFile(file.toFile)): zip =>
-            Using.resource(zip.getInputStream(zip.getEntry(first)))(
+  def readPage(path: Path, kind: ChapterKind, name: String): IO[Array[Byte]] =
+    IO.blocking:
+      kind match
+        case ChapterKind.Folder => Files.readAllBytes(path.resolve(name))
+        case ChapterKind.Archive =>
+          Using.resource(ZipFile(path.toFile)): zip =>
+            Using.resource(zip.getInputStream(zip.getEntry(name)))(
               _.readAllBytes()
             )
-      )
+
+  /** None when the path holds no images */
+  def inspect(path: Path, kind: ChapterKind): IO[Option[Pages]] =
+    pageNames(path, kind).map: names =>
+      names.headOption.map: first =>
+        Pages(names.size, extensionOf(first), readPage(path, kind, first))
+
+  private def folderPageNames(dir: Path): List[String] =
+    Using
+      .resource(Files.list(dir)): stream =>
+        stream
+          .iterator()
+          .asScala
+          .filter(Files.isRegularFile(_))
+          .map(_.getFileName.toString)
+          .filter(isImage)
+          .toList
+      .sorted(using naturalOrder)
+
+  // shortcut: only top-level zip entries count as pages, upgrade if archives wrap images in a folder
+  private def archivePageNames(file: Path): List[String] =
+    Using
+      .resource(ZipFile(file.toFile)): zip =>
+        zip
+          .entries()
+          .asScala
+          .filter(e => !e.isDirectory && !e.getName.contains('/'))
+          .map(_.getName)
+          .filter(isImage)
+          .toList
+      .sorted(using naturalOrder)

@@ -45,14 +45,18 @@ class ExternalChapterView(navBarItems: List[NavBarItem]):
     else button(cls := "join-item btn btn-disabled", label)
 
   private def chapterCard(chapter: ExternalChapter) =
+    val thumbnail = chapter.thumbnailExt.map: _ =>
+      val image = img(
+        cls             := "w-full h-64 object-cover",
+        src             := s"/external-chapters/thumbnail/${chapter.id}",
+        attr("loading") := "lazy"
+      )
+      if chapter.missingSince.isEmpty then
+        a(href := s"/external-chapters/${chapter.id}/read", image)
+      else image
     div(
       cls := "card bg-base-100 shadow",
-      chapter.thumbnailExt.map: _ =>
-        img(
-          cls             := "w-full h-64 object-cover",
-          src             := s"/external-chapters/thumbnail/${chapter.id}",
-          attr("loading") := "lazy"
-        ),
+      thumbnail,
       div(
         cls := "card-body p-2",
         p(cls := "text-sm break-words", chapter.name: String),
@@ -60,4 +64,24 @@ class ExternalChapterView(navBarItems: List[NavBarItem]):
         chapter.missingSince.map: _ =>
           span(cls := "badge badge-warning", "missing")
       )
+    )
+
+  def renderReader(chapter: ExternalChapter): TypedTag[String] =
+    layout(
+      (chapter.name: String).some,
+      div(
+        cls := "mt-5 flex flex-col items-center",
+        a(
+          cls  := "btn btn-ghost self-start",
+          href := "/external-chapters",
+          "« Back"
+        ),
+        (0 until chapter.pageCount).map: index =>
+          img(
+            cls             := "w-full max-w-3xl",
+            src             := s"/external-chapters/${chapter.id}/pages/$index",
+            attr("loading") := "lazy"
+          )
+      ),
+      navBarItems
     )
