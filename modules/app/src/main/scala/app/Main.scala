@@ -39,6 +39,7 @@ object Main extends IOApp.Simple:
             resources.browser,
             cfg.malAuth,
             cfg.downloadDir,
+            cfg.externalChaptersConfig,
             resources.shutdownSignal,
             cfg.navBarItems,
             random
@@ -58,6 +59,7 @@ object Main extends IOApp.Simple:
       browser: Browser,
       malAuth: Option[MalAuth],
       downloadDir: DownloadDir,
+      externalChaptersConfig: externalChapters.domain.Config,
       shutdownSignal: Deferred[IO, Unit],
       navBarItems: List[NavBarItem],
       random: Random[IO]
@@ -108,6 +110,11 @@ object Main extends IOApp.Simple:
         xa
       )
       val system = app.wiring.SystemModule.make(shutdownSignal)
+      val external = app.wiring.ExternalChaptersModule.make(
+        externalChaptersConfig,
+        navBarItems,
+        xa
+      )
 
       List(
         library.assetController,
@@ -122,6 +129,7 @@ object Main extends IOApp.Simple:
         mapping.controller,
         importing.controller,
         progress.controller,
+        external.controller,
         system.publicController,
         system.shutdownController
       )
