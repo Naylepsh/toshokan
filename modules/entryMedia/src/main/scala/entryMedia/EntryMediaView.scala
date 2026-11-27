@@ -4,7 +4,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
 
 import cats.syntax.all.*
-import entryMedia.domain.*
+import entryMedia.domain.{Tag, *}
 import http.View.{NavBarItem, layout}
 import scalatags.Text.TypedTag
 import scalatags.Text.all.*
@@ -12,6 +12,7 @@ import scalatags.Text.all.*
 class EntryMediaView(navBarItems: List[NavBarItem]):
   def renderMedia(
       mediaList: List[EntryMedia],
+      tags: Map[EntryMediaId, List[Tag]],
       page: Int,
       totalPages: Int,
       query: Option[String]
@@ -27,11 +28,11 @@ class EntryMediaView(navBarItems: List[NavBarItem]):
             action := "/entry-media",
             cls    := "flex gap-2 grow",
             input(
-              `type`      := "search",
-              name        := "q",
-              value       := query.getOrElse(""),
-              placeholder := "Search by name",
-              cls         := "input input-bordered grow"
+              `type` := "search",
+              name   := "q",
+              value  := query.getOrElse(""),
+              placeholder := "Search: words, language:english, tag:\"rough translation\"",
+              cls := "input input-bordered grow"
             ),
             button(`type` := "submit", cls := "btn", "Search")
           ),
@@ -43,7 +44,9 @@ class EntryMediaView(navBarItems: List[NavBarItem]):
         ),
         div(
           cls := "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-5",
-          mediaList.map(mediaCard)
+          mediaList.map(media =>
+            mediaCard(media, tags.getOrElse(media.id, Nil))
+          )
         ),
         div(
           cls := "join flex justify-center mt-5",
@@ -70,7 +73,7 @@ class EntryMediaView(navBarItems: List[NavBarItem]):
       )
     else button(cls := "join-item btn btn-disabled", label)
 
-  private def mediaCard(media: EntryMedia) =
+  private def mediaCard(media: EntryMedia, tags: List[Tag]) =
     val thumbnail = media.thumbnailExt.map: _ =>
       val image = img(
         cls             := "w-full h-64 object-cover",
@@ -88,11 +91,20 @@ class EntryMediaView(navBarItems: List[NavBarItem]):
         p(cls := "text-sm break-words", media.name: String),
         p(cls := "text-xs text-gray-500", s"${media.pageCount} pages"),
         media.missingSince.map: _ =>
-          span(cls := "badge badge-warning", "missing")
+          span(cls := "badge badge-warning", "missing"),
+        div(
+          cls := "flex flex-wrap gap-1",
+          tags.map: tag =>
+            a(
+              cls := "badge badge-outline",
+              href := s"/entry-media?q=${URLEncoder.encode(tag.asSearchToken, UTF_8)}",
+              tag.show
+            )
+        )
       )
     )
 
-  def renderReader(media: EntryMedia): TypedTag[String] =
+  def renderReader(media: EntryMedia, tags: List[Tag]): TypedTag[String] =
     layout(
       (media.name: String).some,
       div(
@@ -101,6 +113,19 @@ class EntryMediaView(navBarItems: List[NavBarItem]):
           cls  := "btn btn-ghost self-start",
           href := "/entry-media",
           "« Back"
+        ),
+        form(
+          method := "post",
+          action := s"/entry-media/${media.id}/tags",
+          cls    := "flex gap-2 w-full max-w-3xl mb-4",
+          input(
+            `type`      := "text",
+            name        := "tags",
+            value       := tags.map(_.show).mkString(", "),
+            placeholder := "language:english, drama, rough translation",
+            cls         := "input input-bordered grow"
+          ),
+          button(`type` := "submit", cls := "btn btn-primary", "Save tags")
         ),
         (0 until media.pageCount).map: index =>
           img(

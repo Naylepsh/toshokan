@@ -15,9 +15,15 @@ trait EntryMediaRepository:
   def findPage(
       offset: Int,
       limit: Int,
-      query: Option[String]
+      query: SearchQuery
   ): ConnectionIO[List[EntryMedia]]
-  def count(query: Option[String]): ConnectionIO[Int]
+  def count(query: SearchQuery): ConnectionIO[Int]
+  def findTags(
+      ids: List[EntryMediaId]
+  ): ConnectionIO[Map[EntryMediaId, List[Tag]]]
+
+  /** Replaces all tags of the media; tags no media uses anymore are removed */
+  def setTags(id: EntryMediaId, tags: List[Tag]): ConnectionIO[Unit]
 
   /** Leaves the asset / entry links untouched and clears `missingSince` */
   def upsert(
@@ -38,22 +44,91 @@ object EntryMediaRepository:
     override def findById(id: EntryMediaId) =
       select(fr"WHERE ${EntryMediaTable.id === id}").option
 
-    override def findPage(offset: Int, limit: Int, query: Option[String]) =
+    override def findPage(offset: Int, limit: Int, query: SearchQuery) =
       select(
         matching(query) ++
           fr"ORDER BY ${EntryMediaTable.mediaName} LIMIT $limit OFFSET $offset"
       ).to[List]
 
-    override def count(query: Option[String]) =
+    override def count(query: SearchQuery) =
       (sql"SELECT COUNT(*) FROM ${EntryMediaTable} " ++ matching(query))
         .query[Int]
         .unique
 
+    override def findTags(ids: List[EntryMediaId]) =
+      val EMT  = EntryMediaTagsTable `as` "emt"
+      val T    = TagsTable `as` "t"
+      val cols = Columns(EMT(_.entryMediaId), T(_.namespace), T(_.tagName))
+      NonEmptyList
+        .fromList(ids)
+        .fold(Map.empty[EntryMediaId, List[Tag]].pure[ConnectionIO]): ids =>
+          sql"""
+            SELECT ${cols}
+            FROM ${EMT}
+            JOIN ${T} ON ${T(_.id)} = ${EMT(_.tagId)}
+            WHERE ${Fragments.in(fr"${EMT(_.entryMediaId)}", ids)}
+            ORDER BY ${T(_.namespace)}, ${T(_.tagName)}
+          """
+            .queryOf(cols)
+            .to[List]
+            .map(
+              _.groupMap((id, _, _) => id)((_, namespace, name) =>
+                Tag(namespace, name)
+              )
+            )
+
+    override def setTags(id: EntryMediaId, tags: List[Tag]) =
+      val distinct = tags.distinct
+      for
+        _ <- distinct.traverse_ : tag =>
+          sql"""
+            INSERT OR IGNORE INTO ${TagsTable}
+              (${TagsTable.namespace}, ${TagsTable.tagName})
+            VALUES (${tag.namespace}, ${tag.name})
+          """.update.run
+        _ <- sql"""
+          DELETE FROM ${EntryMediaTagsTable}
+          WHERE ${EntryMediaTagsTable.entryMediaId === id}
+        """.update.run
+        _ <- distinct.traverse_ : tag =>
+          sql"""
+            INSERT INTO ${EntryMediaTagsTable}
+              (${EntryMediaTagsTable.entryMediaId}, ${EntryMediaTagsTable.tagId})
+            SELECT $id, ${TagsTable.id}
+            FROM ${TagsTable}
+            WHERE ${TagsTable.namespace === tag.namespace}
+              AND ${TagsTable.tagName === tag.name}
+          """.update.run
+        _ <- sql"""
+          DELETE FROM ${TagsTable}
+          WHERE ${TagsTable.id} NOT IN (
+            SELECT ${EntryMediaTagsTable.tagId} FROM ${EntryMediaTagsTable}
+          )
+        """.update.run
+      yield ()
+
     // instr instead of LIKE so that % and _ in the query are taken literally
-    private def matching(query: Option[String]) =
-      query.fold(fr"")(q =>
-        fr"WHERE instr(lower(${EntryMediaTable.mediaName}), lower($q)) > 0 "
-      )
+    private def matching(query: SearchQuery) =
+      val EMT = EntryMediaTagsTable `as` "emt"
+      val T   = TagsTable `as` "t"
+      val words = query.words.map: word =>
+        fr"instr(lower(${EntryMediaTable.mediaName}), lower($word)) > 0"
+      val tags = query.tags.map: tag =>
+        fr"""EXISTS (
+          SELECT 1
+          FROM ${EMT}
+          JOIN ${T} ON ${T(_.id)} = ${EMT(_.tagId)}
+          WHERE ${EMT(
+            _.entryMediaId
+          )} = ${EntryMediaTable}.${EntryMediaTable.id}
+            AND ${T(_.namespace)} = ${tag.namespace}
+            AND ${T(_.tagName)} = ${tag.name}
+        )"""
+      NonEmptyList
+        .fromList(words ++ tags)
+        .fold(fr"")(conditions =>
+          fr"WHERE" ++ Fragments.and(conditions) ++ fr" "
+        )
 
     override def upsert(
         name: EntryMediaName,
@@ -127,3 +202,16 @@ private object EntryMediaTable extends TableDefinition("entry_media"):
       missingSince
     )
   )
+
+private object TagsTable extends TableDefinition("tags"):
+  val id        = Column[TagId]("id")
+  val namespace = Column[TagNamespace]("namespace")
+  val tagName   = Column[TagName]("name")
+
+  val * = Columns((id, namespace, tagName))
+
+private object EntryMediaTagsTable extends TableDefinition("entry_media_tags"):
+  val entryMediaId = Column[EntryMediaId]("entry_media_id")
+  val tagId        = Column[TagId]("tag_id")
+
+  val * = Columns((entryMediaId, tagId))

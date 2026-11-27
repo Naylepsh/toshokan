@@ -110,6 +110,19 @@ CREATE TABLE "entry_media" (
   FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE SET NULL,
   FOREIGN KEY (entry_id) REFERENCES asset_entries (id) ON DELETE SET NULL
 );
+CREATE TABLE tags (
+  id INTEGER PRIMARY KEY,
+  namespace TEXT NOT NULL,
+  name TEXT NOT NULL,
+  UNIQUE (namespace, name)
+);
+CREATE TABLE entry_media_tags (
+  entry_media_id INTEGER NOT NULL,
+  tag_id INTEGER NOT NULL,
+  PRIMARY KEY (entry_media_id, tag_id),
+  FOREIGN KEY (entry_media_id) REFERENCES entry_media (id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20240130211545'),
@@ -124,4 +137,5 @@ INSERT INTO "schema_migrations" (version) VALUES
   ('20260408121700'),
   ('20260422191556'),
   ('20260501120000'),
-  ('20260502120000');
+  ('20260502120000'),
+  ('20260503120000');
