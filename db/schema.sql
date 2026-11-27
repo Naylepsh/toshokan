@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS "schema_migrations" (version varchar(128) primary key);
+CREATE TABLE "schema_migrations" (version varchar(128) primary key);
 CREATE TABLE assets (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL UNIQUE
@@ -95,6 +95,21 @@ CREATE TABLE author_aliases (
   author_id INTEGER NOT NULL,
   FOREIGN KEY (author_id) REFERENCES authors (id) ON DELETE CASCADE
 );
+CREATE TABLE "entry_media" (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL,
+  path TEXT NOT NULL,
+  page_count INTEGER NOT NULL,
+  modified_at INTEGER NOT NULL,
+  size INTEGER NOT NULL,
+  thumbnail_ext TEXT,
+  missing_since INTEGER,
+  asset_id INTEGER,
+  entry_id INTEGER,
+  FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE SET NULL,
+  FOREIGN KEY (entry_id) REFERENCES asset_entries (id) ON DELETE SET NULL
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20240130211545'),
@@ -107,4 +122,6 @@ INSERT INTO "schema_migrations" (version) VALUES
   ('20251228172549'),
   ('20260407140216'),
   ('20260408121700'),
-  ('20260422191556');
+  ('20260422191556'),
+  ('20260501120000'),
+  ('20260502120000');

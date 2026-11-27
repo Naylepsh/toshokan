@@ -162,6 +162,17 @@ lazy val progressTracking = project
   )
   .dependsOn(core, db, library, myAnimeList, assetMapping)
 
+lazy val entryMedia = project
+  .in(file("modules/entryMedia"))
+  .disablePlugins(RevolverPlugin)
+  .settings(
+    libraryDependencies ++= commonDependencies ++ Seq(
+      Dependencies.http4sDsl,
+      Dependencies.http4sServer
+    )
+  )
+  .dependsOn(core, db, http)
+
 lazy val app = project
   .in(file("modules/app"))
   .settings(
@@ -182,6 +193,7 @@ lazy val app = project
     snapshot,
     progressTracking,
     authorMerging,
+    entryMedia,
     mangadex
   )
   .dependsOn(
@@ -192,7 +204,8 @@ lazy val app = project
     assetImporting,
     snapshot,
     progressTracking,
-    authorMerging
+    authorMerging,
+    entryMedia
   )
   .disablePlugins(RevolverPlugin)
 
