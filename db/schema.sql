@@ -95,7 +95,7 @@ CREATE TABLE author_aliases (
   author_id INTEGER NOT NULL,
   FOREIGN KEY (author_id) REFERENCES authors (id) ON DELETE CASCADE
 );
-CREATE TABLE external_chapters (
+CREATE TABLE entry_media (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   kind TEXT NOT NULL,
@@ -123,4 +123,5 @@ INSERT INTO "schema_migrations" (version) VALUES
   ('20260407140216'),
   ('20260408121700'),
   ('20260422191556'),
-  ('20260501120000');
+  ('20260501120000'),
+  ('20260502120000');

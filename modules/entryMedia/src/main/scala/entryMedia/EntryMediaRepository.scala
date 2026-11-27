@@ -1,4 +1,4 @@
-package externalChapters
+package entryMedia
 
 import cats.data.NonEmptyList
 import cats.syntax.all.*
@@ -6,58 +6,58 @@ import core.Tuples
 import db.extensions.*
 import doobie.*
 import doobie.implicits.*
-import externalChapters.domain.*
+import entryMedia.domain.*
 import neotype.interop.doobie.given
 
-trait ExternalChapterRepository:
-  def findAll: ConnectionIO[List[ExternalChapter]]
-  def findById(id: ChapterId): ConnectionIO[Option[ExternalChapter]]
+trait EntryMediaRepository:
+  def findAll: ConnectionIO[List[EntryMedia]]
+  def findById(id: EntryMediaId): ConnectionIO[Option[EntryMedia]]
   def findPage(
       offset: Int,
       limit: Int,
       query: Option[String]
-  ): ConnectionIO[List[ExternalChapter]]
+  ): ConnectionIO[List[EntryMedia]]
   def count(query: Option[String]): ConnectionIO[Int]
 
   /** Leaves the asset / entry links untouched and clears `missingSince` */
   def upsert(
-      name: ChapterName,
-      kind: ChapterKind,
+      name: EntryMediaName,
+      kind: EntryMediaKind,
       path: String,
       pageCount: Int,
       modifiedAt: Long,
       size: Long,
       thumbnailExt: Option[String]
-  ): ConnectionIO[ChapterId]
-  def markMissing(ids: List[ChapterId], since: Long): ConnectionIO[Unit]
+  ): ConnectionIO[EntryMediaId]
+  def markMissing(ids: List[EntryMediaId], since: Long): ConnectionIO[Unit]
 
-object ExternalChapterRepository:
-  val make: ExternalChapterRepository = new:
+object EntryMediaRepository:
+  val make: EntryMediaRepository = new:
     override def findAll = select(fr"").to[List]
 
-    override def findById(id: ChapterId) =
-      select(fr"WHERE ${Chapters.id === id}").option
+    override def findById(id: EntryMediaId) =
+      select(fr"WHERE ${EntryMediaTable.id === id}").option
 
     override def findPage(offset: Int, limit: Int, query: Option[String]) =
       select(
         matching(query) ++
-          fr"ORDER BY ${Chapters.chapterName} LIMIT $limit OFFSET $offset"
+          fr"ORDER BY ${EntryMediaTable.mediaName} LIMIT $limit OFFSET $offset"
       ).to[List]
 
     override def count(query: Option[String]) =
-      (sql"SELECT COUNT(*) FROM ${Chapters} " ++ matching(query))
+      (sql"SELECT COUNT(*) FROM ${EntryMediaTable} " ++ matching(query))
         .query[Int]
         .unique
 
     // instr instead of LIKE so that % and _ in the query are taken literally
     private def matching(query: Option[String]) =
       query.fold(fr"")(q =>
-        fr"WHERE instr(lower(${Chapters.chapterName}), lower($q)) > 0 "
+        fr"WHERE instr(lower(${EntryMediaTable.mediaName}), lower($q)) > 0 "
       )
 
     override def upsert(
-        name: ChapterName,
-        kind: ChapterKind,
+        name: EntryMediaName,
+        kind: EntryMediaKind,
         path: String,
         pageCount: Int,
         modifiedAt: Long,
@@ -65,9 +65,9 @@ object ExternalChapterRepository:
         thumbnailExt: Option[String]
     ) =
       sql"""
-        ${Chapters.insertIntoX(
+        ${EntryMediaTable.insertIntoX(
           NonEmptyList.of(
-            _.chapterName --> name,
+            _.mediaName --> name,
             _.kind --> kind,
             _.path --> path,
             _.pageCount --> pageCount,
@@ -76,37 +76,37 @@ object ExternalChapterRepository:
             _.thumbnailExt --> thumbnailExt
           )
         )}
-        ON CONFLICT (${Chapters.chapterName}) DO UPDATE SET
-          ${Chapters.kind} = EXCLUDED.${Chapters.kind},
-          ${Chapters.path} = EXCLUDED.${Chapters.path},
-          ${Chapters.pageCount} = EXCLUDED.${Chapters.pageCount},
-          ${Chapters.modifiedAt} = EXCLUDED.${Chapters.modifiedAt},
-          ${Chapters.size} = EXCLUDED.${Chapters.size},
-          ${Chapters.thumbnailExt} = EXCLUDED.${Chapters.thumbnailExt},
-          ${Chapters.missingSince} = NULL
-        RETURNING ${Chapters.id}
-      """.query[ChapterId].unique
+        ON CONFLICT (${EntryMediaTable.mediaName}) DO UPDATE SET
+          ${EntryMediaTable.kind} = EXCLUDED.${EntryMediaTable.kind},
+          ${EntryMediaTable.path} = EXCLUDED.${EntryMediaTable.path},
+          ${EntryMediaTable.pageCount} = EXCLUDED.${EntryMediaTable.pageCount},
+          ${EntryMediaTable.modifiedAt} = EXCLUDED.${EntryMediaTable.modifiedAt},
+          ${EntryMediaTable.size} = EXCLUDED.${EntryMediaTable.size},
+          ${EntryMediaTable.thumbnailExt} = EXCLUDED.${EntryMediaTable.thumbnailExt},
+          ${EntryMediaTable.missingSince} = NULL
+        RETURNING ${EntryMediaTable.id}
+      """.query[EntryMediaId].unique
 
-    override def markMissing(ids: List[ChapterId], since: Long) =
+    override def markMissing(ids: List[EntryMediaId], since: Long) =
       ids.traverse_ : id =>
         sql"""
-          UPDATE ${Chapters}
-          SET ${Chapters.missingSince} = $since
-          WHERE ${Chapters.id === id}
+          UPDATE ${EntryMediaTable}
+          SET ${EntryMediaTable.missingSince} = $since
+          WHERE ${EntryMediaTable.id === id}
         """.update.run
 
     private def select(rest: Fragment) =
-      (sql"SELECT ${Chapters.*} FROM ${Chapters} " ++ rest)
-        .queryOf(Chapters.*)
-        .map(Tuples.from[ExternalChapter](_))
+      (sql"SELECT ${EntryMediaTable.*} FROM ${EntryMediaTable} " ++ rest)
+        .queryOf(EntryMediaTable.*)
+        .map(Tuples.from[EntryMedia](_))
 
-private given Meta[ChapterKind] =
-  Meta[String].imap(ChapterKind.valueOf)(_.toString)
+private given Meta[EntryMediaKind] =
+  Meta[String].imap(EntryMediaKind.valueOf)(_.toString)
 
-private object Chapters extends TableDefinition("external_chapters"):
-  val id           = Column[ChapterId]("id")
-  val chapterName  = Column[ChapterName]("name")
-  val kind         = Column[ChapterKind]("kind")
+private object EntryMediaTable extends TableDefinition("entry_media"):
+  val id           = Column[EntryMediaId]("id")
+  val mediaName    = Column[EntryMediaName]("name")
+  val kind         = Column[EntryMediaKind]("kind")
   val path         = Column[String]("path")
   val pageCount    = Column[Int]("page_count")
   val modifiedAt   = Column[Long]("modified_at")
@@ -117,7 +117,7 @@ private object Chapters extends TableDefinition("external_chapters"):
   val * = Columns(
     (
       id,
-      chapterName,
+      mediaName,
       kind,
       path,
       pageCount,

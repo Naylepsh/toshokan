@@ -1,4 +1,4 @@
-package externalChapters
+package entryMedia
 
 import java.nio.file.{Files, Path}
 import java.util.zip.ZipFile
@@ -7,11 +7,11 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Using
 
 import cats.effect.IO
-import externalChapters.domain.ChapterKind
+import entryMedia.domain.EntryMediaKind
 
 case class Pages(count: Int, firstExt: String, firstBytes: IO[Array[Byte]])
 
-object ChapterReader:
+object EntryMediaReader:
   private val imageExts = Set("jpg", "jpeg", "png", "webp", "gif")
 
   def extensionOf(fileName: String): String =
@@ -38,24 +38,28 @@ object ChapterReader:
       .getOrElse(0)
 
   /** Image file names in reading order */
-  def pageNames(path: Path, kind: ChapterKind): IO[List[String]] =
+  def pageNames(path: Path, kind: EntryMediaKind): IO[List[String]] =
     IO.blocking:
       kind match
-        case ChapterKind.Folder  => folderPageNames(path)
-        case ChapterKind.Archive => archivePageNames(path)
+        case EntryMediaKind.Folder  => folderPageNames(path)
+        case EntryMediaKind.Archive => archivePageNames(path)
 
-  def readPage(path: Path, kind: ChapterKind, name: String): IO[Array[Byte]] =
+  def readPage(
+      path: Path,
+      kind: EntryMediaKind,
+      name: String
+  ): IO[Array[Byte]] =
     IO.blocking:
       kind match
-        case ChapterKind.Folder => Files.readAllBytes(path.resolve(name))
-        case ChapterKind.Archive =>
+        case EntryMediaKind.Folder => Files.readAllBytes(path.resolve(name))
+        case EntryMediaKind.Archive =>
           Using.resource(ZipFile(path.toFile)): zip =>
             Using.resource(zip.getInputStream(zip.getEntry(name)))(
               _.readAllBytes()
             )
 
   /** None when the path holds no images */
-  def inspect(path: Path, kind: ChapterKind): IO[Option[Pages]] =
+  def inspect(path: Path, kind: EntryMediaKind): IO[Option[Pages]] =
     pageNames(path, kind).map: names =>
       names.headOption.map: first =>
         Pages(names.size, extensionOf(first), readPage(path, kind, first))

@@ -1,4 +1,4 @@
-package externalChapters
+package entryMedia
 
 import java.nio.file.{Files, Path}
 
@@ -11,23 +11,23 @@ import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import doobie.*
 import doobie.implicits.*
-import externalChapters.domain.*
+import entryMedia.domain.*
 
-trait ExternalChapterScanner:
+trait EntryMediaScanner:
   def scan: Raise[IO, ScanError] ?=> IO[ScanResult]
 
-object ExternalChapterScanner:
+object EntryMediaScanner:
   private case class Candidate(
-      name: ChapterName,
-      kind: ChapterKind,
+      name: EntryMediaName,
+      kind: EntryMediaKind,
       path: Path
   )
 
   def make(
-      repository: ExternalChapterRepository,
+      repository: EntryMediaRepository,
       config: Config,
       xa: Transactor[IO]
-  ): ExternalChapterScanner = new:
+  ): EntryMediaScanner = new:
     override def scan: Raise[IO, ScanError] ?=> IO[ScanResult] =
       for
         _ <- config.roots.traverse_ : root =>
@@ -44,7 +44,7 @@ object ExternalChapterScanner:
         )
         _ <- repository.markMissing(gone.map(_.id), now).transact(xa)
         _ <- duplicates.traverse_(d =>
-          scribe.cats[IO].warn(s"Duplicate external chapter ignored: $d")
+          scribe.cats[IO].warn(s"Duplicate entry media ignored: $d")
         )
       yield ScanResult(seen.size, duplicates)
 
@@ -56,15 +56,19 @@ object ExternalChapterScanner:
           .flatMap: path =>
             val fileName = path.getFileName.toString
             if Files.isDirectory(path) then
-              List(Candidate(ChapterName(fileName), ChapterKind.Folder, path))
+              List(
+                Candidate(EntryMediaName(fileName), EntryMediaKind.Folder, path)
+              )
             else if Set("zip", "cbz").contains(
-                ChapterReader.extensionOf(fileName)
+                EntryMediaReader.extensionOf(fileName)
               )
             then
               List(
                 Candidate(
-                  ChapterName(fileName.substring(0, fileName.lastIndexOf('.'))),
-                  ChapterKind.Archive,
+                  EntryMediaName(
+                    fileName.substring(0, fileName.lastIndexOf('.'))
+                  ),
+                  EntryMediaKind.Archive,
                   path
                 )
               )
@@ -73,25 +77,25 @@ object ExternalChapterScanner:
     /** First found wins */
     private def dedupe(
         found: List[Candidate]
-    ): (List[Candidate], List[ChapterName]) =
+    ): (List[Candidate], List[EntryMediaName]) =
       val (firsts, dupes) = found.foldLeft(
-        (Map.empty[ChapterName, Candidate], List.empty[ChapterName])
+        (Map.empty[EntryMediaName, Candidate], List.empty[EntryMediaName])
       ):
         case ((acc, dupes), c) =>
           if acc.contains(c.name) then (acc, c.name :: dupes)
           else (acc + (c.name -> c), dupes)
       (found.filter(c => firsts.get(c.name).contains(c)), dupes.reverse)
 
-    /** Returns the name when the candidate is a chapter */
+    /** Returns the name when the candidate holds images */
     private def sync(
         candidate: Candidate,
-        existing: ChapterName => Option[ExternalChapter]
-    ): IO[List[ChapterName]] =
+        existing: EntryMediaName => Option[EntryMedia]
+    ): IO[List[EntryMediaName]] =
       for
         (modifiedAt, size) <- IO.blocking:
           (
             Files.getLastModifiedTime(candidate.path).toMillis,
-            if candidate.kind == ChapterKind.Archive
+            if candidate.kind == EntryMediaKind.Archive
             then Files.size(candidate.path)
             else 0L
           )
@@ -105,7 +109,7 @@ object ExternalChapterScanner:
             upsert(candidate, c.pageCount, modifiedAt, size, c.thumbnailExt)
               .as(List(candidate.name))
           case _ =>
-            ChapterReader
+            EntryMediaReader
               .inspect(candidate.path, candidate.kind)
               .flatMap:
                 case None => IO.pure(Nil)
@@ -144,15 +148,15 @@ object ExternalChapterScanner:
         )
         .transact(xa)
 
-    private def thumbnailExists(chapter: ExternalChapter): IO[Boolean] =
-      chapter.thumbnailExt
+    private def thumbnailExists(media: EntryMedia): IO[Boolean] =
+      media.thumbnailExt
         .traverse(ext =>
-          IO.blocking(Files.exists(thumbnailPath(chapter.id, ext)))
+          IO.blocking(Files.exists(thumbnailPath(media.id, ext)))
         )
         .map(_.getOrElse(false))
 
-    private def thumbnailPath(id: ChapterId, ext: String) =
-      ExternalChapterScanner.thumbnailPath(config.thumbnailDir, id, ext)
+    private def thumbnailPath(id: EntryMediaId, ext: String) =
+      EntryMediaScanner.thumbnailPath(config.thumbnailDir, id, ext)
 
-  def thumbnailPath(dir: Path, id: ChapterId, ext: String): Path =
+  def thumbnailPath(dir: Path, id: EntryMediaId, ext: String): Path =
     dir.resolve(s"$id.$ext")

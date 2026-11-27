@@ -1,21 +1,21 @@
-package externalChapters
+package entryMedia
 package domain
 
 import java.nio.file.Path
 
-type ChapterId = ChapterId.Type
-object ChapterId extends neotype.Newtype[Long]
+type EntryMediaId = EntryMediaId.Type
+object EntryMediaId extends neotype.Newtype[Long]
 
-type ChapterName = ChapterName.Type
-object ChapterName extends neotype.Subtype[String]
+type EntryMediaName = EntryMediaName.Type
+object EntryMediaName extends neotype.Subtype[String]
 
-enum ChapterKind:
+enum EntryMediaKind:
   case Folder, Archive
 
-case class ExternalChapter(
-    id: ChapterId,
-    name: ChapterName,
-    kind: ChapterKind,
+case class EntryMedia(
+    id: EntryMediaId,
+    name: EntryMediaName,
+    kind: EntryMediaKind,
     path: String,
     pageCount: Int,
     modifiedAt: Long,
@@ -29,4 +29,4 @@ case class Config(roots: List[Path], thumbnailDir: Path)
 enum ScanError:
   case RootUnreadable(root: Path)
 
-case class ScanResult(seen: Int, duplicates: List[ChapterName])
+case class ScanResult(seen: Int, duplicates: List[EntryMediaName])

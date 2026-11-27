@@ -16,7 +16,7 @@ case class AppConfig(
     snapshotConfig: Option[snapshot.git.Config],
     malAuth: Option[MalAuth],
     downloadDir: DownloadDir,
-    externalChaptersConfig: externalChapters.domain.Config,
+    entryMediaConfig: entryMedia.domain.Config,
     navBarItems: List[NavBarItem],
     useDnsOverHttps: Boolean
 )
@@ -31,9 +31,9 @@ def load: IO[AppConfig] =
     val malRedirectUrl  = sys.env.get("MAL_REDIRECT_URL").map(new URI(_))
     val downloadDir     = DownloadDir(Path.of(sys.env("DOWNLOAD_DIR")))
     val useDnsOverHttps = sys.env.get("USE_DNS_OVER_HTTPS").contains("true")
-    val externalChaptersConfig = externalChapters.domain.Config(
+    val entryMediaConfig = entryMedia.domain.Config(
       sys.env
-        .get("EXTERNAL_CHAPTER_ROOTS")
+        .get("ENTRY_MEDIA_ROOTS")
         .toList
         .flatMap(_.split(java.io.File.pathSeparator).toList)
         .filter(_.nonEmpty)
@@ -58,7 +58,7 @@ def load: IO[AppConfig] =
       NavBarItem("Stale assets", "/asset-scraping/stale"),
       NavBarItem("New releases", "/progress-tracking/releases"),
       NavBarItem("Scraping", "/asset-scraping"),
-      NavBarItem("External chapters", "/external-chapters"),
+      NavBarItem("Entry media", "/entry-media"),
       NavBarItem("Shutdown", "/shutdown")
     )
 
@@ -68,7 +68,7 @@ def load: IO[AppConfig] =
       snapshotConfig,
       malAuth,
       downloadDir,
-      externalChaptersConfig,
+      entryMediaConfig,
       navBarItems,
       useDnsOverHttps
     )

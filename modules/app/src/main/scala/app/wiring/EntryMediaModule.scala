@@ -2,21 +2,21 @@ package app.wiring
 
 import cats.effect.IO
 import doobie.Transactor
-import externalChapters.*
-import externalChapters.domain.Config
+import entryMedia.*
+import entryMedia.domain.Config
 import http.View.NavBarItem
 
-case class ExternalChaptersModule(controller: ExternalChapterController)
+case class EntryMediaModule(controller: EntryMediaController)
 
-object ExternalChaptersModule:
+object EntryMediaModule:
   def make(
       config: Config,
       navBarItems: List[NavBarItem],
       xa: Transactor[IO]
-  ): ExternalChaptersModule =
-    val repository = ExternalChapterRepository.make
-    val scanner    = ExternalChapterScanner.make(repository, config, xa)
-    val view       = ExternalChapterView(navBarItems)
-    ExternalChaptersModule(
-      ExternalChapterController(repository, scanner, view, config, xa)
+  ): EntryMediaModule =
+    val repository = EntryMediaRepository.make
+    val scanner    = EntryMediaScanner.make(repository, config, xa)
+    val view       = EntryMediaView(navBarItems)
+    EntryMediaModule(
+      EntryMediaController(repository, scanner, view, config, xa)
     )
