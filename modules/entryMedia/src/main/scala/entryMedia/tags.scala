@@ -1,6 +1,9 @@
 package entryMedia
 package domain
 
+type TagId = TagId.Type
+object TagId extends neotype.Newtype[Long]
+
 type TagNamespace = TagNamespace.Type
 object TagNamespace extends neotype.Subtype[String]
 

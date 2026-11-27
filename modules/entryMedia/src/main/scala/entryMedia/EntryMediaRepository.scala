@@ -56,17 +56,20 @@ object EntryMediaRepository:
         .unique
 
     override def findTags(ids: List[EntryMediaId]) =
+      val EMT  = EntryMediaTagsTable `as` "emt"
+      val T    = TagsTable `as` "t"
+      val cols = Columns(EMT(_.entryMediaId), T(_.namespace), T(_.tagName))
       NonEmptyList
         .fromList(ids)
         .fold(Map.empty[EntryMediaId, List[Tag]].pure[ConnectionIO]): ids =>
           sql"""
-            SELECT emt.entry_media_id, t.namespace, t.name
-            FROM entry_media_tags emt
-            JOIN tags t ON t.id = emt.tag_id
-            WHERE ${Fragments.in(fr"emt.entry_media_id", ids)}
-            ORDER BY t.namespace, t.name
+            SELECT ${cols}
+            FROM ${EMT}
+            JOIN ${T} ON ${T(_.id)} = ${EMT(_.tagId)}
+            WHERE ${Fragments.in(fr"${EMT(_.entryMediaId)}", ids)}
+            ORDER BY ${T(_.namespace)}, ${T(_.tagName)}
           """
-            .query[(EntryMediaId, TagNamespace, TagName)]
+            .queryOf(cols)
             .to[List]
             .map(
               _.groupMap((id, _, _) => id)((_, namespace, name) =>
@@ -77,30 +80,49 @@ object EntryMediaRepository:
     override def setTags(id: EntryMediaId, tags: List[Tag]) =
       val distinct = tags.distinct
       for
-        _ <- Update[(TagNamespace, TagName)](
-          "INSERT OR IGNORE INTO tags (namespace, name) VALUES (?, ?)"
-        ).updateMany(distinct.map(t => (t.namespace, t.name)))
-        _ <-
-          sql"DELETE FROM entry_media_tags WHERE entry_media_id = $id".update.run
-        _ <- Update[(EntryMediaId, TagNamespace, TagName)](
-          """INSERT INTO entry_media_tags (entry_media_id, tag_id)
-             SELECT ?, id FROM tags WHERE namespace = ? AND name = ?"""
-        ).updateMany(distinct.map(t => (id, t.namespace, t.name)))
-        _ <-
-          sql"DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM entry_media_tags)".update.run
+        _ <- distinct.traverse_ : tag =>
+          sql"""
+            INSERT OR IGNORE INTO ${TagsTable}
+              (${TagsTable.namespace}, ${TagsTable.tagName})
+            VALUES (${tag.namespace}, ${tag.name})
+          """.update.run
+        _ <- sql"""
+          DELETE FROM ${EntryMediaTagsTable}
+          WHERE ${EntryMediaTagsTable.entryMediaId === id}
+        """.update.run
+        _ <- distinct.traverse_ : tag =>
+          sql"""
+            INSERT INTO ${EntryMediaTagsTable}
+              (${EntryMediaTagsTable.entryMediaId}, ${EntryMediaTagsTable.tagId})
+            SELECT $id, ${TagsTable.id}
+            FROM ${TagsTable}
+            WHERE ${TagsTable.namespace === tag.namespace}
+              AND ${TagsTable.tagName === tag.name}
+          """.update.run
+        _ <- sql"""
+          DELETE FROM ${TagsTable}
+          WHERE ${TagsTable.id} NOT IN (
+            SELECT ${EntryMediaTagsTable.tagId} FROM ${EntryMediaTagsTable}
+          )
+        """.update.run
       yield ()
 
     // instr instead of LIKE so that % and _ in the query are taken literally
     private def matching(query: SearchQuery) =
+      val EMT = EntryMediaTagsTable `as` "emt"
+      val T   = TagsTable `as` "t"
       val words = query.words.map: word =>
         fr"instr(lower(${EntryMediaTable.mediaName}), lower($word)) > 0"
       val tags = query.tags.map: tag =>
         fr"""EXISTS (
-          SELECT 1 FROM entry_media_tags emt
-          JOIN tags t ON t.id = emt.tag_id
-          WHERE emt.entry_media_id = ${EntryMediaTable}.${EntryMediaTable.id}
-            AND t.namespace = ${tag.namespace}
-            AND t.name = ${tag.name}
+          SELECT 1
+          FROM ${EMT}
+          JOIN ${T} ON ${T(_.id)} = ${EMT(_.tagId)}
+          WHERE ${EMT(
+            _.entryMediaId
+          )} = ${EntryMediaTable}.${EntryMediaTable.id}
+            AND ${T(_.namespace)} = ${tag.namespace}
+            AND ${T(_.tagName)} = ${tag.name}
         )"""
       NonEmptyList
         .fromList(words ++ tags)
@@ -180,3 +202,16 @@ private object EntryMediaTable extends TableDefinition("entry_media"):
       missingSince
     )
   )
+
+private object TagsTable extends TableDefinition("tags"):
+  val id        = Column[TagId]("id")
+  val namespace = Column[TagNamespace]("namespace")
+  val tagName   = Column[TagName]("name")
+
+  val * = Columns((id, namespace, tagName))
+
+private object EntryMediaTagsTable extends TableDefinition("entry_media_tags"):
+  val entryMediaId = Column[EntryMediaId]("entry_media_id")
+  val tagId        = Column[TagId]("tag_id")
+
+  val * = Columns((entryMediaId, tagId))
