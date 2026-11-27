@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS "schema_migrations" (version varchar(128) primary key);
+CREATE TABLE "schema_migrations" (version varchar(128) primary key);
 CREATE TABLE assets (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL UNIQUE
@@ -95,7 +95,7 @@ CREATE TABLE author_aliases (
   author_id INTEGER NOT NULL,
   FOREIGN KEY (author_id) REFERENCES authors (id) ON DELETE CASCADE
 );
-CREATE TABLE entry_media (
+CREATE TABLE "entry_media" (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   kind TEXT NOT NULL,
